@@ -615,24 +615,7 @@ G.Game = (() => {
       if (pl.dead) reviveTick(dt);
     }
     G.Camera.follow(pl.x, pl.y, dt);
-    G.World.update(dt, G.Camera);
-
-    const all = everyone();
-    if (!coop || G.Coop.isHost) { G.Path.update(dt, all); G.Spawner.update(dt, all, time); }
-    else G.Spawner.tickBanner(dt);
-    G.EnemyMgr.update(dt, all);
-    G.EnemyMgr.rebuildGrid();
-    G.Combat.tick(dt, pl, time);
-    G.Projectiles.update(dt, pl, G.EnemyMgr.all());
-    G.Combat.resolve(dt, pl, time);
-    G.Combat.updateFields(dt);
-    G.Pickups.update(dt, all, onCollect);
-    G.Hazards.update(dt);
-    G.Interact.update(dt, pl);
-    G.Rift.update(dt, pl, time);
-    G.Judgment.update(dt, pl, time);
-    G.Events.update(dt, all, time);
-    G.Weather.update(dt, time, pl);
+    G.Step.world(dt, time, everyone(), pl, !coop || G.Coop.isHost, onCollect);
     G.FX.update(dt);
 
     G.Audio.music(G.Judgment.active ? G.Judgment.music : G.Rift.inArena ? 'rift' : G.EnemyMgr.bossAlive() ? 'boss' : G.BIOME_MUSIC[biome % G.BIOME_MUSIC.length]);
