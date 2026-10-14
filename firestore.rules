@@ -332,7 +332,7 @@ service cloud.firestore {
         && request.resource.data.t10 is int
         && request.resource.data.at == request.time
         && ((request.resource.data.coins == 100000 && request.resource.data.t10 == 0)
-            || (request.resource.data.t10 == 1000 && request.resource.data.coins == 0));
+            || (request.resource.data.t10 == 100 && request.resource.data.coins == 0));
 
       allow update: if admin()
         && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
@@ -341,7 +341,7 @@ service cloud.firestore {
         && request.resource.data.at == request.time
         && ((request.resource.data.coins == resource.data.coins + 100000
               && request.resource.data.t10 == resource.data.t10)
-            || (request.resource.data.t10 == resource.data.t10 + 1000
+            || (request.resource.data.t10 == resource.data.t10 + 100
               && request.resource.data.coins == resource.data.coins));
 
       allow delete: if false;

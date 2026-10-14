@@ -27,7 +27,8 @@ test('solo el moderador lo ve y puede abrirlo', () => {
   assert.match(game, /G\.DebugUI\.init\(\)/);
   assert.match(view, /if \(!G\.Ranking\.isAdmin\(\)\) return/);
   assert.match(view, /100000/);
-  assert.match(view, /1000/);
+  assert.match(view, /field === 't10' \? 100 : 0/);
+  assert.match(view, /100 tickets ×10/);
   assert.match(view, /collection\('grants'\)/);
   assert.match(view, /No hay ningún jugador con ese apodo/);
 });

@@ -16,9 +16,9 @@ test('la libreta no cae en un bloque generado', () => {
 
 test('solo saltos fijos, y el uid viaja como argumento', () => {
   assert.match(src, /coins == 100000 && request\.resource\.data\.t10 == 0/);
-  assert.match(src, /t10 == 1000 && request\.resource\.data\.coins == 0/);
+  assert.match(src, /t10 == 100 && request\.resource\.data\.coins == 0/);
   assert.match(src, /coins == resource\.data\.coins \+ 100000/);
-  assert.match(src, /t10 == resource\.data\.t10 \+ 1000/);
+  assert.match(src, /t10 == resource\.data\.t10 \+ 100(?!\d)/);
   assert.match(src, /function grantVal\(userId, k\)/);
   assert.match(src, /function possibleSave\(o, n, secs, userId\)/);
   assert.match(src, /function freshSave\(s, userId\)/);

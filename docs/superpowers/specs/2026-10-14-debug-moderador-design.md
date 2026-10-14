@@ -8,7 +8,7 @@ Una pantalla **Debug**, visible solo para los moderadores de `G.Config.admins`, 
 acciones:
 
 - **Dar monedas:** buscar un jugador por apodo y anotar **+100.000** monedas.
-- **Dar tickets:** buscar un jugador por apodo y anotar **+1.000** tickets ×10 (los morados).
+- **Dar tickets:** buscar un jugador por apodo y anotar **+100** tickets ×10 (los morados).
 
 El botón está en el **menú principal**, debajo de Ajustes. Quien no es moderador no lo ve.
 Abrir la pantalla sin serlo no hace nada. Quien no es moderador no puede escribir el regalo:
@@ -44,7 +44,7 @@ que regresa al menú.
 - Campo de apodo y botón **Buscar**.
 - Ficha del jugador elegido: apodo, monedas, tickets ×10 y lo pendiente de la libreta.
   El apodo va con `translate="no"`.
-- **Dar 100.000 monedas** y **Dar 1.000 tickets ×10**. Desactivados hasta que hay un jugador.
+- **Dar 100.000 monedas** y **Dar 100 tickets ×10**. Desactivados hasta que hay un jugador.
   Cada uno pide `confirm` con el apodo. Mientras la escritura va en curso, los dos botones
   se desactivan.
 
@@ -81,7 +81,7 @@ Un documento por jugador, `grants/{uid}`:
 No se borra. Cada acción suma **una** cantidad fija y deja la otra igual:
 
 - Monedas: `coins` pasa a `anterior + 100000` (0 si el documento no existe) y `t10` no cambia.
-- Tickets: `t10` pasa a `anterior + 1000` y `coins` no cambia.
+- Tickets: `t10` pasa a `anterior + 100` y `coins` no cambia.
 
 La partida guarda lo ya sumado, dentro de `save`:
 
@@ -135,13 +135,13 @@ Lectura: el moderador, o el dueño (`me() == uid`). Nadie más.
 Escritura: solo `admin()`, y solo con esta forma.
 
 - Claves exactas: `coins`, `t10`, `at`. Las dos cantidades son `int` ≥ 0. `at == request.time`.
-- Crear: o bien `coins == 100000` y `t10 == 0`, o bien `coins == 0` y `t10 == 1000`.
+- Crear: o bien `coins == 100000` y `t10 == 0`, o bien `coins == 0` y `t10 == 100`.
 - Actualizar: o bien `coins == resource.data.coins + 100000` y `t10` igual, o bien
-  `t10 == resource.data.t10 + 1000` y `coins` igual.
+  `t10 == resource.data.t10 + 100` y `coins` igual.
 - Borrar: no.
 
 En `saves/{uid}`, el presupuesto descuenta el regalo **solo de la misma cosa** que aumenta.
-Si no, 1.000 tickets ×10 valdrían 10.000 tiradas libres para Pokémon o monedas.
+Si no, 100 tickets ×10 valdrían 1.000 tiradas libres para Pokémon o monedas.
 
 El lenguaje de reglas no tiene `min` ni `max`: se usan los auxiliares `mx` (ya existe) y
 `mn(a, b) = a < b ? a : b`. `possibleSave` lee la libreta **una vez por campo** y pasa los
@@ -211,12 +211,12 @@ redespliega el sitio hasta que el dueño lo pida.
 - Un apodo real muestra monedas, tickets ×10 y pendiente.
 - La primera moneda crea `grants/{uid}` con `coins == 100000` y `t10 == 0`. La segunda deja
   `coins == 200000`.
-- Un ticket deja `t10 == 1000` y no toca `coins`.
+- Un ticket deja `t10 == 100` y no toca `coins`.
 - Al sincronizar, `coins` y `tickets.t10` suben exactamente el delta, y `granted*` queda igual
   que la libreta. Una segunda sincronización no suma otra vez.
 - Una copia local más nueva, con monedas ya gastadas y `granted*` por detrás, conserva el gasto
   y suma solo lo pendiente.
 - Un guardado normal, sin regalo nuevo, sigue cabiendo en `budget()`.
-- Subir +100.000 monedas o +1.000 tickets ×10 sin avanzar `granted*` lo rechaza la regla.
+- Subir +100.000 monedas o +100 tickets ×10 sin avanzar `granted*` lo rechaza la regla.
 - Avanzar `granted*` por encima de la libreta lo rechaza la regla.
 - Un no-moderador no puede crear ni actualizar `grants/{uid}`.

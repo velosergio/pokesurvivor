@@ -81,7 +81,7 @@ G.DebugUI = (() => {
 
   async function give(field) {
     if (!G.Ranking.isAdmin() || !picked) return;
-    const label = field === 'coins' ? '100.000 monedas' : '1.000 tickets ×10';
+    const label = field === 'coins' ? '100.000 monedas' : '100 tickets ×10';
     if (!confirm('¿Dar ' + label + ' a ' + picked.name + '?')) return;
     const uid = picked.uid, name = picked.name;
     $('dbg-coins').disabled = true;
@@ -93,7 +93,7 @@ G.DebugUI = (() => {
         const d = snap.exists ? snap.data() : { coins: 0, t10: 0 };
         tx.set(ref, {
           coins: (d.coins || 0) + (field === 'coins' ? 100000 : 0),
-          t10: (d.t10 || 0) + (field === 't10' ? 1000 : 0),
+          t10: (d.t10 || 0) + (field === 't10' ? 100 : 0),
           at: firebase.firestore.FieldValue.serverTimestamp()
         });
       });
