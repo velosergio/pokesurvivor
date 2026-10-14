@@ -25,16 +25,23 @@ G.Events = (() => {
 
   let nextT = 0, cur = null, last = null, thiefT = 0, thieves = 0;
   let lost = null;      // { dex, name, x, y, hp, maxHp, state, follow, tx, ty, t, anim, r, hitCd, netT, grant }
+  let crew = null;      // (servidor) el equipo, si update(…, team): el premio es para todos
 
   function reset() {
     nextT = G.U.rand(EVERY[0], EVERY[1]);
-    cur = null; last = null; lost = null;
+    cur = null; last = null; lost = null; crew = null;
     thiefT = G.U.rand(THIEF_FIRST[0], THIEF_FIRST[1]); thieves = 0;
   }
 
   // ---------------- ciclo ----------------
 
-  function update(dt, players, time) {
+  /**
+   * @param team  (servidor) true si `players` son todos los jugadores de esta
+   *              simulación: el premio del rescate (curar) es entonces para
+   *              todos los vivos, no sólo para G.Game.player.
+   */
+  function update(dt, players, time, team) {
+    crew = team ? players : null;
     if (cur) {
       cur.t += dt;
       if (cur.id !== 'lost' && cur.t >= cur.dur && authority()) end();
@@ -213,8 +220,9 @@ G.Events = (() => {
 
   /** En cada ordenador: cura, y si toca, el Pokémon se une a tu colección. */
   function reward(dex, grant) {
-    const pl = G.Game.player;
-    if (pl && !pl.dead) { pl.heal(pl.maxHp * 0.5); G.FX.ring(pl.x, pl.y, 6, 70, '#5fe08a', 0.5, 3); }
+    const who = crew || [G.Game.player];
+    const pl = who[0];
+    for (const q of who) if (q && !q.dead) { q.heal(q.maxHp * 0.5); G.FX.ring(q.x, q.y, 6, 70, '#5fe08a', 0.5, 3); }
     const name = (G.DEX_BY[dex] || {}).name || '';
     G.FX.burst(lost ? lost.tx : pl.x, lost ? lost.ty - 10 : pl.y, '#7dffb0', 24, 180);
     G.Audio.sfx('legend');

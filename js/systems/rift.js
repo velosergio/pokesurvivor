@@ -27,19 +27,27 @@ G.Rift = (() => {
   let rift = null;          // { x, y, ttl, t }
   let arena = null;         // { tx, ty, r, dex, shiny, x, y, back, biome, t, phase, endT, bossId }
   let checkT = CHECK, asked = false, downT = 0, misses = 0;
+  let crew = null;          // (servidor) el equipo del último update(…, team): premio y vuelta para todos
   const authority = () => !G.Coop.active || G.Coop.isHost;
   const TS = () => G.Tiles.T * G.Sprites.PX;
 
-  function reset() { rift = null; arena = null; checkT = CHECK; asked = false; downT = 0; misses = 0; }
+  function reset() { rift = null; arena = null; checkT = CHECK; asked = false; downT = 0; misses = 0; crew = null; }
 
   // ---------------- grieta en el mapa ----------------
 
-  function update(dt, pl, time) {
+  /**
+   * @param pl    tu Pokémon (en el juego, sólo tú puedes meterte en la grieta)
+   * @param team  (servidor) todos los jugadores: la grieta es de todos, así que
+   *              basta con que entre uno vivo cualquiera para que vaya el grupo.
+   *              Lo demás (abrirla, la arena) es global y no depende de nadie.
+   */
+  function update(dt, pl, time, team) {
+    crew = team || null;
     if (rift) {
       rift.t += dt;
       rift.ttl -= dt;
       if (rift.ttl <= 0) { rift = null; return; }
-      if (!arena && !pl.dead && G.U.dist2(pl.x, pl.y, rift.x, rift.y - 10) < 30 * 30) enter();
+      if (!arena && (team || [pl]).some(q => !q.dead && G.U.dist2(q.x, q.y, rift.x, rift.y - 10) < 30 * 30)) enter();
     } else if (!arena && authority() && time > FROM && time < G.Judgment.AT - 120) {
       checkT -= dt;
       if (checkT <= 0) {
@@ -194,8 +202,9 @@ G.Rift = (() => {
     G.Pickups.pullAll();
     G.Spawner.say('¡Has vencido a ' + G.DEX_BY[arena.dex].name + '! Recoge el premio…', 3.4, true);
     G.Audio.sfx('legend');
-    const pl = G.Game.player;
-    if (pl) {
+    // Cada uno se lleva su vínculo (en el juego, tú; en el servidor, todos).
+    for (const pl of crew || [G.Game.player]) {
+      if (!pl) continue;
       pl.bonds++;
       G.FX.dmgText(pl.x, pl.y - pl.bodyH - 10, '¡Vínculo!', '#ff8ad8', true);
       G.FX.ring(pl.x, pl.y, 8, 90, '#ff8ad8', 0.7, 5);
@@ -227,6 +236,7 @@ G.Rift = (() => {
     for (const p of G.Game.everyone()) { p.x = a.back.x; p.y = a.back.y; }
     pl.x = a.back.x; pl.y = a.back.y;
     if (pl.dead) pl.revive(0.3);
+    if (crew) for (const p of crew) if (p.dead) p.revive(0.3);
     G.Camera.x = pl.x; G.Camera.y = pl.y;
     G.Game.flash('#c9a6ff', 0.8);
     if (pl.bonds > 0) G.Game.offerBond();

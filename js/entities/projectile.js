@@ -39,7 +39,13 @@ G.Projectiles = (() => {
   /** Borra los orbes de un jugador (o todos) al cambiar de movimiento activo. */
   function clearOrbs(owner) { list = list.filter(p => !p.orb || (owner && p.owner !== owner)); }
 
-  function update(dt, player, enemies) {
+  /**
+   * @param player  dueño por defecto (orbes y bumeranes sin `owner`)
+   * @param team    (servidor) todos los jugadores: un disparo sólo se descarta
+   *                cuando sale de la vista de la cámara Y de la de cada uno de
+   *                ellos (en el servidor la cámara no sigue a nadie en concreto).
+   */
+  function update(dt, player, enemies, team) {
     for (let i = list.length - 1; i >= 0; i--) {
       const p = list[i];
       p.t += dt;
@@ -88,8 +94,16 @@ G.Projectiles = (() => {
       p.y += p.vy * dt;
 
       // Fuera de la vista con margen generoso -> se descarta.
-      if (!G.Camera.sees(p.x, p.y, 260)) { list.splice(i, 1); continue; }
+      if (!(team ? seenByTeam(team, p.x, p.y, 260) : G.Camera.sees(p.x, p.y, 260))) { list.splice(i, 1); continue; }
     }
+  }
+
+  /** ¿Está el punto en la vista (del tamaño de la cámara) de algún jugador, o en la de la cámara? */
+  function seenByTeam(team, x, y, pad) {
+    if (G.Camera.sees(x, y, pad)) return true;
+    const hw = G.Camera.w / 2 + pad, hh = G.Camera.h / 2 + pad;
+    for (const q of team) if (Math.abs(x - q.x) < hw && Math.abs(y - q.y) < hh) return true;
+    return false;
   }
 
   function nearest(enemies, x, y, maxDist) {

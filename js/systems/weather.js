@@ -89,7 +89,12 @@ G.Weather = (() => {
     return 'rain';
   }
 
-  function update(dt, time, pl) {
+  /**
+   * @param pl    tu Pokémon (el que sufre la arena o la nieve en este ordenador)
+   * @param team  (servidor) todos los jugadores: el clima es uno para todos (se
+   *              decide una vez) y la arena o la nieve hieren a cada uno.
+   */
+  function update(dt, time, pl, team) {
     if (cur) {
       cur.t += dt;
       if (cur.t >= cur.dur) cur = null;
@@ -108,11 +113,12 @@ G.Weather = (() => {
     chipT -= dt;
     if (chipT <= 0) {
       chipT = 2;
-      if (pl && !pl.dead && hurts(pl.mon.types) && level() > 0.5) {
-        const d = Math.max(1, pl.maxHp * 0.012);
-        if (pl.hp > d + 1) {
-          pl.hp -= d;
-          G.FX.dmgText(pl.x, pl.y - pl.bodyH - 4, '-' + Math.round(d), def().color);
+      for (const q of team || [pl]) {
+        if (!q || q.dead || !hurts(q.mon.types) || level() <= 0.5) continue;
+        const d = Math.max(1, q.maxHp * 0.012);
+        if (q.hp > d + 1) {
+          q.hp -= d;
+          G.FX.dmgText(q.x, q.y - q.bodyH - 4, '-' + Math.round(d), def().color);
         }
       }
       if (authority() && cur && def().safe && level() > 0.5) {

@@ -206,7 +206,14 @@ G.Judgment = (() => {
   let cam = null;
 
   /** En la pelea (lo llama game.js en cada fotograma de juego). */
-  function update(dt, pl, time) {
+  /**
+   * @param pl    tu Pokémon (en el juego, cada ordenador mira si Arceus toca al suyo)
+   * @param team  (servidor) todos los jugadores: el toque de Arceus se mira para
+   *              cada uno (su recarga touchCd es de Arceus: uno por toque). El resto
+   *              (empezar, la pelea, los jefes) es global; Arceus ya persigue al
+   *              más cercano de G.Game.everyone().
+   */
+  function update(dt, pl, time, team) {
     if (!phase) {
       sampleDps(dt);                        // (para la vida del primer legendario)
       if (authority() && time >= AT && !G.Rift.inArena) start();
@@ -222,7 +229,8 @@ G.Judgment = (() => {
       if (bossT <= 0) { bossT = BOSS_EVERY; spawnBoss(); }
     } else netTick(dt);
     A.anim.update(dt);
-    touch(pl);
+    if (team) for (const q of team) touch(q);
+    else touch(pl);
   }
 
   // ---------------- Arceus ----------------

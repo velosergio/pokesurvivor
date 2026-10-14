@@ -25,35 +25,66 @@ G.Interact = (() => {
   const TRAP_R = 74;
   const authority = () => !G.Coop.active || G.Coop.isHost;
   let healShown = 0, healAcc = 0;
+  /** (servidor) El equipo del último update(…, team); null en el juego. Lo usa trapEffect. */
+  let crew = null;
 
-  function update(dt, pl) {
-    if (!pl) return;
-    for (const p of G.World.specialsNear(pl.x, pl.y, 720)) {
-      const d2 = G.U.dist2(pl.x, pl.y, p.x, p.type === 'spring' || p.type === 'trap' ? p.y - 8 : p.y);
-      switch (p.type) {
-        case 'spring': spring(dt, pl, p, d2); break;
-        case 'altar':
-          // Contando el tamaño de tu Pokémon: uno grande (Reshiram, Zekrom...) choca
-          // con el altar antes de llegar a 30 y no lo podía activar.
-          if (!p.used && !pl.dead && d2 < Math.max(30, p.r + pl.r + 14) ** 2) usePower(pl, p);
-          break;
-        case 'bigchest':
-          if (!pl.dead && d2 < Math.max(46, p.r + pl.r + 24) ** 2) {
-            if (p.open === 0) G.Audio.sfx('select');
-            p.open += dt;
-            if (p.open >= CHEST_TIME) { p.open = 0; G.World.breakProp(p); }
-          } else if (p.open > 0) p.open = Math.max(0, p.open - dt * 1.5);
-          break;
-        case 'trap':
-          if (!pl.dead && d2 < 13 * 13) G.World.breakProp(p);
-          else if (authority() && G.EnemyMgr.queryCircle(p.x, p.y - 8, 3).some(e => !e.flying && !e.remote)) G.World.breakProp(p);
-          break;
+  /**
+   * @param pl    tu Pokémon: en el juego todo se mira alrededor de él
+   * @param team  (servidor) todos los jugadores. Cada objeto se mira UNA vez por
+   *              paso (aunque esté cerca de varios) y con todos a la vez:
+   *              altar      el primero vivo que llega se lleva el poder (es suyo)
+   *              manantial  se recarga una vez y cura a cada uno que esté encima
+   *              cofre      se abre mientras haya alguien vivo al lado (no va más
+   *                         rápido con más gente; se cierra si no queda nadie)
+   *              trampa     salta si la pisa cualquiera, y daña a todos los de dentro
+   */
+  function update(dt, pl, team) {
+    setTeam(team);
+    const who = team || (pl ? [pl] : []);
+    const seen = team ? new Set() : null;
+    for (const q of who) {
+      for (const p of G.World.specialsNear(q.x, q.y, 720)) {
+        if (seen) { if (seen.has(p)) continue; seen.add(p); }
+        special(dt, who, p);
       }
     }
   }
 
+  /** (servidor) Equipo para trapEffect; G.Step.team lo pone al empezar el paso (una
+   *  trampa puede romperla un ataque antes de llegar a update). null = el juego. */
+  function setTeam(team) { crew = team || null; }
+
+  function special(dt, who, p) {
+    const py = p.type === 'spring' || p.type === 'trap' ? p.y - 8 : p.y;
+    const d2 = q => G.U.dist2(q.x, q.y, p.x, py);
+    switch (p.type) {
+      case 'spring':
+        if (p.charge < 1) p.charge = Math.min(1, p.charge + dt / 45);
+        for (const q of who) spring(dt, q, p, d2(q));
+        break;
+      case 'altar':
+        // Contando el tamaño de tu Pokémon: uno grande (Reshiram, Zekrom...) choca
+        // con el altar antes de llegar a 30 y no lo podía activar.
+        for (const q of who) {
+          if (!p.used && !q.dead && d2(q) < Math.max(30, p.r + q.r + 14) ** 2) { usePower(q, p); break; }
+        }
+        break;
+      case 'bigchest':
+        if (who.some(q => !q.dead && d2(q) < Math.max(46, p.r + q.r + 24) ** 2)) {
+          if (p.open === 0) G.Audio.sfx('select');
+          p.open += dt;
+          if (p.open >= CHEST_TIME) { p.open = 0; G.World.breakProp(p); }
+        } else if (p.open > 0) p.open = Math.max(0, p.open - dt * 1.5);
+        break;
+      case 'trap':
+        if (who.some(q => !q.dead && d2(q) < 13 * 13)) G.World.breakProp(p);
+        else if (authority() && G.EnemyMgr.queryCircle(p.x, p.y - 8, 3).some(e => !e.flying && !e.remote)) G.World.breakProp(p);
+        break;
+    }
+  }
+
+  /** Cura a `pl` si está encima del manantial `p` (la recarga va aparte, en special). */
   function spring(dt, pl, p, d2) {
-    if (p.charge < 1) p.charge = Math.min(1, p.charge + dt / 45);
     if (pl.dead || d2 > 26 * 26 || p.charge <= 0.02 || pl.hp >= pl.maxHp) return;
     const before = pl.hp;
     pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * 0.14 * dt);
@@ -98,7 +129,8 @@ G.Interact = (() => {
     G.Audio.sfx(k === 2 ? 'boss' : 'surge');
     if (k === 2 && G.U.dist2(x, y, G.Camera.x, G.Camera.y) < 500 * 500) G.Camera.kick(0.7);
 
-    const pl = G.Game.player;
+    // El nivel que manda en el daño: el tuyo; en el servidor, el del ancla (primer vivo).
+    const pl = crew ? crew.find(q => !q.dead) || crew[0] : G.Game.player;
     const lvl = pl ? pl.level : 1;
     if (authority()) {
       for (const e of G.EnemyMgr.queryCircle(x, y, TRAP_R)) {
@@ -108,13 +140,15 @@ G.Interact = (() => {
         else e.hurt(90 + lvl * 18, '#ff7b3d', e.x - x, e.y - y, 220);
       }
     }
-    if (pl && !pl.dead && G.U.dist2(x, y, pl.x, pl.y) < (TRAP_R * 0.7) ** 2) {
-      pl.invuln = 0;
-      if (k === 0) pl.hurt(pl.maxHp * 0.1);
-      else if (k === 1) { pl.slowT = 3.5; G.FX.dmgText(pl.x, pl.y - pl.bodyH - 6, '¡Pegajoso!', '#8bd94a'); }
-      else pl.hurt(pl.maxHp * 0.2);
+    // En el juego, a ti; en el servidor, a todos los del equipo que estén dentro.
+    for (const q of crew || [pl]) {
+      if (!q || q.dead || G.U.dist2(x, y, q.x, q.y) >= (TRAP_R * 0.7) ** 2) continue;
+      q.invuln = 0;
+      if (k === 0) q.hurt(q.maxHp * 0.1);
+      else if (k === 1) { q.slowT = 3.5; G.FX.dmgText(q.x, q.y - q.bodyH - 6, '¡Pegajoso!', '#8bd94a'); }
+      else q.hurt(q.maxHp * 0.2);
     }
   }
 
-  return { update, trapEffect, POWERS, CHEST_TIME };
+  return { update, setTeam, trapEffect, POWERS, CHEST_TIME };
 })();
