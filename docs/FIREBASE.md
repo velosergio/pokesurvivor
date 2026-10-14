@@ -39,7 +39,7 @@ navegador.
    **Bélgica (europe-west1)** → modo bloqueado.
 2. Pestaña **Reglas**: pega el contenido de [`database.rules.json`](../database.rules.json).
 3. Copia la URL que sale arriba (`https://...firebasedatabase.app`) y añádela a
-   `firebase-config.js` como `databaseURL: '...'`.
+   `js/config.js` (campo `firebase`) como `databaseURL: '...'`.
 
 Más rápido, con la herramienta de Firebase (sube las reglas de las dos bases
 de datos y los índices del ranking de una vez):
@@ -54,18 +54,18 @@ npx firebase-tools deploy --only firestore,database --project TU-PROYECTO
 2. Abajo, en **Tus apps**, pulsa el icono web **`</>`**.
 3. Ponle un apodo (p. ej. `web`). **No** marques Firebase Hosting. → Registrar app.
 4. Te enseña un bloque `const firebaseConfig = { ... }`. Copia lo que hay entre las llaves.
-5. Abre [`js/core/firebase-config.js`](../js/core/firebase-config.js) y sustituye
-   `G.FIREBASE_CONFIG = null;` por:
+5. Abre [`js/config.js`](../js/config.js) y sustituye
+   `firebase: null` por:
 
    ```js
-   G.FIREBASE_CONFIG = {
+   firebase: {
      apiKey: '...',
      authDomain: '...firebaseapp.com',
      projectId: '...',
      storageBucket: '...',
      messagingSenderId: '...',
      appId: '...'
-   };
+   }
    ```
 
    Estos datos **no son secretos**: Firebase los diseña para ir dentro de la web.
@@ -75,7 +75,7 @@ npx firebase-tools deploy --only firestore,database --project TU-PROYECTO
 
 **Authentication → Configuración → Dominios autorizados → Agregar dominio**:
 
-- `jpter78.github.io` (si lo publicas en GitHub Pages)
+- `poke.sergioveloza.com` (la web publicada en Easypanel)
 - `localhost`, para probar en tu ordenador (en proyectos nuevos ya no viene puesto).
 
 Sin esto, "Entrar con Google" da el error *dominio no autorizado*.
@@ -145,5 +145,5 @@ Para probar sin tocar el proyecto real (necesita Java 21):
 npx firebase-tools emulators:start --project demo-ps --only auth,firestore,database
 ```
 
-y en `firebase-config.js` usa
+y en `js/config.js` pon en `firebase`
 `{ apiKey: 'demo', projectId: 'demo-ps', authDomain: 'demo-ps.firebaseapp.com', appId: 'demo', databaseURL: 'http://127.0.0.1:9000?ns=demo-ps-default-rtdb', emulator: true }`.
