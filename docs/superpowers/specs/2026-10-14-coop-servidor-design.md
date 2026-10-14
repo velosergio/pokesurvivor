@@ -1,6 +1,13 @@
 # Copia propia + cooperativo en servidor — diseño
 
-Fecha: 14-10-2026 · Estado: pasos 1 y 2 hechos (Plan 1 y Plan 2); pasos 3-5 pendientes.
+Fecha: 14-10-2026 · Estado: pasos 1, 2 y 3 hechos (Plan 1, Plan 2 y servidor en `server/` con bots);
+pasos 4-5 pendientes.
+
+**Medido en el paso 3 (local, Windows, bots que sólo dan vueltas):** snap medio ~450 B (máx. ~1,3 KB),
+3,5-4,5 KB/s por jugador (~12-16 MB por jugador y hora), ~21 MB de RAM por sala, y CPU de 7-14 % de
+un núcleo por sala de 4: más que lo estimado en §5. El cuello es `G.Path.build`
+(`G.World.walkable` recalcula ruido de terreno y objetos sin caché) y crear una sala bloquea
+~0,3-0,5 s (`createSim` recompila `js/` cada vez). Arreglar ambos antes de la prueba de carga del paso 5.
 
 ## 1. Objetivo
 
