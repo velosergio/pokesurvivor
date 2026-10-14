@@ -40,6 +40,17 @@ function rng(seed) {
   };
 }
 
+/**
+ * Los scripts ya compilados (vm.Script), una sola vez por proceso: leer y
+ * compilar js/ en cada sala bloqueaba el servidor. Un vm.Script se puede
+ * ejecutar en contextos distintos, y cada sala sigue teniendo su propio G.
+ */
+let compiled = null;
+function compiledScripts() {
+  if (!compiled) compiled = scripts().map(f => new vm.Script(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f }));
+  return compiled;
+}
+
 const noop = () => {};
 /** Un temporizador de la lógica no se dispararía nunca aquí: mejor que falle. */
 const sinTimer = nombre => () => { throw new Error(nombre + ' en la simulación: la lógica no puede usar temporizadores'); };
@@ -53,17 +64,23 @@ const mute = (own = {}) => new Proxy(own, { get: (o, k) => (k in o ? o[k] : noop
  */
 function createSim({ seed = 1 } = {}) {
   const clock = { t: 0 };
-  const sb = {
+  // Con DONT_CONTEXTIFY (Node 22.8+) el global del contexto es uno normal de
+  // V8: leer G, Math... cuesta lo mismo que fuera. Con un objeto
+  // "contextificado" cada lectura de una global pasa por Node (~150 ns) y la
+  // simulación entera iba varias veces más lenta.
+  const sb = vm.constants && vm.constants.DONT_CONTEXTIFY
+    ? vm.runInContext('globalThis', vm.createContext(vm.constants.DONT_CONTEXTIFY))
+    : vm.createContext({});
+  Object.assign(sb, {
     console,
     performance: { now: () => clock.t * 1000 },
     localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
     setTimeout: sinTimer('setTimeout'), clearTimeout: noop, setInterval: sinTimer('setInterval'), clearInterval: noop,
     __rng: rng(seed)
-  };
+  });
   sb.window = sb;
-  vm.createContext(sb);
   vm.runInContext('Math.random = __rng; delete window.__rng;', sb);
-  for (const f of scripts()) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sb, { filename: f });
+  for (const s of compiledScripts()) s.runInContext(sb);
 
   const G = sb.G;
   for (const k of ['Audio', 'FX', 'Touch', 'UI', 'HUD', 'RunUI', 'Social', 'Ranking', 'Progress', 'Icons']) G[k] = mute();
@@ -77,4 +94,4 @@ function createSim({ seed = 1 } = {}) {
   return { G, clock };
 }
 
-module.exports = { createSim, scripts, rng };
+module.exports = { createSim, scripts, rng, warm: compiledScripts };

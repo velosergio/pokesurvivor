@@ -9,6 +9,15 @@ un núcleo por sala de 4: más que lo estimado en §5. El cuello es `G.Path.buil
 (`G.World.walkable` recalcula ruido de terreno y objetos sin caché) y crear una sala bloquea
 ~0,3-0,5 s (`createSim` recompila `js/` cada vez). Arreglar ambos antes de la prueba de carga del paso 5.
 
+**Arreglado (14-10-2026):** la causa principal era el contexto `vm`: con un global "contextificado"
+cada lectura de `G`, `Math`... costaba ~150 ns. `server/sim.js` usa ahora
+`vm.constants.DONT_CONTEXTIFY` (Node 22.8+; el `Dockerfile` pasa a `node:24-alpine`) y compila
+`js/` una vez por proceso (al arrancar, `warm()`). En `js/world/world.js`, último chunk recordado,
+`propAt` con clave numérica y `placeProps` sin recalcular el ruido de las vecinas (mismo mundo,
+comprobado con una huella). Medido con 4 bots: tick de ~3,9 ms → ~0,5 ms (unas 8 veces menos
+CPU), `walkable` de ~700 ns → ~50 ns, crear sala ~150 ms → ~45 ms. Falta repetir la medida con
+bots por WebSocket en la prueba de carga.
+
 ## 1. Objetivo
 
 Montar una **copia propia y aparte** de PokéSurvivor en `https://poke.sergioveloza.com`, con

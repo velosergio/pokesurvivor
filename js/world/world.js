@@ -97,6 +97,7 @@ G.World = (() => {
     let c = data.get(k);
     if (c) return c;
 
+    // propAt: objetos sólidos por casilla, con la casilla dentro del chunk (j*N+i) como clave.
     c = { cx, cy, terr: new Uint8Array(N * N),
           props: [], propAt: new Map(), liquids: [] };
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -105,21 +106,55 @@ G.World = (() => {
       c.terr[j * N + i] = t;
       if (t === LIQUID) c.liquids.push(tx, ty);
     }
-    if (data.size > MAX_DATA) data.delete(data.keys().next().value);
+    if (data.size > MAX_DATA) forget(data.keys().next().value);
     data.set(k, c);
     placeProps(c);
     return c;
   }
 
-  function terrainAt(tx, ty) {
+  /*
+   * Último chunk consultado: los que recorren casillas seguidas (pathing.js,
+   * 57×57 por jugador cada 0,35 s; los choques) caen casi siempre en el mismo,
+   * y así no montan la clave "cx,cy" ni buscan en el Map en cada casilla.
+   * Se olvida cada vez que un chunk sale de `data` (forget / reset).
+   */
+  let last = null;
+  function forget(k) {
+    data.delete(k);
+    last = null;
+  }
+
+  function chunkAt(tx, ty) {
     const cx = Math.floor(tx / N), cy = Math.floor(ty / N);
-    const c = data.get(cx + ',' + cy) || chunkData(cx, cy);
-    return c.terr[(ty - cy * N) * N + (tx - cx * N)];
+    if (last && last.cx === cx && last.cy === cy) return last;
+    return (last = data.get(cx + ',' + cy) || chunkData(cx, cy));
+  }
+
+  function terrainAt(tx, ty) {
+    const c = chunkAt(tx, ty);
+    return c.terr[(ty - c.cy * N) * N + (tx - c.cx * N)];
   }
 
   const arena_outer = () => (arena ? arena.r + 7 : 0);
 
+  /*
+   * Terreno del chunk con un borde de una casilla, (N+2)×(N+2): el de dentro
+   * ya está en c.terr y sólo se calcula el borde. (placeProps mira las 8
+   * vecinas de cada casilla; antes recalculaba el ruido de las 9 cada vez.)
+   */
+  const M = N + 2;
+  const around = new Uint8Array(M * M);
+  function fillAround(c) {
+    const x0 = c.cx * N - 1, y0 = c.cy * N - 1;
+    for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+      around[j * M + i] = (i > 0 && j > 0 && i <= N && j <= N)
+        ? c.terr[(j - 1) * N + (i - 1)]
+        : terrainRaw(x0 + i, y0 + j);
+    }
+  }
+
   function placeProps(c) {
+    fillAround(c);
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       if (c.terr[j * N + i] !== FLOOR) continue;
       const tx = c.cx * N + i, ty = c.cy * N + j;
@@ -128,8 +163,8 @@ G.World = (() => {
 
       // Necesita suelo alrededor para no pegarse a paredes / agua.
       let open = true;
-      for (let b = -1; b <= 1 && open; b++) for (let a = -1; a <= 1; a++)
-        if (terrainRaw(tx + a, ty + b) !== FLOOR) { open = false; break; }
+      for (let b = 0; b <= 2 && open; b++) for (let a = 0; a <= 2; a++)
+        if (around[(j + b) * M + (i + a)] !== FLOOR) { open = false; break; }
 
       // Dentro de la arena: la decoración de su tipo (y nada en el pasillo).
       const ad = arenaDist(tx, ty);
@@ -140,7 +175,7 @@ G.World = (() => {
         if (open && hh < (pr.tree || 0)) at = 'tree';
         else if (open && hh < (pr.tree || 0) + (pr.rock || 0)) at = 'rock';
         else if (hh > 1 - (pr.grass || 0)) at = 'grass';
-        if (at) { const p = makeProp(at, tx, ty); c.props.push(p); if (p.solid) c.propAt.set(tx + ',' + ty, p); }
+        if (at) { const p = makeProp(at, tx, ty); c.props.push(p); if (p.solid) c.propAt.set(j * N + i, p); }
         continue;
       }
 
@@ -162,7 +197,7 @@ G.World = (() => {
 
       const p = makeProp(type, tx, ty, kind);
       c.props.push(p);
-      if (p.solid) c.propAt.set(tx + ',' + ty, p);
+      if (p.solid) c.propAt.set(j * N + i, p);
     }
   }
 
@@ -219,9 +254,8 @@ G.World = (() => {
   }
 
   function propAtTile(tx, ty) {
-    const cx = Math.floor(tx / N), cy = Math.floor(ty / N);
-    const c = data.get(cx + ',' + cy) || chunkData(cx, cy);
-    return c.propAt.get(tx + ',' + ty) || null;
+    const c = chunkAt(tx, ty);
+    return c.propAt.get((ty - c.cy * N) * N + (tx - c.cx * N)) || null;
   }
 
   /** ¿Se puede pasar por esta casilla andando? (pathing.js) */
@@ -366,7 +400,7 @@ G.World = (() => {
     const c = data.get(cx + ',' + cy);
     if (c) {
       c.props.splice(c.props.indexOf(p), 1);
-      c.propAt.delete(p.tx + ',' + p.ty);
+      c.propAt.delete((p.ty - cy * N) * N + (p.tx - cx * N));
     }
     const B = G.Tiles.BIOMES[biome];
     G.Audio.sfx(p.type === 'grass' ? 'grass' : p.type === 'chest' ? 'chest' : 'break');
@@ -554,6 +588,7 @@ G.World = (() => {
   function reset(s) {
     seed = (s | 0) || 1;
     data.clear(); images.clear(); broken.clear();
+    last = null;
     fade = null; arena = null;
   }
 
@@ -599,7 +634,7 @@ G.World = (() => {
       const R = a.r + 9;
       for (const k of [...data.keys(), ...images.keys()]) {
         const [cx, cy] = k.split(',').map(Number);
-        if (Math.abs(cx * N + N / 2 - a.tx) < R + N && Math.abs(cy * N + N / 2 - a.ty) < R + N) { data.delete(k); images.delete(k); }
+        if (Math.abs(cx * N + N / 2 - a.tx) < R + N && Math.abs(cy * N + N / 2 - a.ty) < R + N) { forget(k); images.delete(k); }
       }
     },
     get arena() { return arena; }, drawGround, drawLiquid, visibleProps, drawProp, drawVignette,

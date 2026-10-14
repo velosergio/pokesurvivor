@@ -343,8 +343,11 @@ if (require.main === module) {
     maxRooms: envInt('MAX_ROOMS', env.MAX_ROOMS, 30, 1),
     serviceAccount
   });
-  app.ready.then(p => console.log(`[game] escuchando en :${p} (proto ${proto.VERSION}, orígenes: ${origins.join(', ') || 'cualquiera'}${env.DEV_AUTH === '1' ? ', DEV_AUTH' : ''})`),
-    e => { console.error('[game] no se pudo escuchar:', e.message); process.exit(1); });
+  app.ready.then(p => {
+    console.log(`[game] escuchando en :${p} (proto ${proto.VERSION}, orígenes: ${origins.join(', ') || 'cualquiera'}${env.DEV_AUTH === '1' ? ', DEV_AUTH' : ''})`);
+    // Compila js/ ya, y no al crear la primera sala (bloquearía ~0,2 s).
+    require('./sim').warm();
+  }, e => { console.error('[game] no se pudo escuchar:', e.message); process.exit(1); });
   let stopping = false;
   const onSignal = sig => {
     if (stopping) { if (sig === 'SIGINT') process.exit(130); return; } // segundo Ctrl+C: salir ya
