@@ -6,8 +6,8 @@
  *
  *   NUBE  (Firebase Authentication + Cloud Firestore)
  *     Si hay configuración en js/config.js (G.Config.firebase) y el juego se abre
- *     desde una web (http/https, también localhost). La partida se guarda en
- *     saves/{uid} y se puede seguir en cualquier ordenador.
+ *     en la web de esta copia (G.Config.site) o en localhost. La partida se guarda
+ *     en saves/{uid} y se puede seguir en cualquier ordenador.
  *       - Usuario + contraseña: Firebase pide un email, así que el nombre se
  *         convierte en uno interno (nunca se le envía nada).
  *       - Cuenta de Google.
@@ -16,8 +16,8 @@
  *     pierde un Pokémon ni un shiny.
  *
  *   LOCAL (localStorage)
- *     Si no hay configuración o se abre con doble clic (file://). Igual que
- *     antes: cuentas y partidas sólo en este navegador.
+ *     Si no hay configuración, se abre con doble clic (file://) o el dominio no
+ *     es el de esta copia. Igual que antes: cuentas y partidas sólo en este navegador.
  *       ps.accounts      { clave: { name, salt, hash, created } }
  *       ps.save.<clave>  partida de esa cuenta
  *       ps.session       última cuenta con sesión iniciada
@@ -33,7 +33,7 @@ G.DB = (() => {
   const NAME_DOMAIN = 'jugadores.pokesurvivor.net';   // sólo para el email interno
 
   let mode = 'local';       // 'cloud' | 'local'
-  let localReason = '';     // por qué no hay nube: 'file' | 'config' | 'error'
+  let localReason = '';     // por qué no hay nube: 'file' | 'config' | 'host' | 'error'
   let user = null;          // nombre visible
   let key = null;           // clave local (minúsculas) o uid de Firebase
   let guest = false;
@@ -345,9 +345,26 @@ G.DB = (() => {
     });
   }
 
+  /*
+   * La nube (Firebase, el TURN del cooperativo) sólo desde la web de esta copia
+   * y desde localhost. El código está en GitHub: una republicación en otra web,
+   * sin cambiar js/config.js, guardaría cuentas y partidas en el Firebase de
+   * esta instalación. Ahí el juego va en modo local. La idea es la del original
+   * (14-10-2026); el dominio permitido es G.Config.site, no una lista fija.
+   */
+  function allowedHosts() {
+    const hosts = ['localhost', '127.0.0.1'];
+    try {
+      const h = new URL(G.Config && G.Config.site || '').hostname;
+      if (h) hosts.push(h);
+    } catch (e) { /* site mal formado: sólo localhost */ }
+    return hosts;
+  }
+
   async function initCloud() {
     const cfg = G.FIREBASE_CONFIG;
     if (!/^https?:$/.test(location.protocol)) { localReason = 'file'; return false; }
+    if (cfg && !cfg.emulator && !allowedHosts().includes(location.hostname)) { localReason = 'host'; return false; }
     if (!cfg || !cfg.apiKey || !cfg.projectId) { localReason = 'config'; return false; }
     await loadScript(SDK + 'firebase-app-compat.js');
     await loadScript(SDK + 'firebase-auth-compat.js');

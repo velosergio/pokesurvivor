@@ -63,11 +63,18 @@ G.LoginUI = (() => {
     $('scr-recover').classList.remove('hidden');
   }
 
+  /** Hostname de G.Config.site, para el aviso de una copia en otro dominio. */
+  function siteHost() {
+    try { return new URL(G.Config.site).host; } catch (e) { return ''; }
+  }
+
   /** Explica dónde se guarda la partida según el modo de la base de datos. */
   function modeNote() {
     if (G.DB.mode === 'cloud') return 'Tu partida se guarda en la nube: entra desde cualquier ordenador. Como invitado no se guarda.';
     const why = G.DB.localReason === 'file'
       ? 'Abierto desde un archivo: la partida sólo se guarda en este navegador. Para guardar en la nube, juega en la versión publicada.'
+      : G.DB.localReason === 'host'
+        ? 'Esta no es la web de esta copia: la partida sólo se guarda en este navegador. Las cuentas están en ' + siteHost() + '.'
       : G.DB.localReason === 'config'
         ? 'Nube sin configurar: la partida sólo se guarda en este navegador.'
         : 'No se pudo conectar con la nube: la partida sólo se guarda en este navegador.';
