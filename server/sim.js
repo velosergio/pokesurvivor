@@ -6,7 +6,8 @@
  * objetos que no hacen nada.
  *
  * En el contexto NO hay document, Image, window.addEventListener ni canvas:
- * si la lógica los toca, falla (así lo cazan las pruebas).
+ * si la lógica los toca, falla (así lo cazan las pruebas). Lo mismo con
+ * setTimeout y setInterval: lanzan un Error (no se dispararían nunca).
  * Math.random lleva semilla y performance.now() es el reloj de la simulación,
  * así dos simulaciones con la misma semilla y las mismas órdenes dan lo mismo.
  */
@@ -17,10 +18,14 @@ const ROOT = path.join(__dirname, '..');
 /** Lo que no se carga: pantalla, sonido, entrada, red, interfaz y guardado. */
 const SKIP = /^js\/(ui|net)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
 
-/** Scripts de dev.html que forman la simulación, en su orden. */
+/** Scripts de dev.html que forman la simulación, en su orden (la misma lista que tools/build.js). */
 function scripts() {
   const html = fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8');
-  return [...html.matchAll(/<script defer src="(js\/[^"]+\.js)"/g)].map(m => m[1]).filter(f => !SKIP.test(f));
+  const BEGIN = '<!-- scripts:begin -->', END = '<!-- scripts:end -->';
+  const i = html.indexOf(BEGIN), j = html.indexOf(END);
+  if (i < 0 || j < 0) throw new Error('dev.html no tiene las marcas ' + BEGIN + ' / ' + END);
+  const block = html.slice(i, j + END.length);
+  return [...block.matchAll(/<script[^>]*src="(js\/[^"]+\.js)"/g)].map(m => m[1]).filter(f => !SKIP.test(f));
 }
 
 /** mulberry32: aleatorio con semilla, en [0, 1). */
@@ -36,6 +41,8 @@ function rng(seed) {
 }
 
 const noop = () => {};
+/** Un temporizador de la lógica no se dispararía nunca aquí: mejor que falle. */
+const sinTimer = nombre => () => { throw new Error(nombre + ' en la simulación: la lógica no puede usar temporizadores'); };
 /** Objeto en el que cualquier método existe y no hace nada (salvo los de `own`). */
 const mute = (own = {}) => new Proxy(own, { get: (o, k) => (k in o ? o[k] : noop) });
 
@@ -50,7 +57,7 @@ function createSim({ seed = 1 } = {}) {
     console,
     performance: { now: () => clock.t * 1000 },
     localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
-    setTimeout: noop, clearTimeout: noop, setInterval: noop, clearInterval: noop,
+    setTimeout: sinTimer('setTimeout'), clearTimeout: noop, setInterval: sinTimer('setInterval'), clearInterval: noop,
     __rng: rng(seed)
   };
   sb.window = sb;

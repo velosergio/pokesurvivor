@@ -9,6 +9,7 @@
  */
 G.Step = {
   /**
+   * @param dt       segundos de este paso
    * @param time     segundos de partida
    * @param all      todos los jugadores (en solitario, [me])
    * @param me       el jugador cuyos ataques se resuelven en este paso
