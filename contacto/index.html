@@ -41,25 +41,14 @@
 <article class="doc">
   <h1 data-l="es">Contacto</h1>
   <h1 data-l="en">Contact</h1>
-  <p class="lead" data-l="es">¿Has encontrado un fallo, tienes una idea o quieres decirnos algo? Escríbenos.</p>
-  <p class="lead" data-l="en">Found a bug, have an idea or want to tell us something? Get in touch.</p>
+  <p class="lead" data-l="es">¿Has encontrado un fallo, tienes una idea o quieres decirnos algo? Ábrenos un aviso.</p>
+  <p class="lead" data-l="en">Found a bug, have an idea or want to tell us something? Open an issue.</p>
   <ul class="contact">
     <li>
-      <b><span data-l="es">Correo</span><span data-l="en">Email</span></b>
-      <span class="mail" id="mail">velozasergio@gmail.com</span>
-      <div class="row">
-        <a class="btn small" href="mailto:velozasergio@gmail.com?subject=Pok%C3%A9Survivor"><span data-l="es">Escribir un correo</span><span data-l="en">Send an email</span></a>
-        <button class="btn small ghost" id="copy" type="button"><span data-l="es">Copiar</span><span data-l="en">Copy</span></button>
-        <span id="copied"></span>
-      </div>
-      <p data-l="es">Para cualquier cosa: dudas, problemas con tu cuenta, sugerencias o si eres titular de derechos y quieres que retiremos algo.</p>
-      <p data-l="en">For anything: questions, account problems, suggestions, or if you are a rights holder and want something removed.</p>
-    </li>
-    <li>
-      <b><span data-l="es">Fallos y sugerencias</span><span data-l="en">Bugs and suggestions</span></b>
-      <p data-l="es">Si tienes cuenta de GitHub, puedes abrir un aviso en el repositorio del juego.</p>
-      <p data-l="en">If you have a GitHub account, you can open an issue in the game's repository.</p>
-      <div class="row"><a class="btn small ghost" href="https://github.com/JPTER78/pokesurvivor/issues" target="_blank" rel="noopener">GitHub</a></div>
+      <b><span data-l="es">Avisos en GitHub</span><span data-l="en">GitHub issues</span></b>
+      <p data-l="es">Para cualquier cosa: fallos, dudas, problemas con tu cuenta, sugerencias o si eres titular de derechos y quieres que retiremos algo. Hace falta una cuenta de GitHub (es gratis).</p>
+      <p data-l="en">For anything: bugs, questions, account problems, suggestions, or if you are a rights holder and want something removed. You need a GitHub account (it's free).</p>
+      <div class="row"><a class="btn small" id="issues" href="#" target="_blank" rel="noopener"><span data-l="es">Abrir un aviso</span><span data-l="en">Open an issue</span></a></div>
     </li>
     <li>
       <b><span data-l="es">Criptomonedas</span><span data-l="en">Cryptocurrencies</span></b>
@@ -69,13 +58,11 @@
   </ul>
 </article>
 </main>
+<script>var G = {};</script>
+<script src="../js/config.js"></script>
 <script>
-  document.getElementById('copy').onclick = function () {
-    var t = document.getElementById('mail').textContent;
-    var ok = function () { document.getElementById('copied').textContent = document.documentElement.lang === 'en' ? 'Copied!' : '¡Copiado!'; };
-    if (navigator.clipboard) navigator.clipboard.writeText(t).then(ok, function () {});
-    else { var r = document.createRange(); r.selectNodeContents(document.getElementById('mail')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); ok(); }
-  };
+  // El repositorio sale de js/config.js (G.Config.repo), como en el juego.
+  document.getElementById('issues').href = G.Config.repo + '/issues';
 </script>
 </body>
 </html>

@@ -1,8 +1,8 @@
-# Publicar el juego en Easypanel (poke.sergioveloza.com)
+# Publicar el juego en Easypanel
 
 El juego es una web estática que sirve nginx (`Dockerfile` + `nginx.conf`) como
-servicio `web` de Easypanel, en el VPS al que apunta `poke.sergioveloza.com`
-(registro A en Hostinger).
+servicio `web` de Easypanel, en el VPS al que apunta el dominio de `site`
+(`js/config.js`; registro A en Hostinger).
 
 ## 1. Crear el servicio (una vez)
 
@@ -10,12 +10,12 @@ En Easypanel → proyecto `pokesurvivor` → **+ Service → App** → nombre `w
 
 - **Source**: GitHub `velosergio/pokesurvivor`, rama `main`.
 - **Build**: Dockerfile (ruta `Dockerfile`).
-- **Domains**: `poke.sergioveloza.com`, HTTPS activado, puerto interno 80.
+- **Domains**: el dominio de `site` (`js/config.js`), HTTPS activado, puerto interno 80.
 - **Deploy**.
 
 ## 2. Conectar con Firebase
 
-Si ya seguiste [FIREBASE.md](FIREBASE.md), añade `poke.sergioveloza.com` a los
+Si ya seguiste [FIREBASE.md](FIREBASE.md), añade el dominio de `site` a los
 **dominios autorizados** de Authentication (paso 5). La configuración va en
 `js/config.js` (campo `firebase`).
 

@@ -1,4 +1,4 @@
-# SEO y dominio poke.sergioveloza.com
+# SEO y dominio
 
 Todo lo técnico ya está preparado en el código. Falta lo que sólo puedes hacer tú
 (comprar el dominio, configurar el DNS y dar de alta la web en Google).
@@ -19,23 +19,23 @@ Todo lo técnico ya está preparado en el código. Falta lo que sólo puedes hac
 Las páginas se regeneran con `python tools/make_seo_pages.py` (por ejemplo, si
 cambian los Pokémon o las características).
 
-> **Importante:** las direcciones canónicas ya apuntan a `https://poke.sergioveloza.com/`.
+> **Importante:** las direcciones canónicas apuntan a `site` de `js/config.js` (en `dev.html`, `{{SITE}}`).
 > No publiques estos cambios hasta que el dominio funcione, o Google intentará
 > indexar un dominio que todavía no existe.
 
 ## 1. Dominio
 
-El dominio `poke.sergioveloza.com` apunta al VPS (registro A en Hostinger) y la web se
+El dominio de `site` (`js/config.js`) apunta al VPS (registro A en Hostinger) y la web se
 publica en Easypanel (servicio `web`, `Dockerfile` + `nginx.conf`); ver `CLAUDE.md`.
 
 ## 2. Google Search Console (lo más importante)
 
 1. Entra en <https://search.google.com/search-console> con tu cuenta de Google.
-2. **Añadir propiedad → Dominio** → `poke.sergioveloza.com`.
+2. **Añadir propiedad → Dominio** → el dominio de `site`.
 3. Google te da un registro **TXT**: añádelo en el DNS (nombre `@`) y pulsa Verificar
    (puede tardar unos minutos).
 4. **Sitemaps** → enviar `sitemap.xml`.
-5. **Inspección de URL** → `https://poke.sergioveloza.com/` → **Solicitar indexación**.
+5. **Inspección de URL** → la dirección de `site` → **Solicitar indexación**.
    Repite con `/guia/` y `/pokedex/`.
 
 Bing (y con él DuckDuckGo y Ecosia): <https://www.bing.com/webmasters> → "Importar

@@ -5,7 +5,7 @@
  * Dos modos (se decide en ready()):
  *
  *   NUBE  (Firebase Authentication + Cloud Firestore)
- *     Si hay configuración en js/core/firebase-config.js y el juego se abre
+ *     Si hay configuración en js/config.js (G.Config.firebase) y el juego se abre
  *     desde una web (http/https, también localhost). La partida se guarda en
  *     saves/{uid} y se puede seguir en cualquier ordenador.
  *       - Usuario + contraseña: Firebase pide un email, así que el nombre se
@@ -391,7 +391,6 @@ G.DB = (() => {
   /** Abre la partida de la nube de un usuario recién autenticado. */
   async function openCloud(u, opts = {}) {
     uid = u.uid;
-    if (G.Signups) G.Signups.report(u);          // tope de cuentas del mes (net/signups.js)
     const cached = read(K_CLOUD + uid);
     let remote = null, online = true;
     try {
@@ -548,9 +547,6 @@ G.DB = (() => {
       'unavailable': 'Sin conexión con la base de datos.'
     };
     if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return '';
-    // El "portero" de Firebase (functions/index.js) ha rechazado la cuenta nueva: tope del mes.
-    if (/error-code:-47|BLOCKING_FUNCTION|resource-exhausted|cuentas nuevas/i.test(c + ' ' + ((e && e.message) || '')))
-      return 'Este mes ya no quedan plazas para cuentas nuevas (vuelven el 1 de ' + (G.Signups ? G.Signups.nextMonthName() : 'mes que viene') + '). Mientras, puedes jugar como invitado.';
     return M[c] || ('Error: ' + (c || (e && e.message) || 'desconocido'));
   }
 
@@ -581,12 +577,9 @@ G.DB = (() => {
     const min = mode === 'cloud' ? 6 : 4;
     if ((pass || '').length < min) return { ok: false, error: `La contraseña debe tener al menos ${min} caracteres.` };
     if (mode === 'local') return registerLocal(name, pass);
-    // Tope de cuentas del mes (Firebase cobra a partir de 50.000 al mes).
-    if (G.Signups && !(await G.Signups.check())) return { ok: false, error: 'Este mes ya no quedan plazas para cuentas nuevas (vuelven el 1 de ' + G.Signups.nextMonthName() + '). Mientras, puedes jugar como invitado.' };
     try {
       const legacy = await legacySave(name, pass);
       const cred = await auth.createUserWithEmailAndPassword(nameToEmail(name), pass);
-      if (G.Signups) G.Signups.markNew(cred.user.uid);   // ya la apuntó el portero
       await openCloud(cred.user, { name, legacy });
       return { ok: true, isNew: !save.partner, imported: !!legacy };
     } catch (e) { return { ok: false, error: authError(e) }; }
@@ -607,13 +600,6 @@ G.DB = (() => {
     if (mode !== 'cloud') return { ok: false, error: 'Entrar con Google necesita la versión publicada del juego.' };
     try {
       const cred = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-      // Cuenta de Google nueva con el tope del mes alcanzado: no se crea.
-      if (cred.additionalUserInfo && cred.additionalUserInfo.isNewUser && G.Signups && !(await G.Signups.check())) {
-        await cred.user.delete().catch(() => {});
-        await auth.signOut().catch(() => {});
-        return { ok: false, error: 'Este mes ya no quedan plazas para cuentas nuevas (vuelven el 1 de ' + G.Signups.nextMonthName() + '). Mientras, puedes jugar como invitado.' };
-      }
-      if (cred.additionalUserInfo && cred.additionalUserInfo.isNewUser && G.Signups) G.Signups.markNew(cred.user.uid);
       await openCloud(cred.user, { name: displayNameOf(cred.user) });
       return { ok: true, isNew: !save.partner };
     } catch (e) { return { ok: false, error: authError(e) }; }

@@ -556,7 +556,7 @@ you can make a <b>voluntary donation</b>. <b>All the money goes to the servers a
 def game_en():
     # Parte de dev.html (con lo de SEO) y usa el mismo app.min.js que index.html,
     # así sale bien aunque index.html se haya generado con --sin-seo.
-    dev = open(os.path.join(ROOT, 'dev.html'), encoding='utf-8').read()
+    dev = open(os.path.join(ROOT, 'dev.html'), encoding='utf-8').read().replace('{{SITE}}', SITE)  # el dominio sólo está en js/config.js
     idx = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
     app = re.search(r'<script defer src="js/app\.min\.js\?v=[^"]+"></script>', idx).group(0)
     a, b = dev.index('<!-- scripts:begin -->'), dev.index('<!-- scripts:end -->') + len('<!-- scripts:end -->')

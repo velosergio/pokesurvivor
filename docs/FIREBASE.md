@@ -75,7 +75,7 @@ npx firebase-tools deploy --only firestore,database --project TU-PROYECTO
 
 **Authentication → Configuración → Dominios autorizados → Agregar dominio**:
 
-- `poke.sergioveloza.com` (la web publicada en Easypanel)
+- el dominio de `site` en `js/config.js` (la web publicada en Easypanel)
 - `localhost`, para probar en tu ordenador (en proyectos nuevos ya no viene puesto).
 
 Sin esto, "Entrar con Google" da el error *dominio no autorizado*.
@@ -85,7 +85,7 @@ Sin esto, "Entrar con Google" da el error *dominio no autorizado*.
 En <https://console.cloud.google.com/apis/credentials> (mismo proyecto), abre la
 **Browser key** → *Restricciones de aplicaciones* → *Sitios web* y añade:
 
-- `https://poke.sergioveloza.com/*`
+- `<site>*` (el valor de `site` en `js/config.js`, p. ej. `https://tu-dominio/*`)
 - `http://localhost:*`
 
 Así nadie puede usar tu clave desde otra web.
