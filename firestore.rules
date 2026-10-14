@@ -18,7 +18,7 @@ service cloud.firestore {
     function me() { return request.auth.uid; }
     // Moderación (pantalla oculta del juego, js/ui/mod-ui.js): las cuentas de G.Config.admins.
     // <admins> (generado por tools/make_rules.js desde js/config.js, no editar a mano)
-    function admin() { return signedIn() && me() in []; }
+    function admin() { return signedIn() && me() in ['MufTp04DgIR02OExhPau6TopYzo2']; }
     // </admins>
 
     // ---------- partida guardada ----------
