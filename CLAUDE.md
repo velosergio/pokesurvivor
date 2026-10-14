@@ -1,12 +1,18 @@
-# PokéSurvivor — cómo se trabaja y se publica
+# PokéSurvivor (copia en poke.sergioveloza.com) — cómo se trabaja y se publica
 
-Normas fijas del dueño del proyecto. Se aplican SIEMPRE.
+Normas fijas del dueño de esta copia. Se aplican SIEMPRE.
+
+Copia propia del juego de JPTER78 (github.com/JPTER78/pokesurvivor, código MIT; sprites
+CC BY-NC: sin uso comercial). Los datos de esta instalación (dominio, Firebase, moderadores,
+apoyo) están en `js/config.js` y en ningún otro sitio.
 
 ## Publicar una versión
 1. Se edita `dev.html` (nunca `index.html`, que se genera).
 2. `node tools/build.js && node tools/export_data.js && python tools/make_seo_pages.py`
    - `build.js` genera `index.html`, `js/app.min.js` y **`version.json`** (la huella de esta versión).
+   - `node tools/check_copy.js --built` debe dar `ok` (sin restos de la infraestructura del original).
 3. Commit (sin "Co-Authored-By" ni ninguna firma de IA) y `git push origin main` sólo cuando el dueño lo pida.
+4. Easypanel redespliega el servicio `web` desde `origin/main` (`Dockerfile` + `nginx.conf`).
 
 ## Actualización automática de los jugadores (obligatorio)
 Al publicar, todos los jugadores deben pasar a la versión nueva sin perder nada
@@ -23,8 +29,11 @@ Cada cambio de juego o arreglo de fallos va también en `js/data/changelog.js`
 servidores, base de datos o costes NO van ahí.
 
 ## Servidores
-- Firebase: proyecto **pokesurvivor-free** (autenticación normal: cuentas gratis sin límite).
+- Firebase: proyecto **pokesurvivor-662eb** (plan Spark, autenticación normal: cuentas gratis sin
+  límite; Firestore en nam5, Realtime Database en us-central1).
   **Nunca** activar "Identity Platform" ni nada que lo active (funciones de bloqueo, MFA,
-  "Actualizar para habilitar"): cobra por usuario. El proyecto viejo pokesurvivor-jpter se borró el 13-10-2026 (con su facturación).
-- Cloudflare (Worker `cloudflare/turn-worker.js`, plan de 5 $): no debe pasar de 5 $ al mes (el TURN tiene tope).
+  "Actualizar para habilitar"): cobra por usuario. Desplegar sólo con
+  `firebase deploy --only firestore,database` (nunca `firebase deploy` a secas).
+- VPS con Easypanel (82.29.197.223): servicio `web` en `poke.sergioveloza.com`.
+- DNS en Hostinger (`poke` → 82.29.197.223).
 - Mantenimiento: `MAINTENANCE` en `js/main.js` (con `?dev` se puede entrar para probar).
