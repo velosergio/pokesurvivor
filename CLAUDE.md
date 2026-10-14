@@ -13,6 +13,9 @@ los citan (`G.Config.site`, `{{SITE}}` en `dev.html`), no los repiten.
    - `build.js` genera `index.html`, `js/app.min.js` y **`version.json`** (la huella de esta versión).
    - `node tools/check_copy.js --built` debe dar `ok` (sin restos del original, el dominio sólo en
      `js/config.js`, sin datos personales y sin líneas en blanco de más en `index.html`).
+   - `node --test server/test/sim.test.js` debe pasar (la lógica del juego sigue funcionando sin
+     navegador; la usará el servidor del cooperativo). Si falla con `document`/`Image`/`location is
+     not defined`, algo de lógica está tocando la pantalla: muévelo a la parte de dibujo.
    - Si cambian los moderadores (`admins` en `js/config.js`) o los logros, `export_data.js` reescribe
      `firestore.rules`: desplegarlas con `firebase deploy --only firestore` o la Moderación dará
      "permiso denegado".

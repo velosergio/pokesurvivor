@@ -1,6 +1,6 @@
 # Copia propia + cooperativo en servidor — diseño
 
-Fecha: 14-10-2026 · Estado: aprobado en conversación, pendiente de revisar por escrito.
+Fecha: 14-10-2026 · Estado: pasos 1 y 2 hechos (Plan 1 y Plan 2); pasos 3-5 pendientes.
 
 ## 1. Objetivo
 
