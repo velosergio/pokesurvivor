@@ -33,12 +33,12 @@ service cloud.firestore {
       allow read: if admin();
 
       allow create: if signedIn() && me() == uid && validSaveDoc()
-        && (marked() || (saneSave(request.resource.data.save) && freshSave(request.resource.data.save)));
+        && (marked() || (saneSave(request.resource.data.save) && freshSave(request.resource.data.save, uid)));
       allow update: if signedIn() && me() == uid && validSaveDoc()
         && (resource.data.get('sus', false) == false || marked())       // la marca no se quita
         && (marked() || (saneSave(request.resource.data.save)
               && possibleSave(resource.data.save, request.resource.data.save,
-                              (request.time - resource.data.updatedAt).seconds())));
+                              (request.time - resource.data.updatedAt).seconds(), uid)));
       // El admin sólo puede poner o quitar la marca.
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sus'])
@@ -68,40 +68,63 @@ service cloud.firestore {
         && tk(s, 't1') is number && tk(s, 't1') >= 0
         && tk(s, 't10') is number && tk(s, 't10') >= 0
         && mis(s) is number && s.get('created', 0) is number
-        && cnt(s, 'owned') <= 1100 && cnt(s, 'shiny') <= 1100;
+        && cnt(s, 'owned') <= 1100 && cnt(s, 'shiny') <= 1100
+        && s.get('grantedCoins', 0) is int && s.get('grantedCoins', 0) >= 0
+        && s.get('grantedT10', 0) is int && s.get('grantedT10', 0) >= 0;
     }
-    // Partida nueva: la de empezar (borrarla y crearla otra vez no da nada).
-    function freshSave(s) {
-      return s.get('coins', 0) <= 2000 && tk(s, 't1') <= 10 && tk(s, 't10') <= 2
+    function grantVal(userId, k) {
+      return exists(/databases/$(database)/documents/grants/$(userId))
+        ? get(/databases/$(database)/documents/grants/$(userId)).data.get(k, 0)
+        : 0;
+    }
+    function mn(a, b) { return a < b ? a : b; }
+    function coinCredit(o, n) {
+      return mn(mx(0, n.get('coins', 0) - o.get('coins', 0)),
+                mx(0, n.get('grantedCoins', 0) - o.get('grantedCoins', 0)));
+    }
+    function t10Credit(o, n) {
+      return mn(mx(0, tk(n, 't10') - tk(o, 't10')),
+                mx(0, n.get('grantedT10', 0) - o.get('grantedT10', 0)));
+    }
+    function grantedWithin(o, n, gc, gt) {
+      return n.get('grantedCoins', 0) >= o.get('grantedCoins', 0)
+        && n.get('grantedT10', 0) >= o.get('grantedT10', 0)
+        && n.get('grantedCoins', 0) <= gc
+        && n.get('grantedT10', 0) <= gt;
+    }
+    function freshSave(s, userId) {
+      let gc = grantVal(userId, 'coins');
+      let gt = grantVal(userId, 't10');
+      return s.get('coins', 0) <= 2000 + s.get('grantedCoins', 0)
+        && s.get('grantedCoins', 0) <= gc
+        && tk(s, 't1') <= 10 && tk(s, 't10') <= 2 + s.get('grantedT10', 0)
+        && s.get('grantedT10', 0) <= gt
         && cnt(s, 'owned') <= 3 && cnt(s, 'shiny') <= 1 && cnt(s, 'ach') <= 5 && mis(s) <= 3
         && s.get('created', 0) > request.time.toMillis() - 2 * 86400000;
     }
-    // Todo se cuenta en "tiradas" (un ticket x1 = 1, un x10 = 10): lo que tenías
-    // + lo que pudiste ganar - lo que te queda = tiradas que pudiste hacer, y
-    // tienen que alcanzar para los Pokémon, shinies y monedas nuevos.
-    // (Firebase vuelve a calcular cada argumento cada vez que se usa y hay un
-    // tope de 1.000 operaciones: lo caro, los logros, sale una sola vez.)
-    function possibleSave(o, n, secs) {
+    function possibleSave(o, n, secs, userId) {
+      let gc = grantVal(userId, 'coins');
+      let gt = grantVal(userId, 't10');
       return n.get('created', 0) == o.get('created', 0)
         && n.get('ach', {}).keys().hasAll(o.get('ach', {}).keys())
-        && cnt(n, 'ach') <= 150                                           // hay 130
+        && cnt(n, 'ach') <= 150
         && mis(n) >= mis(o)
         && mis(n) <= 10 + (request.time.toMillis() - o.get('created', 0)) / 86400000 * 5
-        && budget(o, n, secs > 10800 ? 10800 : (secs > 0 ? secs : 0),      // como mucho 3 h de juego por guardado (se guarda cada 2 h)
-                  secs >= 60 ? 1.0 : (secs > 0 ? secs / 60.0 : 0.0),        // guardados muy seguidos: menos margen fijo
-                  mis(n) - mis(o));
+        && grantedWithin(o, n, gc, gt)
+        && budget(o, n, secs > 10800 ? 10800 : (secs > 0 ? secs : 0),
+                  secs >= 60 ? 1.0 : (secs > 0 ? secs / 60.0 : 0.0),
+                  mis(n) - mis(o), coinCredit(o, n), t10Credit(o, n));
     }
-    // e: segundos de juego que pudo haber · k: margen fijo (0-1) · dm: misiones cobradas
-    function budget(o, n, e, k, dm) {
+    function budget(o, n, e, k, dm, cc, tc) {
       return tk(o, 't1') + 10 * tk(o, 't10')
-        + 3 * k + e / 30 + cnt(n, 'ach') - cnt(o, 'ach') + 3 * dm     // tickets x1 que pudo ganar
-        + 10 * (1 * k + e / 300 + dm)                                  // tickets x10
-        + achV()                                                        // premios de los logros nuevos
+        + 3 * k + e / 30 + cnt(n, 'ach') - cnt(o, 'ach') + 3 * dm
+        + 10 * (1 * k + e / 300 + dm)
+        + achV()
         - tk(n, 't1') - 10 * tk(n, 't10')
+        + 10 * tc
         >= mx(mx(0, cnt(n, 'owned') - cnt(o, 'owned') - 3 * k - e / 600),
               mx(cnt(n, 'shiny') - cnt(o, 'shiny') - 2 * k - e / 900,
-                 // monedas: lo de jugar, logros y misiones; lo que sobre, reembolsos del gacha (< 300 por tirada)
-                 (n.get('coins', 0) - o.get('coins', 0) - 8000 * k - 40 * e - 1000 * dm) / 300));
+                 (n.get('coins', 0) - o.get('coins', 0) - cc - 8000 * k - 40 * e - 1000 * dm) / 300));
     }
     function mx(a, b) { return a > b ? a : b; }
     // <logros> (generado por tools/make_rules.js, no editar a mano)
@@ -297,6 +320,31 @@ service cloud.firestore {
     // Para borrar todas tus marcas al borrar la cuenta (consulta de grupo).
     match /{path=**}/e/{id} {
       allow read: if signedIn();
+    }
+
+    // Libreta de regalos del moderador (js/ui/debug-ui.js). Totales, nunca se borran.
+    match /grants/{uid} {
+      allow read: if admin() || (signedIn() && me() == uid);
+
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
+        && request.resource.data.coins is int
+        && request.resource.data.t10 is int
+        && request.resource.data.at == request.time
+        && ((request.resource.data.coins == 100000 && request.resource.data.t10 == 0)
+            || (request.resource.data.t10 == 1000 && request.resource.data.coins == 0));
+
+      allow update: if admin()
+        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
+        && request.resource.data.coins is int
+        && request.resource.data.t10 is int
+        && request.resource.data.at == request.time
+        && ((request.resource.data.coins == resource.data.coins + 100000
+              && request.resource.data.t10 == resource.data.t10)
+            || (request.resource.data.t10 == resource.data.t10 + 1000
+              && request.resource.data.coins == resource.data.coins));
+
+      allow delete: if false;
     }
 
     match /{document=**} {
