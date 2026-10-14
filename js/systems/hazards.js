@@ -6,7 +6,8 @@
  *   beam  rayo recto desde el enemigo (Eléctrico, Psíquico, Dragón, Hielo)
  *
  * Cada ordenador dibuja los peligros y comprueba sólo SU Pokémon. En
- * cooperativo los crea el anfitrión y los manda con 'hz'.
+ * cooperativo los crea el anfitrión y los manda con 'hz'. En el servidor del
+ * cooperativo (todos los jugadores en la misma simulación) dañan a cada uno.
  *
  * Los de Arceus (systems/judgment.js) quitan un % de la vida (pct) sin mirar
  * tipos ni defensa (pure), y la Sentencia cae como un pilar de luz (vis).
@@ -36,15 +37,28 @@ G.Hazards = (() => {
     return Math.abs(-px * sa + py * ca) <= h.w / 2 + r * 0.6;
   }
 
+  /**
+   * A quién puede dar un peligro: los Pokémon de este ordenador. En el juego,
+   * sólo el tuyo (los compañeros de otro ordenador, `remote`, los mira su
+   * dueño); en el servidor del cooperativo, todos los jugadores.
+   */
+  function victims() {
+    const g = G.Game;
+    if (!g) return [];
+    const all = typeof g.everyone === 'function' ? g.everyone() : [g.player];
+    return all.filter(p => p && !p.remote);
+  }
+
   function update(dt) {
-    const pl = G.Game.player;
+    const who = victims();
     for (let i = list.length - 1; i >= 0; i--) {
       const h = list[i];
       h.t += dt;
       if (!h.hit && h.t >= h.delay) {
         h.hit = true;
         detonate(h);
-        if (pl && !pl.dead && inside(h, pl.x, pl.y, pl.r)) {
+        for (const pl of who) {
+          if (pl.dead || !inside(h, pl.x, pl.y, pl.r)) continue;
           pl.invuln = 0;
           pl.hurt(h.pct ? Math.max(h.dmg, pl.maxHp * h.pct) : h.dmg, h.type, !!h.pure);
         }

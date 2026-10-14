@@ -879,7 +879,8 @@
 
     /**
      * @param players  [jugador local, ...compañeros]. Las estadísticas de la
-     *                 run (derrotados, jefes) se apuntan en el primero.
+     *                 run (derrotados, jefes) se apuntan en quien dio el golpe
+     *                 final (e.lastBy) o, si no se sabe, en el primero.
      */
     // Segundos que un rezagado tiene que llevar fuera de la vista antes de volver por delante.
     const LAG_T = 2.5;
@@ -906,8 +907,12 @@
         const e = list[i];
         if (e.remote) continue;
         if (e.dead) {
-          pl.kills++;
-          if (e.boss && !e.judge) pl.bosses++;
+          // La derrota es del último que le pegó directamente (combat.js apunta
+          // lastBy; el veneno, la quemadura o una trampa cuentan para él); si
+          // nadie le ha pegado o es un compañero de otro ordenador, del primero.
+          const by = e.lastBy && !e.lastBy.remote && players.includes(e.lastBy) ? e.lastBy : pl;
+          by.kills++;
+          if (e.boss && !e.judge) by.bosses++;
           G.Progress.kill(e);
           corpses.push(e);
           list.splice(i, 1);

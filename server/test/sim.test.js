@@ -56,3 +56,42 @@ test('la Sentencia de Arceus, de la animación a la pelea', () => {
   run(r, 150, () => { if (sim.G.Judgment.active && !sim.G.Judgment.cinematic) fight = true; });
   assert.ok(fight, 'no ha llegado a la pelea');
 });
+
+test('sala de 4 bots hasta la Sentencia sin errores (createRoom)', () => {
+  const { createRoom } = require('../room.js');
+  const proto = require('../proto.js');
+  const members = [4, 7, 1, 25].map((dex, i) => ({ uid: 'b' + i, name: 'Bot' + i, dex, shiny: false }));
+  const sent = [];
+  let over = null, snaps = 0;
+  const errors = [];
+  const room = createRoom({ members, seed: 9, send: (uid, m) => sent.push([uid, m]), onOver: r => { over = r; },
+    logger: { error: (...a) => errors.push(a.join(' ')), warn() {}, log() {} } });
+  const { G } = room.debug;
+  let seq = 0;
+  /** Un paso: cada bot da vueltas (manda adónde se mueve), no cae y elige la primera carta. */
+  const step = k => {
+    members.forEach((m, i) => {
+      const p = room.debug.player(m.uid);
+      const a = k * 0.05 * 0.3 + i * 1.7, dx = Math.cos(a), dy = Math.sin(a);
+      room.input(m.uid, { seq: ++seq, x: p.x + dx * p.spd * 0.05, y: p.y + dy * p.spd * 0.05, dx, dy, move: 0 });
+      if (p.dead) p.revive(1);
+      p.hp = p.maxHp;
+    });
+    room.tick();
+    for (const [uid, m] of sent.splice(0)) {
+      if (m.t === 'level') room.pick(uid, 0);
+      if (m.t === 'snap') { proto.decode(m.bin); snaps++; }
+    }
+  };
+  let k = 0;
+  for (; k < 20 * 6; k++) step(k);
+  G.Judgment.debugStart();
+  let fight = false;
+  for (let i = 0; i < 20 * 40 && !fight; i++, k++) { step(k); fight = G.Judgment.active && !G.Judgment.cinematic; }
+  assert.ok(fight, 'no ha llegado a la pelea');
+  for (let i = 0; i < 20 * 5; i++, k++) step(k);
+  assert.deepStrictEqual(errors, [], 'errores en la sala');
+  assert.strictEqual(over, null, 'la partida ha terminado antes de tiempo');
+  assert.ok(snaps > 0, 'no ha mandado instantáneas');
+  room.stop();
+});
