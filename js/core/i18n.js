@@ -20,10 +20,12 @@ G.I18n = (() => {
   const KEY = 'ps.lang';
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) { /* nada */ }
-  const byPath = /\/en(\/|$)/.test(location.pathname) ? 'en' : null;
-  const nav = ((navigator.languages && navigator.languages[0]) || navigator.language || 'es').toLowerCase();
+  // (En el servidor no hay navegador: español, que es como se escribe el juego.)
+  const web = typeof document !== 'undefined';
+  const byPath = web && /\/en(\/|$)/.test(location.pathname) ? 'en' : null;
+  const nav = web ? ((navigator.languages && navigator.languages[0]) || navigator.language || 'es').toLowerCase() : 'es';
   const lang = saved === 'es' || saved === 'en' ? saved : byPath || (nav.startsWith('es') ? 'es' : 'en');
-  document.documentElement.lang = lang;
+  if (web) document.documentElement.lang = lang;
 
   const exact = new Map(), exactLow = new Map();
   let patterns = [], frag = null, fragLow = null, fragMap = new Map();
