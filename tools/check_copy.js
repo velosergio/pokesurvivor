@@ -11,8 +11,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const BAD = ['pokesurvivor.com', 'pokesurvivor-free', 'turn.pokesurvivor', 'rshaa5gKD3fXw6lE4PPXITbowaG2',
              "kofi: 'jpter78'", "sponsors: 'JPTER78'", 'ko-fi.com/jpter78', 'ko_fi: jpter78', 'github: JPTER78',
-             'jpieratorregrosa@gmail.com', 'pokesurvivor-jpter', 'jpter78.github.io',
-             'velozasergio@gmail.com'];                    // el dueño no quiere publicar su correo
+             'jpieratorregrosa@gmail.com', 'pokesurvivor-jpter', 'jpter78.github.io'];
 const CONFIG = path.join('js', 'config.js');
 const SITE = (fs.readFileSync(path.join(ROOT, CONFIG), 'utf8').match(/site:\s*'https?:\/\/([^/']+)/) || [])[1];
 if (!SITE) { console.error('No encuentro site en js/config.js'); process.exit(1); }
