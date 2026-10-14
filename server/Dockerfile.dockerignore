@@ -1,0 +1,34 @@
+# Contexto de server/Dockerfile (la raíz del repo). Sólo hacen falta server/,
+# js/ y dev.html; todo lo demás fuera para que el build vaya ligero.
+.git
+.github
+.firebase
+.wrangler
+**/node_modules
+**/*.log
+assets
+videos
+docs
+tools
+functions
+cloudflare
+css
+en
+apoyar
+contacto
+guia
+legendarios
+logros
+movimientos
+novedades
+objetos
+pokedex
+shinies
+tipos
+*.md
+index.html
+404.html
+js/app.min.js
+server/test
+server/Dockerfile
+server/Dockerfile.dockerignore
