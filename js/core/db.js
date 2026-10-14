@@ -82,6 +82,8 @@ G.DB = (() => {
       upgrades: {},           // (antiguo) mejoras de la cuenta; ahora van por Pokémon
       pupg: {},               // dex -> { id -> nivel }: mejoras de cada Pokémon
       tickets: { t1: 0, t10: 0 },   // tickets del gacha (x1 y x10)
+      grantedCoins: 0,        // monedas de grants/{uid} ya sumadas a coins
+      grantedT10: 0,          // tickets ×10 de la libreta ya sumados
       pity: {},               // generación del banner -> tiradas sin ★5
       legends: {},            // dex -> fecha: legendarios vencidos en grietas
       arenas: {},             // tipo -> fecha: arenas de grieta ganadas
@@ -126,6 +128,8 @@ G.DB = (() => {
     s.coins = n(s.coins);
     s.tickets.t1 = n(s.tickets.t1);
     s.tickets.t10 = n(s.tickets.t10);
+    s.grantedCoins = n(s.grantedCoins);
+    s.grantedT10 = n(s.grantedT10);
     if (G.DEX_BY) for (const coll of ['owned', 'shiny']) {
       for (const d of Object.keys(s[coll] || {})) if (!G.DEX_BY[d]) delete s[coll][d];
     }
@@ -408,17 +412,22 @@ G.DB = (() => {
     }
     save = migrate(s, s.name);
     key = uid; user = save.name; guest = false;
+    let grantDue = false;
+    if (online) {
+      try {
+        const g = await fs.collection('grants').doc(uid).get();
+        const d = G.Grant.applyGrant(save, g.exists ? g.data() : null);
+        grantDue = d.dc > 0 || d.dt > 0;
+      } catch (e) { /* sin red: la próxima subida lo lee dentro de la transacción */ }
+    }
     write(K_CLOUD + uid, save);
     // Sólo se sube si hay algo que la nube no tenga (cuenta nueva, progreso de
-    // este ordenador sin subir...), y SIN esperar: antes el menú no salía hasta
-    // terminar la subida, y con Firebase lento se tardaba hasta 9 s en entrar.
-    // (Comparar el texto entero daba "distinto" casi siempre y se subía en cada
-    // entrada: ahora sólo si esta copia es más nueva que la de la nube.)
+    // este ordenador sin subir, o un regalo de la libreta todavía sin aplicar).
     const same = remote && !opts.legacy && (!cached || (cached.updated || 0) <= (remote.updated || 0));
     lastPush = Date.now();       // la primera compra o ticket no sube al momento: espera como las demás
     if (!online) { pending = true; setSync('offline'); scheduleRetry(); }
-    else if (same) setSync('ok');
-    else pushNow();
+    else if (grantDue || !same) pushNow();
+    else setSync('ok');
   }
 
   /*
@@ -468,8 +477,10 @@ G.DB = (() => {
     const tr = fs.runTransaction(async tx => {
       const ref = docRef();
       const snap = await tx.get(ref);
+      const gsnap = await tx.get(fs.collection('grants').doc(uid));
       const remote = snap.exists ? migrate(snap.data().save) : null;
       merged = remote ? merge(plain(save), remote) : plain(save);
+      G.Grant.applyGrant(merged, gsnap.exists ? gsnap.data() : null);
       const doc = { save: merged, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), v: VERSION };
       if (markNext || (snap.exists && snap.data().sus === true)) doc.sus = true;
       tx.set(ref, doc);

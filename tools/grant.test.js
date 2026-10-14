@@ -52,3 +52,15 @@ test('crea tickets si la partida no los trae', () => {
   assert.equal(s.tickets.t1, 0);
   assert.equal(s.grantedT10, 1000);
 });
+
+test('la partida nueva y la subida usan la libreta', () => {
+  const db = require('fs').readFileSync(require('path').join(__dirname, '..', 'js', 'core', 'db.js'), 'utf8');
+  const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'dev.html'), 'utf8');
+  assert.match(db, /grantedCoins: 0/);
+  assert.match(db, /grantedT10: 0/);
+  assert.match(db, /s\.grantedCoins = n\(s\.grantedCoins\)/);
+  assert.match(db, /s\.grantedT10 = n\(s\.grantedT10\)/);
+  const uses = db.split('G.Grant.applyGrant').length - 1;
+  assert.equal(uses, 2);
+  assert.ok(html.indexOf('js/core/grant.js') < html.indexOf('js/core/db.js'));
+});
