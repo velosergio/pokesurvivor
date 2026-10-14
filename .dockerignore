@@ -1,0 +1,13 @@
+.git
+.github
+.firebase
+.wrangler
+node_modules
+functions/node_modules
+tools/cache
+videos
+cloudflare
+docs
+tools
+functions
+*.md
