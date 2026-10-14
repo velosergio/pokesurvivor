@@ -658,6 +658,29 @@ body.touch kbd, body.touch .card .key, body.touch .kbd-hint { display: none !imp
 
 /* ---------- ajustes ---------- */
 #scr-settings { z-index: 60; }
+/* Colocar los botones (layout-ui.js): por delante de Ajustes */
+#scr-layout { z-index: 66; display: block; background: radial-gradient(circle at 50% 40%, #24452c, #0d1a12); touch-action: none; }
+#scr-layout.hidden { display: none; }
+.lay-thing { position: absolute; z-index: 2; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.lay-thing.held { cursor: grabbing; filter: drop-shadow(0 0 8px rgba(255,210,63,.8)); }
+.lay-thing.hidden { display: none; }
+.lay-bar { display: flex; gap: 9px; }
+.lay-slot { position: relative; width: 54px; height: 54px; flex: none; border-radius: 12px; background: rgba(10,16,28,.8); border: 1.2px solid rgba(140,170,210,.4); }
+.lay-slot.on { border: 2.5px solid var(--gold); }
+.lay-slot.item { margin-right: 9px; background: rgba(10,16,28,.55); }
+.lay-slot i { position: absolute; left: 4px; top: 2px; font-style: normal; font-size: 10px; color: rgba(180,200,230,.7); }
+.lay-tag { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); font-size: 11px; color: var(--gold); white-space: nowrap; pointer-events: none; }
+.lay-pause { border-radius: 10px; background: rgba(10,16,28,.7); border: 2px solid rgba(244,248,255,.8); box-sizing: border-box; }
+.lay-pause b { position: absolute; top: 9px; width: 5px; height: 18px; background: #f4f8ff; }
+.lay-pause b:first-child { left: 11px; } .lay-pause b:last-child { left: 20px; }
+.lay-stick { border-radius: 50%; background: rgba(10,20,48,.3); border: 3px solid rgba(244,248,255,.6); box-sizing: border-box; }
+.lay-stick .knob { position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(255,210,63,.85); border: 3px solid #a55f00; box-sizing: border-box; }
+.lay-panel { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(340px, calc(100% - 32px)); padding: 10px 14px; text-align: center; opacity: .95; }
+.lay-panel h3 { margin: 0 0 6px; font-size: 14px; }
+#lay-mode { justify-content: center; align-items: center; gap: 6px; margin: 0; }
+.lay-help { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.lay-turn { color: var(--gold); font-size: 13px; margin: 4px 0; }
+.lay-btns { justify-content: center; gap: 8px; margin-top: 6px; }
 .box.settings { width: min(640px, 100%); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; }
 .set-body { overflow-y: auto; padding-right: 4px; min-height: 0; }
 #set-tabs { flex-wrap: wrap; }
@@ -752,6 +775,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .tap-blink { color: #fff !important; font-size: 20px; margin-top: 22px !important; animation: blink 1.1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .25; } }
 .login-tag { margin: -6px 0 12px; font-size: 13px; color: var(--muted); text-align: center; }
+.login-official { margin: -6px 0 12px; font-size: 12px; color: var(--muted); text-align: center; opacity: .85; }
 .login-links { margin-top: 10px; font-size: 13px; text-align: center; }
 .login-links a { color: #9fd4ff; }
 

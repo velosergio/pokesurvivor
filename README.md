@@ -35,9 +35,11 @@ de personalidad y a la mazmorra.
 
 **En móvil o tablet** (en horizontal): pon el dedo en cualquier sitio y arrastra
 para moverte (el joystick aparece donde tocas), toca un ataque de abajo para
-cambiarlo y el botón de arriba a la derecha para pausar. Se puede instalar como
-app ("Añadir a pantalla de inicio"). En **Ajustes** hay sonido, calidad gráfica
-(con modo automático), números de daño, menos sacudidas, FPS y la cuenta.
+cambiarlo y el botón de arriba a la derecha para pausar. En **Ajustes > Controles
+> Colocar los botones** puedes arrastrar los ataques, la pausa y el joystick, y
+dejar el joystick fijo. Se puede instalar como app ("Añadir a pantalla de inicio").
+En **Ajustes** hay sonido, calidad gráfica (con modo automático), números de daño,
+menos sacudidas, FPS y la cuenta.
 
 El Pokémon ataca solo con el movimiento activo (o con todos los de un
 **vínculo**: cada legendario vencido deja fusionar movimientos para lanzarlos a
@@ -96,9 +98,17 @@ jefe, la captura de un shiny salvaje y un shiny en el gacha.
 
 ## Licencia
 
-Código bajo MIT. Los sprites (CC BY-NC 4.0), la fuente (OFL) y las marcas de
-Pokémon tienen sus propias condiciones: ver [LICENSE](LICENSE) y
-[CREDITS.md](CREDITS.md). Proyecto de fan sin ánimo de lucro.
+Código bajo [PolyForm Noncommercial 1.0.0](LICENSE-NONCOMMERCIAL.md) desde el
+14-10-2026: se puede usar, estudiar y modificar, pero **no con fines
+comerciales** (ni vender el juego ni cobrar nada dentro de él). Las versiones
+hasta el commit `b297089` se publicaron bajo MIT. Los sprites (CC BY-NC 4.0),
+la fuente (OFL) y las marcas de Pokémon tienen sus propias condiciones: ver
+[LICENSE](LICENSE) y [CREDITS.md](CREDITS.md). Proyecto de fan sin ánimo de
+lucro.
+
+Esta copia se juega en el dominio de `js/config.js` y es gratis: si alguien te
+pide pagar, no somos nosotros. El autor original indica en [LICENSE](LICENSE)
+cuál es su web oficial.
 
 ## Estructura
 
