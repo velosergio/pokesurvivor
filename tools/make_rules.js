@@ -32,7 +32,17 @@ function run() {
   const re = /    \/\/ <logros>[\s\S]*?\/\/ <\/logros>/;
   if (!re.test(src)) throw new Error('faltan las marcas <logros> en firestore.rules');
   const nl = src.includes('\r\n') ? '\r\n' : '\n';       // los mismos saltos de línea que el archivo
-  const out = src.replace(re, block.replace(/\n/g, nl));
+  // Moderadores: los de G.Config.admins (js/config.js), exportados en gamedata.json.
+  const admins = (data.config && data.config.admins) || [];
+  if (!admins.every(u => /^[A-Za-z0-9]{20,40}$/.test(u))) throw new Error('uid de admin raro en js/config.js');
+  const reA = /    \/\/ <admins>[\s\S]*?\/\/ <\/admins>/;
+  if (!reA.test(src)) throw new Error('faltan las marcas <admins> en firestore.rules');
+  const blockA = [
+    '    // <admins> (generado por tools/make_rules.js desde js/config.js, no editar a mano)',
+    `    function admin() { return signedIn() && me() in [${admins.map(u => `'${u}'`).join(', ')}]; }`,
+    '    // </admins>'
+  ].join('\n');
+  const out = src.replace(re, block.replace(/\n/g, nl)).replace(reA, blockA.replace(/\n/g, nl));
   if (out !== src) {
     fs.writeFileSync(RULES, out);
     console.log('firestore.rules: lista de logros actualizada (' + ids.length + '). Despliega: firebase deploy --only firestore');
