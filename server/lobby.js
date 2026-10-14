@@ -190,7 +190,7 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
           const mm = r.members.find(x => x.uid === uid);
           if (!mm || !mm.on) return;
           const c = conns.get(uid);
-          if (c) c.send(m);
+          if (c) return c.send(m);          // false: no ha salido (la sala lo necesita para los snap)
         },
         onOver() { over(r, game); },
       });

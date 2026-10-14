@@ -144,12 +144,12 @@ function start({
     /** Estado de esta conexión. conn = lo que ve el lobby (null hasta el hello bueno). */
     const st = { ws, seq: ++connSeq, conn: null, phase: 'hello', queue: [], gone: false, win: 0, count: 0 };
 
-    /** Manda un objeto {t,...} como JSON (o binario para snap). */
+    /** Manda un objeto {t,...} como JSON (o binario para snap). → false si no ha salido. */
     const sendMsg = msg => {
-      if (ws.readyState !== ws.OPEN || !msg) return;
+      if (ws.readyState !== ws.OPEN || !msg) return false;
       try {
         if (msg.t === 'snap' && msg.bin) {
-          if (ws.bufferedAmount > MAX_BUFFERED) return;
+          if (ws.bufferedAmount > MAX_BUFFERED) return false;
           ws.send(msg.bin, { binary: true });
         } else {
           let txt = encoded.get(msg);
@@ -160,7 +160,8 @@ function start({
           }
           ws.send(txt);
         }
-      } catch (e) { logger.error('[ws] envío fallido:', e && e.message); }
+        return true;
+      } catch (e) { logger.error('[ws] envío fallido:', e && e.message); return false; }
     };
     /** bye {reason} y cerrar. */
     const bye = reason => {
