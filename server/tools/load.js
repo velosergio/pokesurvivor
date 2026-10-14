@@ -23,7 +23,7 @@
  */
 'use strict';
 const { monitorEventLoopDelay } = require('perf_hooks');
-const { runBots, parseArgs, ok } = require('./bots');
+const { runBots, parseArgs, num, ok } = require('./bots');
 
 /** ¿La URL es de esta máquina? */
 function isLocal(url) {
@@ -53,7 +53,9 @@ async function runLoad({ spawn = false, url, rooms = 5, size = 4, secs = 60, cpu
     const port = await app.ready;
     url = `ws://127.0.0.1:${port}/ws`;
   }
-  // La simulación se carga con la primera sala: la base es sin ella.
+  // Lo que se carga una vez (room.js, sim.js) va en la base; cada sala crea su
+  // propio contexto vm con los datos del juego, y eso sí cuenta por sala.
+  require('../room');
   if (global.gc) global.gc();
   const rssBase = process.memoryUsage().rss;
   let rssPeak = rssBase, heapPeak = process.memoryUsage().heapUsed;
@@ -78,14 +80,14 @@ async function runLoad({ spawn = false, url, rooms = 5, size = 4, secs = 60, cpu
   const out = { url, bots, mbPerPlayerHour: Math.round(bots.kbsPerPlayer * 3600 / 1024) };
   if (spawn) {
     const cpuPct = (c.user + c.system) / 1000 / wall * 100;
-    const started = Math.max(1, bots.starts || rooms);
     out.cpuPct = Math.round(cpuPct * 10) / 10;
     out.rssBaseMb = mb(rssBase);
     out.rssPeakMb = mb(rssPeak);
     out.heapPeakMb = mb(heapPeak);
     out.lagP99Ms = Math.round(lag.percentile(99) / 1e6 * 10) / 10;
-    out.cpuPerRoom = Math.round(cpuPct / started * 100) / 100;
-    out.ramPerRoomMb = Math.round(Math.max(0.1, (rssPeak - rssBase) / 1048576 / started) * 10) / 10;
+    // Entre las salas a la vez (no entre las partidas: las que acaban se vuelven a empezar).
+    out.cpuPerRoom = Math.round(cpuPct / rooms * 100) / 100;
+    out.ramPerRoomMb = Math.round(Math.max(0.1, (rssPeak - rssBase) / 1048576 / rooms) * 10) / 10;
     const byCpu = Math.floor(cpu / Math.max(0.01, out.cpuPerRoom));
     const byRam = Math.floor((ramMb * 0.8 - out.rssBaseMb) / out.ramPerRoomMb);
     out.maxRoomsByCpu = byCpu;
@@ -100,12 +102,16 @@ module.exports = { runLoad, isLocal };
 // ---- Ejecutado directamente ----
 if (require.main === module) {
   const a = parseArgs(process.argv.slice(2));
-  const opts = {
-    spawn: !!a.spawn, url: typeof a.url === 'string' ? a.url : 'ws://localhost:8787/ws',
-    rooms: +a.rooms || 5, size: +a.size || 4, secs: +a.secs || 60,
-    cpu: +a.cpu || 70, ramMb: +a['ram-mb'] || 1024,
-    origin: typeof a.origin === 'string' ? a.origin : undefined
-  };
+  let opts;
+  try {
+    opts = {
+      spawn: !!a.spawn, url: typeof a.url === 'string' ? a.url : 'ws://localhost:8787/ws',
+      rooms: num(a, 'rooms', 5), size: num(a, 'size', 4), secs: num(a, 'secs', 60),
+      cpu: num(a, 'cpu', 70), ramMb: num(a, 'ram-mb', 1024),
+      origin: typeof a.origin === 'string' ? a.origin : undefined
+    };
+    if (opts.size > 4) throw new Error('--size: como mucho 4 por sala');
+  } catch (e) { console.error('[load]', e.message); process.exit(2); }
   if (!opts.spawn && !isLocal(opts.url) && !a['remote-ok']) {
     console.error(`[load] ${opts.url} no es local: añade --remote-ok si de verdad es un servidor de pruebas con DEV_AUTH=1`);
     process.exit(2);

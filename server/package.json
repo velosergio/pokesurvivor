@@ -10,7 +10,9 @@
   },
   "scripts": {
     "start": "node index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "bots": "node tools/bots.js",
+    "load": "node tools/load.js --spawn"
   },
   "dependencies": {
     "ws": "^8.22.0"
