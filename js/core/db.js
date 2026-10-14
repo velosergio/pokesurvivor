@@ -426,7 +426,8 @@ G.DB = (() => {
     const same = remote && !opts.legacy && (!cached || (cached.updated || 0) <= (remote.updated || 0));
     lastPush = Date.now();       // la primera compra o ticket no sube al momento: espera como las demás
     if (!online) { pending = true; setSync('offline'); scheduleRetry(); }
-    else if (grantDue || !same) pushNow();
+    else if (grantDue) await pushNow({ force: true });   // el regalo se sube ya, antes de poder gastarlo
+    else if (!same) pushNow();
     else setSync('ok');
   }
 
@@ -456,16 +457,18 @@ G.DB = (() => {
   const sinceOk = () => Date.now() - (+read(K_OK + uid) || 0);
 
   /** Sube la partida fusionándola con lo que haya en la nube (transacción). */
-  function pushNow() {
+  function pushNow(opts) {
+    const force = !!(opts && opts.force);
     if (mode !== 'cloud' || guest || !save || !uid) return Promise.resolve();
     // Si ya hay una subida en marcha, se hace otra justo después (para lo que haya cambiado mientras).
-    if (pushing) { pending = true; return pushing.then(() => (pending ? pushNow() : undefined)); }
+    if (pushing) { pending = true; return pushing.then(() => (pending ? pushNow(opts) : undefined)); }
     clearTimeout(pushT); pushT = 0; pushDue = 0;
     if (navigator.onLine === false) {
       pending = true; setSync('offline'); scheduleRetry();
       return Promise.resolve();
     }
-    if (sinceOk() < MIN_GAP) {
+    // force: un regalo de la libreta no puede esperar (se gastaría antes de quedar guardado).
+    if (!force && sinceOk() < MIN_GAP) {
       pending = true; setSync('pending');
       schedulePush(MIN_GAP - sinceOk() + 500);
       return Promise.resolve();
@@ -473,14 +476,15 @@ G.DB = (() => {
     pending = false;
     lastPush = Date.now();
     setSync('syncing');
-    let merged = null;
+    let merged = null, grantSnap = null;
     const tr = fs.runTransaction(async tx => {
       const ref = docRef();
       const snap = await tx.get(ref);
       const gsnap = await tx.get(fs.collection('grants').doc(uid));
       const remote = snap.exists ? migrate(snap.data().save) : null;
       merged = remote ? merge(plain(save), remote) : plain(save);
-      G.Grant.applyGrant(merged, gsnap.exists ? gsnap.data() : null);
+      grantSnap = gsnap.exists ? gsnap.data() : null;
+      G.Grant.applyGrant(merged, grantSnap);
       const doc = { save: merged, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), v: VERSION };
       if (markNext || (snap.exists && snap.data().sus === true)) doc.sus = true;
       tx.set(ref, doc);
@@ -493,7 +497,12 @@ G.DB = (() => {
       write(K_OK + uid, Date.now());
       // Se FUSIONA con lo de ahora (no se sobrescribe): si has cambiado algo
       // mientras se subía (elegir compañero, una compra...), no se pierde.
-      if (merged && save) { applyInPlace(merge(plain(save), merged)); write(K_CLOUD + uid, save); }
+      if (merged && save) {
+        applyInPlace(merge(plain(save), merged));
+        // merge() puede perder un regalo que sólo aplicó la transacción (gana el más nuevo; en empate, el local): es idempotente.
+        G.Grant.applyGrant(save, grantSnap);
+        write(K_CLOUD + uid, save);
+      }
       setSync(pending ? 'pending' : 'ok');
       if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
     }).catch(e => {

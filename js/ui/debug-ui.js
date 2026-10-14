@@ -97,12 +97,15 @@ G.DebugUI = (() => {
           at: firebase.firestore.FieldValue.serverTimestamp()
         });
       });
-      G.UI.toast('Anotado. Lo verá al sincronizar.');
-      await showPicked(uid, name);
     } catch (e) {
       G.UI.toast('No se pudo: ' + (e.code || e.message));
       if (picked) { $('dbg-coins').disabled = false; $('dbg-t10').disabled = false; }
+      return;
     }
+    // La escritura ya está hecha: si sólo falla el refresco de la tarjeta, sigue siendo un éxito.
+    G.UI.toast('Anotado. Lo verá al sincronizar.');
+    try { await showPicked(uid, name); }
+    catch (e) { if (picked) { $('dbg-coins').disabled = false; $('dbg-t10').disabled = false; } }
   }
 
   return { init: init, open: open };

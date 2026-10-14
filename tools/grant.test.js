@@ -61,6 +61,6 @@ test('la partida nueva y la subida usan la libreta', () => {
   assert.match(db, /s\.grantedCoins = n\(s\.grantedCoins\)/);
   assert.match(db, /s\.grantedT10 = n\(s\.grantedT10\)/);
   const uses = db.split('G.Grant.applyGrant').length - 1;
-  assert.equal(uses, 2);
+  assert.equal(uses, 3);
   assert.ok(html.indexOf('js/core/grant.js') < html.indexOf('js/core/db.js'));
 });
