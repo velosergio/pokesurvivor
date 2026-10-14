@@ -52,5 +52,6 @@ fs.mkdirSync(path.join(__dirname, 'cache'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'cache', 'gamedata.json'), JSON.stringify(out));
 console.log('ok:', out.dex.length, 'Pokémon,', out.moves.length, 'movimientos,', out.items.length, 'objetos,', out.achievements.length, 'logros,',
   Object.keys(out.arenas).length, 'arenas,', Object.keys(out.en).length, 'traducciones');
-// La lista de logros también va en las reglas del servidor (anti-trampas).
+// Moderadores de js/config.js (y la lista de logros, si las reglas aún la llevan).
 require('./make_rules.js')();
+

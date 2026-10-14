@@ -1,6 +1,7 @@
-/* Escribe en firestore.rules la lista de logros y sus premios (entre las
- * marcas "<logros>" y "</logros>"), para que el servidor sepa cuántos tickets
- * y monedas puede dar cada logro nuevo y no acepte logros inventados.
+/* Escribe en firestore.rules los moderadores de js/config.js (entre las marcas
+ * "<admins>" y "</admins>"). Si las reglas aún llevan la lista de logros
+ * ("<logros>"), también la actualiza; el original la quitó al dejar el baneo
+ * sólo en manos del moderador.
  *   node tools/make_rules.js        (lo llama también tools/export_data.js)
  * Lee tools/cache/gamedata.json. Si las reglas cambian, hay que desplegarlas:
  *   firebase deploy --only firestore
@@ -30,7 +31,6 @@ function run() {
   ].join('\n');
   const src = fs.readFileSync(RULES, 'utf8');
   const re = /    \/\/ <logros>[\s\S]*?\/\/ <\/logros>/;
-  if (!re.test(src)) throw new Error('faltan las marcas <logros> en firestore.rules');
   const nl = src.includes('\r\n') ? '\r\n' : '\n';       // los mismos saltos de línea que el archivo
   // Moderadores: los de G.Config.admins (js/config.js), exportados en gamedata.json.
   const admins = (data.config && data.config.admins) || [];
@@ -42,10 +42,12 @@ function run() {
     `    function admin() { return signedIn() && me() in [${admins.map(u => `'${u}'`).join(', ')}]; }`,
     '    // </admins>'
   ].join('\n');
-  const out = src.replace(re, block.replace(/\n/g, nl)).replace(reA, blockA.replace(/\n/g, nl));
+  let out = re.test(src) ? src.replace(re, block.replace(/\n/g, nl)) : src;
+  out = out.replace(reA, blockA.replace(/\n/g, nl));
   if (out !== src) {
     fs.writeFileSync(RULES, out);
-    console.log('firestore.rules: lista de logros actualizada (' + ids.length + '). Despliega: firebase deploy --only firestore');
+    const what = re.test(src) ? 'moderadores y lista de logros (' + ids.length + ')' : 'moderadores';
+    console.log('firestore.rules: ' + what + ' actualizados. Despliega: firebase deploy --only firestore');
   }
 }
 

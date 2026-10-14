@@ -216,7 +216,11 @@ G.Rift = (() => {
     arena = null;
     G.World.setBiome(a.biome, true);
     G.Weather.clear();
-    if (authority()) G.EnemyMgr.restore(); else G.EnemyMgr.clearRemote();
+    // Invitado: no se borra nada. El anfitrión avisa de los de la arena que se
+    // van y de los del mapa que vuelven; si el invitado terminaba su cuenta
+    // atrás un poco más tarde (pasa casi siempre), borraba los que acababan de
+    // volver y no se veían hasta que caían (sólo sus ataques).
+    if (authority()) G.EnemyMgr.restore();
     G.Projectiles.clear();
     G.Combat.clearFields();
     G.Hazards.clear();

@@ -39,9 +39,10 @@ G.Ranking = (() => {
   //  Pokémon y escribía; ahora también sólo el top 50.)
   const TOP_ONLY = new Set(['d', 'w', 'm', 'p']);
   const TOP = 50;
-  // Las runs de menos de 1 minuto no se suben (casi nunca entran en una tabla
-  // y eran muchas lecturas y escrituras para nada).
-  const MIN_T = 60;
+  // Las runs de menos de 2 minutos no se suben (nunca entran en un top que
+  // importe y eran muchas lecturas y escrituras para nada: los que empiezan
+  // mueren a menudo en el primer minuto; era 1 min hasta el 14-10-2026).
+  const MIN_T = 120;
   const TTL = 30 * 60 * 1000;            // caché de lo leído (30 min: menos lecturas de Firestore)
 
   const fbx = () => G.DB.online ? G.DB.fb : null;
@@ -71,9 +72,20 @@ G.Ranking = (() => {
     return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };
   }
 
+  /*
+   * Nombres de las tablas: los de periodIds() salvo semana y mes, que llevan
+   * una "j" (desde la Sentencia de Arceus, 14-10-2026: empezaron de cero como el
+   * histórico, que tenían marcas de antes del final del minuto 30). periodIds()
+   * se queda igual porque también lo usan las misiones (progress.js).
+   */
+  function boardIds(date) {
+    const p = periodIds(date);
+    return Object.assign({}, p, { w: p.w + 'j', m: p.m + 'j' });
+  }
+
   /** El filtro por Pokémon sólo existe en el histórico. */
   function board(mode, period, dex) {
-    return mode + '_' + periodIds()[period] + (dex && period === 'a' ? '_p' + dex : '');
+    return mode + '_' + boardIds()[period] + (dex && period === 'a' ? '_p' + dex : '');
   }
 
   const col = b => fbx().fs.collection('lb').doc(b).collection('e');
@@ -82,10 +94,14 @@ G.Ranking = (() => {
   // ---------------- caché en el navegador ----------------
 
   const mem = new Map();                 // clave -> { at, v }
+  // Tu puesto exacto (fuera del top 50) cuesta 1 lectura por cada 1.000 marcas
+  // que tienes por delante: se guarda 6 h, y se vuelve a mirar antes si mejoras.
+  const RANK_TTL = 6 * 3600 * 1000;
+  const ttlOf = k => (k.startsWith('r:') ? RANK_TTL : TTL);
   function cacheGet(k) {
     let c = mem.get(k);
     if (!c) { try { c = JSON.parse(localStorage.getItem('ps.rk.c.' + k) || 'null'); } catch (e) { c = null; } if (c) mem.set(k, c); }
-    return c && Date.now() - c.at < TTL ? c.v : undefined;
+    return c && Date.now() - c.at < ttlOf(k) ? c.v : undefined;
   }
   function cacheSet(k, v) {
     const c = { at: Date.now(), v };
@@ -99,7 +115,7 @@ G.Ranking = (() => {
         const k = localStorage.key(i);
         if (!k || !k.startsWith('ps.rk.c.')) continue;
         const c = JSON.parse(localStorage.getItem(k) || 'null');
-        if (!c || Date.now() - c.at > TTL) localStorage.removeItem(k);
+        if (!c || Date.now() - c.at > ttlOf(k.slice(8))) localStorage.removeItem(k);
       }
     } catch (e) { /* nada */ }
   }
@@ -112,7 +128,7 @@ G.Ranking = (() => {
   function bests() { try { return JSON.parse(localStorage.getItem(bestKey()) || '{}'); } catch (e) { return {}; } }
   function saveBests(b) {
     // Sólo se conservan las tablas de los periodos actuales y las históricas.
-    const cur = Object.values(periodIds());
+    const cur = Object.values(boardIds());
     for (const k of Object.keys(b)) if (!cur.some(p => k.split(':')[0].split('_')[1] === p)) delete b[k];
     try { localStorage.setItem(bestKey(), JSON.stringify(b)); } catch (e) { /* lleno */ }
   }
@@ -134,7 +150,7 @@ G.Ranking = (() => {
     if ((t[b] || 0) >= low) return;
     t[b] = low;
     // Sólo las tablas de los periodos de ahora (y las históricas).
-    const cur = Object.values(periodIds());
+    const cur = Object.values(boardIds());
     for (const k of Object.keys(t)) if (!cur.some(p => k.split('_')[1] === p)) delete t[k];
     try { localStorage.setItem(THR, JSON.stringify(t)); } catch (e) { /* lleno */ }
   }
@@ -148,17 +164,23 @@ G.Ranking = (() => {
   // ---------------- anti-trampas ----------------
 
   /**
-   * Al empezar cada partida (en grupo, el anfitrión) el servidor apunta la
-   * hora: ninguna marca puede durar más que el tiempo real desde entonces
-   * (firestore.rules, validEntry). Antes se espera a que acabe de subirse la
-   * marca de la partida anterior, para no cambiarle la hora a mitad.
+   * Al empezar la PRIMERA partida de la sesión (en grupo, el anfitrión) el
+   * servidor apunta la hora: ninguna marca puede durar más que el tiempo real
+   * desde entonces (firestore.rules, validEntry). Una vez por sesión y no en
+   * cada partida (14-10-2026: eran casi 150.000 escrituras al día de más; es
+   * igual de seguro, porque la sesión siempre empieza antes que la partida).
+   * Antes se espera a que acabe de subirse la marca de la partida anterior.
    */
-  let busy = Promise.resolve();
+  let busy = Promise.resolve(), runMarked = '';
   function runStarted(mode) {
     const fb = fbx();
-    if (!fb) return;
+    if (!fb || runMarked === fb.uid) return;
+    runMarked = fb.uid;
     const go = n => fb.fs.collection('runs').doc(fb.uid).set({ startedAt: now(), mode })
-      .catch(e => { console.warn('[Ranking] inicio:', e.code || e.message); if (n < 2) setTimeout(() => go(n + 1), 15000); });
+      .catch(e => {
+        console.warn('[Ranking] inicio:', e.code || e.message);
+        if (n < 2) setTimeout(() => go(n + 1), 15000); else runMarked = '';
+      });
     busy.then(() => go(0));
   }
   /** La subida de una marca (para que la partida siguiente espere a que acabe). */
@@ -241,7 +263,7 @@ G.Ranking = (() => {
   async function submitSoloNow(r) {
     const fb = fbx();
     if (!fb || !G.Social.me || r.t < MIN_T) return [];
-    const ids = periodIds();
+    const ids = boardIds();
     const entry = { t: r.t, uids: [fb.uid], names: [G.Social.me.name], dex: [r.dex], shiny: [!!r.shiny], lv: r.lv, kills: r.kills };
     const boards = PERIODS.map(([p]) => ['s_' + ids[p], p]);
     boards.push(['s_' + ALL + '_p' + r.dex, 'p']);
@@ -259,7 +281,7 @@ G.Ranking = (() => {
     const id = ms.map(m => m.uid).join('_');
     const entry = { t: r.t, uids: ms.map(m => m.uid), names: ms.map(m => m.name), dex: ms.map(m => m.dex),
                     shiny: ms.map(m => !!m.shiny), lv: r.lv, kills: r.kills };
-    const ids = periodIds();
+    const ids = boardIds();
     const boards = PERIODS.map(([p]) => ['g_' + ids[p], p]);
     for (const d of new Set(entry.dex)) boards.push(['g_' + ALL + '_p' + d, 'p']);
     const better = await store(boards, id, entry);
@@ -380,7 +402,7 @@ G.Ranking = (() => {
   async function removeMine() {
     const fb = fbx();
     if (!fb) return;
-    const ids = periodIds();
+    const ids = boardIds();
     const boards = new Set();
     for (const m of ['s', 'g']) for (const [p] of PERIODS) boards.add(m + '_' + ids[p]);
     for (const k of Object.keys(bests())) boards.add(k.split(':')[0]);
@@ -457,7 +479,7 @@ G.Ranking = (() => {
 
   /** Admin: quita la marca de un jugador o equipo de todas las tablas de ahora (y de `also`). */
   async function removeEverywhere(e, mode, dexes = [], also = null) {
-    const ids = periodIds();
+    const ids = boardIds();
     const boards = new Set(PERIODS.map(([p]) => mode + '_' + ids[p]));
     for (const d of dexes) boards.add(mode + '_' + ALL + '_p' + d);
     if (also) boards.add(also);
@@ -500,13 +522,13 @@ G.Ranking = (() => {
     return { rows, boards };
   }
 
-  /** Admin: marca o desmarca una cuenta (marcada = no puede subir marcas). */
-  function setMarked(uid, on) { return fbx().fs.collection('saves').doc(uid).update({ sus: !!on }); }
+  /** Admin: banea o desbanea una cuenta del ranking (baneada = no puede subir marcas). */
+  function setMarked(uid, on) { return fbx().fs.collection('saves').doc(uid).update({ ban: !!on }); }
   /** Admin: borra reportes ya vistos. */
   function dismiss(ids) { return Promise.all(ids.map(id => fbx().fs.collection('reports').doc(id).delete().catch(() => {}))); }
-  /** Admin: cuentas marcadas. */
+  /** Admin: cuentas baneadas del ranking. */
   async function markedAccounts() {
-    const s = await fbx().fs.collection('saves').where('sus', '==', true).limit(100).get();
+    const s = await fbx().fs.collection('saves').where('ban', '==', true).limit(100).get();
     return s.docs.map(d => { const v = d.data().save || {}; return { uid: d.id, name: v.name || '?', coins: v.coins || 0,
       t1: (v.tickets || {}).t1 || 0, t10: (v.tickets || {}).t10 || 0, owned: Object.keys(v.owned || {}).length }; });
   }

@@ -198,6 +198,8 @@ G.Game = (() => {
       bankTickets();
     },
     levelStart(level) {
+      // (Si tenías abierta la elección de objeto, vuelve al terminar: afterLevelUp.)
+      if (state === 'choice' && openItem && G.Coop.active) G.Coop.holdEnd();
       state = 'levelup';
       G.UI.hide('scr-pause');
       G.Audio.sfx('levelup');
@@ -208,7 +210,13 @@ G.Game = (() => {
       }, true);
     },
     waiting(names) { G.RunUI.setWaiting(names); },
-    resume() { G.RunUI.closeLevelUp(); if (state === 'levelup') state = 'playing'; },
+    resume() {
+      G.RunUI.closeLevelUp();
+      if (state === 'levelup') { state = holdBy.length ? 'held' : 'playing'; afterLevelUp(); }
+    },
+    /** ¿Estás eligiendo algo que para la partida (objeto o vínculo)? */
+    choosing() { return state === 'choice'; },
+    inLevelUp() { return state === 'levelup'; },
     shiny(dex) { G.onShinyCaught({ dex, name: (G.DEX_BY[dex] || {}).name || '' }); },
     over(d) {
       if (d) Object.assign(pl, { kills: d.ki, bosses: d.bo, coins: d.co, level: Math.max(pl.level, d.lv || 1), t1: d.t1 || pl.t1, t10: d.t10 || pl.t10 });
@@ -228,6 +236,7 @@ G.Game = (() => {
         if (pl && pl.bonds > 0) offerBond(true);      // si tú también tienes vínculo, eliges a la vez
         const others = holdBy.filter(n => n !== (G.Social.me && G.Social.me.name) && n !== 'Tú');
         if (!mine && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
+        else if (!others.length) G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);   // sólo tú: sin aviso viejo
       } else {
         if (state === 'held' && !awayBy) state = 'playing';
         G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);
@@ -305,16 +314,18 @@ G.Game = (() => {
     G.Judgment.reset();
     G.Progress.event('runEnd', { time, level: pl.level, coins: pl.coins, types: pl.mon.types, group: coop });
     G.Progress.checkAch();
-    // A la nube: un récord, enseguida; si no, al acabar la partida (como mucho cada 20 min).
-    G.DB.commit(record ? true : 'run');
+    // A la nube al acabar la partida (como mucho cada 30 min); si la marca entra
+    // en un top (hoy, semana o mes), enseguida (abajo, tras subirla al ranking).
+    G.DB.commit('run');
     if (G.Social.me) G.Social.publishProfile();
 
     // Ranking: en solitario cada uno lo suyo; en grupo lo sube el anfitrión.
     const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
     const ok = clean();
-    if (ok && !coop) G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny }));
-    else if (ok && wasHost) G.Ranking.submitGroup(Object.assign(mark, { members: team }));
+    const sent = ok && !coop ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny }))
+               : ok && wasHost ? G.Ranking.submitGroup(Object.assign(mark, { members: team })) : null;
+    if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
 
     G.RunUI.showOver({
       dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge,
@@ -402,19 +413,42 @@ G.Game = (() => {
 
   const PICK_SFX = { xp: 'xp', xpBig: 'xp', coin: 'coin', heal: 'heal', bomb: 'break', magnet: 'confirm', ticket: 'shiny', ticket10: 'legend', item: 'legend' };
 
+  /*
+   * Cooperativo: la elección de objeto y las cartas de nivel no pueden taparse.
+   * Si llega un objeto con las cartas abiertas, espera a que elijas carta; y si
+   * las cartas llegan con la elección de objeto abierta, ésta vuelve a salir al
+   * terminar. (Antes una cerraba la otra, nadie podía terminar de elegir y la
+   * partida se quedaba parada para todos.)
+   */
+  let openItem = null;           // { cur, next, take } elección de objeto sin terminar
+  const laterItems = [];         // objetos recogidos con las cartas de nivel abiertas
+  function afterLevelUp() {
+    if (state !== 'playing' && state !== 'held') return;
+    if (openItem && !G.UI.isOpen('scr-item')) {
+      const o = openItem;
+      if (o.mine) { state = 'choice'; if (G.Coop.active) G.Coop.holdStart(); }
+      G.RunUI.showItemChoice(o.cur, o.next, o.take);
+      return;
+    }
+    if (laterItems.length) offerItem(laterItems.shift());
+  }
+
   /** Has cogido un objeto: si no llevas ninguno te lo pones; si no, eliges. */
   function offerItem(id) {
     if (!pl || !G.Items.BY[id]) return;
+    if (state === 'levelup' || G.UI.isOpen('scr-levelup')) { laterItems.push(id); return; }
     let mine = false;            // esta elección es la que ha parado el juego
     const take = got => {
+      openItem = null;
       if (got !== pl.item) {
         pl.equip(got);
         G.Spawner.say('¡Llevas ' + G.Items.BY[got].name + '!', 2.6, true);
         G.Progress.event('item', { id: got });
       }
-      if (!mine) return;
+      if (!mine) { afterLevelUp(); return; }
       if (state === 'choice') state = holdBy.length ? 'held' : 'playing';
       if (G.Coop.active) G.Coop.holdEnd();
+      afterLevelUp();
     };
     if (!pl.item) { take(id); return; }
     if (pl.item === id) { G.Spawner.say('Ya llevas ' + G.Items.BY[id].name, 2, true); return; }
@@ -425,6 +459,7 @@ G.Game = (() => {
       state = 'choice';
       if (G.Coop.active) G.Coop.holdStart();
     }
+    openItem = { cur: pl.item, next: id, take, get mine() { return mine; } };
     G.RunUI.showItemChoice(pl.item, id, take);
   }
 

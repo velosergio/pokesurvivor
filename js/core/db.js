@@ -326,10 +326,11 @@ G.DB = (() => {
   // guardaban unas 12 millones de veces); al cerrar la pestaña, siempre; al
   // cambiar de pestaña, si hace más de 30 min.
   // Lo que vale algo (tiradas, compras, Pokémon nuevos, shinies, premios,
-  // récords) se sube enseguida, y al acabar cada partida como mucho cada 20 min:
+  // récords que entran en un top) se sube enseguida, y al acabar cada partida
+  // como mucho cada 30 min:
   // con 2 h, quien abría el juego en otro aparato (o en el navegador de otra
   // app) veía la copia vieja de la nube y creía que lo había perdido.
-  const PUSH_GAP = 2 * 3600 * 1000, PUSH_GAP_URGENT = 15 * 1000, PUSH_GAP_RUN = 20 * 60 * 1000, HIDE_GAP = 30 * 60 * 1000;
+  const PUSH_GAP = 2 * 3600 * 1000, PUSH_GAP_URGENT = 15 * 1000, PUSH_GAP_RUN = 30 * 60 * 1000, HIDE_GAP = 30 * 60 * 1000;
   let syncState = 'local';           // 'ok' | 'syncing' | 'pending' | 'offline' | 'local'
   const listeners = new Set();
 
@@ -356,6 +357,9 @@ G.DB = (() => {
     firebase.initializeApp(cfg);
     auth = firebase.auth();
     fs = firebase.firestore();
+    // Algunas redes y antivirus cortan las actualizaciones en directo (amigos,
+    // invitaciones): Firebase prueba otra forma de recibirlas si hace falta.
+    try { fs.settings({ experimentalAutoDetectLongPolling: true }); } catch (e) { /* ya estaba */ }
     rtdb = cfg.databaseURL ? firebase.database() : null;
     // Sólo para pruebas: { ..., emulator: true } usa el emulador local de Firebase.
     if (cfg.emulator) {
@@ -439,21 +443,11 @@ G.DB = (() => {
   function stopListening() { if (unlisten) { unlisten(); unlisten = null; } }
 
   /*
-   * Anti-trampas (firestore.rules): el servidor nunca rechaza tu partida para
-   * siempre. Si trae más monedas, tickets o Pokémon de los que se pueden ganar
-   * en ese rato, la rechaza; el margen crece con el tiempo, así que se
-   * reintenta igual a los 2 y a los 6 min (un caso justo, como las monedas de
-   * una partida que acaba justo después de otro guardado, pasa solo). Si sigue
-   * sin cuadrar, se sube igual pero con la marca sus = true (la cuenta queda
-   * marcada y no puede subir marcas al ranking; nadie pierde nada). La marca
-   * la pone o la quita sólo la nube: si el admin la quita, el siguiente
-   * guardado ya va sin ella.
-   *
-   * Además, nunca se sube dos veces en menos de 65 s (el servidor da menos
-   * margen a los guardados muy seguidos); mientras, todo está en el navegador.
+   * Si el admin ha baneado la cuenta del ranking (ban = true en la nube, ver
+   * firestore.rules), cada guardado tiene que conservarlo: se copia de la nube.
+   * Nunca se sube dos veces en menos de 65 s; mientras, todo está en el navegador.
    */
-  let markNext = false, denials = 0;
-  const K_OK = 'ps.cloudok.', MIN_GAP = 65000, DENY_WAIT = [120000, 360000];
+  const K_OK = 'ps.cloudok.', MIN_GAP = 65000;
   const sinceOk = () => Date.now() - (+read(K_OK + uid) || 0);
 
   /** Sube la partida fusionándola con lo que haya en la nube (transacción). */
@@ -486,14 +480,14 @@ G.DB = (() => {
       grantSnap = gsnap.exists ? gsnap.data() : null;
       G.Grant.applyGrant(merged, grantSnap);
       const doc = { save: merged, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), v: VERSION };
-      if (markNext || (snap.exists && snap.data().sus === true)) doc.sus = true;
+      if (snap.exists && snap.data().ban === true) doc.ban = true;
       tx.set(ref, doc);
     });
     // Si la red se cae a medias, Firestore puede quedarse esperando: tope de 12 s.
     const timeout = new Promise((_, rej) => setTimeout(() => rej({ code: 'unavailable' }), 12000));
-    let failed = false, again = false;
+    let failed = false;
     pushing = Promise.race([tr, timeout]).then(() => {
-      fails = 0; markNext = false; denials = 0;
+      fails = 0;
       write(K_OK + uid, Date.now());
       // Se FUSIONA con lo de ahora (no se sobrescribe): si has cambiado algo
       // mientras se subía (elegir compañero, una compra...), no se pierde.
@@ -507,18 +501,11 @@ G.DB = (() => {
       if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
     }).catch(e => {
       console.warn('[DB] no se pudo sincronizar:', e.code || e.message);
-      // El servidor la ve imposible: se espera (el margen crece) y, si sigue, se sube con la marca.
-      if (e.code === 'permission-denied' && !markNext) {
-        pending = true;
-        if (denials < DENY_WAIT.length) { setSync('pending'); schedulePush(DENY_WAIT[denials++]); failed = true; return; }
-        markNext = true; again = true; return;
-      }
       pending = true; failed = true;
       setSync(navigator.onLine === false || e.code === 'unavailable' ? 'offline' : 'pending');
       scheduleRetry();
     }).finally(() => {
       pushing = null;
-      if (again) return pushNow();
       // (Si ha fallado, el reintento ya está programado con su espera creciente.)
       if (!failed && pending && syncState === 'pending') schedulePush(Math.max(1500, PUSH_GAP - (Date.now() - lastPush)));
     });
@@ -643,7 +630,7 @@ G.DB = (() => {
    * Guarda la partida actual (no hace nada en modo invitado). En el navegador,
    * al momento; en la nube:
    * @param urgent  true: lo que vale algo (tiradas, compras, Pokémon, premios): enseguida
-   *                'run': al acabar una partida (como mucho cada 20 min) · false: cada 2 h
+   *                'run': al acabar una partida (como mucho cada 30 min) · false: cada 2 h
    */
   function commit(urgent = false) {
     if (guest || !key || !save) return false;
