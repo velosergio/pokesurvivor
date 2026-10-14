@@ -15,6 +15,7 @@ G.Config = {
   admins: [],               // uids con acceso a Moderación (y en firestore.rules)
   kofi: '',                 // usuario de Ko-fi ('' = sin botón "Apoyar")
   sponsors: '',             // usuario de GitHub Sponsors ('' = sin enlace)
+  contact: 'velozasergio@gmail.com',   // correo de contacto (aviso legal, privacidad, retirada de contenido)
   firebase: {
     apiKey: 'AIzaSyCPhjZhBbJ1t81PhLVjO4D2K17-q6CrScw',
     authDomain: 'pokesurvivor-662eb.firebaseapp.com',

@@ -85,7 +85,7 @@ Sin esto, "Entrar con Google" da el error *dominio no autorizado*.
 En <https://console.cloud.google.com/apis/credentials> (mismo proyecto), abre la
 **Browser key** → *Restricciones de aplicaciones* → *Sitios web* y añade:
 
-- `https://jpter78.github.io/*`
+- `https://poke.sergioveloza.com/*`
 - `http://localhost:*`
 
 Así nadie puede usar tu clave desde otra web.
