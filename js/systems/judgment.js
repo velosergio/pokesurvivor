@@ -223,7 +223,6 @@ G.Judgment = (() => {
     } else netTick(dt);
     A.anim.update(dt);
     touch(pl);
-    ember(dt);
   }
 
   // ---------------- Arceus ----------------
@@ -464,10 +463,10 @@ G.Judgment = (() => {
 
   const F = (wt, s) => `${wt} ${s}px Pixelify,"Segoe UI",system-ui,sans-serif`;
 
-  /** En pantalla: la animación, o el aviso de la pelea. */
-  function drawOverlay(ctx, w, h) {
+  /** @param dt  tiempo de juego del fotograma (0 en pausa): mueve la ceniza */
+  function drawOverlay(ctx, w, h, dt) {
     if (phase === 'cine') drawCine(ctx, w, h);
-    else if (phase === 'fight') drawFight(ctx, w, h);
+    else if (phase === 'fight') drawFight(ctx, w, h, dt);
   }
 
   function drawCine(ctx, w, h) {
@@ -604,7 +603,8 @@ G.Judgment = (() => {
   }
 
   /** Pelea: cielo rojizo, ceniza, flecha a Arceus y el contador. */
-  function drawFight(ctx, w, h) {
+  function drawFight(ctx, w, h, dt) {
+    ember(dt, w, h);
     ctx.save();
     const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
     g.addColorStop(0, 'rgba(120,40,10,0)');
@@ -656,10 +656,8 @@ G.Judgment = (() => {
     ctx.restore();
   }
 
-  /** Ceniza y chispas que caen (en pantalla). */
-  function ember(dt) {
-    const cv = document.getElementById('game');
-    const w = cv ? cv.clientWidth : 800, h = cv ? cv.clientHeight : 600;
+  /** Ceniza y chispas que caen (en pantalla, de w × h). Sólo de dibujo. */
+  function ember(dt, w, h) {
     if (embers.length < 70 && Math.random() < dt * 40) {
       const spark = Math.random() < 0.3;
       embers.push({ x: Math.random() * w, y: -6, vx: G.U.rand(-25, 10), vy: G.U.rand(20, 55), life: G.U.rand(5, 10),

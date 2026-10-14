@@ -46,3 +46,13 @@ test('una grieta: entra en la arena y vuelve', () => {
   assert.ok(inside, 'no ha entrado en la grieta');
   assert.ok(back, 'no ha vuelto de la grieta');
 });
+
+test('la Sentencia de Arceus, de la animación a la pelea', () => {
+  const sim = createSim({ seed: 9 });
+  const r = soloRun(sim, { god: true });
+  run(r, 20);
+  sim.G.Judgment.debugStart();
+  let fight = false;
+  run(r, 150, () => { if (sim.G.Judgment.active && !sim.G.Judgment.cinematic) fight = true; });
+  assert.ok(fight, 'no ha llegado a la pelea');
+});

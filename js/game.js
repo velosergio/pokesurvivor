@@ -697,7 +697,7 @@ G.Game = (() => {
       ctx.fillRect(0, 0, w, h);
     }
     if (!G.Judgment.cinematic) G.HUD.draw(ctx, w, h, pl, st);
-    G.Judgment.drawOverlay(ctx, w, h);
+    G.Judgment.drawOverlay(ctx, w, h, frameDt);
     G.Touch.draw(ctx);
     if (G.Settings.get('fps')) {
       ctx.save();
