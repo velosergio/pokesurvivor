@@ -17,7 +17,8 @@
  */
 // 1.ª generación: con la 2.ª, Google llama a la función con una dirección
 // (cloudfunctions.net) y la librería espera otra (run.app), y rechazaba TODAS
-// las cuentas (pasó el 11-10-2026 durante 5 minutos).
+// las cuentas (pasó el 11-10-2026 durante 5 minutos). El runtime se queda en
+// Node 22: Node 24 y 26 sólo existen en la 2.ª generación.
 const functions = require('firebase-functions/v1');
 
 const URL = 'https://turn.pokesurvivor.com/mau/new';
