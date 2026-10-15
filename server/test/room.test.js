@@ -322,9 +322,27 @@ test('caídos todos: fin, over para cada uno y sin ranking antes de 2 min', () =
     const o = of(r.sent, m.uid, 'over');
     assert.strictEqual(o.length, 1, m.uid + ' no ha recibido over');
     assert.strictEqual(o[0].results.why, 'down');
-    for (const k of ['t', 'lv', 'ki', 'co', 'shinies', 'rescued']) assert.ok(k in o[0].results, 'falta ' + k);
+    for (const k of ['t', 'lv', 'ki', 'co', 'shinies', 'rescued', 'crew']) assert.ok(k in o[0].results, 'falta ' + k);
+    // El resumen del grupo: uno por jugador, con lo que se compara al final.
+    const crew = o[0].results.crew;
+    assert.strictEqual(crew.length, 2);
+    for (const c of crew) for (const k of ['uid', 'name', 'dex', 'ki', 'dmg', 'hit', 'ch', 'rv']) assert.ok(k in c, 'crew sin ' + k);
+    assert.ok(crew.every(c => c.hit > 0), 'el daño recibido no se cuenta');
   }
   assert.strictEqual(ranked, 0);
+});
+
+test('levantar a un compañero cuenta para el que ayuda', () => {
+  const r = makeRoom({ n: 2 });
+  r.room.tick();
+  const [a, b] = r.members.map(m => r.pl(m.uid));
+  b.x = a.x + 10; b.y = a.y;
+  a.invuln = 0; a.hurt(1e9);
+  assert.ok(a.dead);
+  for (let i = 0; i < 80 && a.dead; i++) { b.invuln = 9; b.hp = b.maxHp; b.x = a.x + 10; b.y = a.y; r.room.tick(); }
+  assert.ok(!a.dead, 'no se ha levantado');
+  assert.strictEqual(b.revives, 1);
+  assert.strictEqual(a.revives, 0);
 });
 
 test('la marca de grupo se sube al acabar si el tiempo cuenta (sin esperar a que termine)', () => {

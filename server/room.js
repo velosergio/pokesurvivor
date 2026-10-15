@@ -450,9 +450,12 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     for (const s of act) {
       const p = s.pl;
       if (!p.dead) continue;
-      const helper = act.some(o => o !== s && o.on && !o.pl.dead && G.U.dist2(o.pl.x, o.pl.y, p.x, p.y) < REVIVE_R * REVIVE_R);
-      p.reviveT = helper ? (p.reviveT || 0) + dt : Math.max(0, (p.reviveT || 0) - dt * 0.5);
-      if (p.reviveT >= G.Player.REVIVE_TIME) p.revive(0.5);
+      const helpers = act.filter(o => o !== s && o.on && !o.pl.dead && G.U.dist2(o.pl.x, o.pl.y, p.x, p.y) < REVIVE_R * REVIVE_R);
+      p.reviveT = helpers.length ? (p.reviveT || 0) + dt : Math.max(0, (p.reviveT || 0) - dt * 0.5);
+      if (p.reviveT >= G.Player.REVIVE_TIME) {
+        p.revive(0.5);
+        for (const o of helpers) o.pl.revives++;        // para el resumen: cuenta para todos los que ayudan
+      }
     }
   }
 
@@ -632,8 +635,20 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     return {
       uid: s.uid, why, t: time, lv: team.level, ki: p.kills, bo: p.bosses,
       kt: seats.reduce((a, o) => a + o.pl.kills, 0), co: team.coins, t1: team.t1, t10: team.t10,
-      dead: p.dead, judge: G.Judgment.summary(), shinies: s.shinies.slice(), rescued: s.rescued.slice()
+      dead: p.dead, judge: G.Judgment.summary(), shinies: s.shinies.slice(), rescued: s.rescued.slice(),
+      crew: crewSummary()
     };
+  }
+
+  /**
+   * Lo que hizo cada uno (el resumen del final compara al grupo):
+   * [{ uid, name, dex, shiny, ki, dmg (hecho), hit (recibido), ch (cofres), rv (levantó) }].
+   */
+  function crewSummary() {
+    return seats.map(o => ({
+      uid: o.uid, name: o.name, dex: o.pl.dex, shiny: !!o.pl.shiny, ki: o.pl.kills | 0,
+      dmg: r1(o.pl.dmgDealt || 0), hit: r1(o.pl.dmgTaken || 0), ch: o.pl.chests | 0, rv: o.pl.revives | 0
+    }));
   }
 
   /** Se acabó: `over` a cada uno, onOver, la marca de grupo y parar. */

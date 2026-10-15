@@ -1,6 +1,7 @@
 /* ============ run-ui.js — cartas de nivel, pausa y fin de run ============ */
 G.RunUI = (() => {
   const $ = G.UI.$;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let offers = null, offerCb = null, coopMode = false, rerollCb = null;
 
   /**
@@ -110,6 +111,66 @@ G.RunUI = (() => {
     return true;
   }
 
+  // ---------------- resumen por personaje ----------------
+
+  /** 12345 → "12,3k"; 2500000 → "2,5M". */
+  const big = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1).replace('.', ',') + 'k' : String(Math.round(n));
+
+  /** Lo que se compara (k = campo de crew). En solitario no hay a quién levantar. */
+  const CREW_COLS = [
+    { k: 'dmg', label: 'Daño hecho', award: 'Más daño' },
+    { k: 'hit', label: 'Daño recibido', award: 'Más daño recibido' },
+    { k: 'ch', label: 'Cofres', award: 'Más cofres' },
+    { k: 'rv', label: 'Reanimaciones', award: 'Más reanimaciones', group: true }
+  ];
+
+  /**
+   * MVP: cuánto aporta cada uno al total del grupo, sobre todo en daño
+   * (el daño recibido no suma: aguantar no es lo mismo que ayudar).
+   */
+  function mvpOf(crew) {
+    const W = { dmg: 0.5, ki: 0.2, rv: 0.2, ch: 0.1 };
+    const tot = {};
+    for (const k in W) tot[k] = crew.reduce((a, c) => a + (c[k] || 0), 0);
+    let best = null, bestS = 0;
+    for (const c of crew) {
+      let sc = 0;
+      for (const k in W) if (tot[k]) sc += W[k] * (c[k] || 0) / tot[k];
+      if (sc > bestS) { best = c; bestS = sc; }
+    }
+    return best;
+  }
+
+  /** El bloque del resumen: solo, tus números; en grupo, MVP, premios y la tabla. */
+  function crewHtml(crew) {
+    if (!crew || !crew.length) return '';
+    if (crew.length === 1) {
+      const c = crew[0];
+      return `<div class="crew-solo" style="grid-column:1/-1">
+        ${CREW_COLS.filter(col => !col.group).map(col => `<div><span>${col.label}</span><b>${big(c[col.k] || 0)}</b></div>`).join('')}
+      </div>`;
+    }
+    const mvp = mvpOf(crew);
+    const awards = CREW_COLS.map(col => {
+      const top = crew.reduce((a, c) => (c[col.k] || 0) > (a ? a[col.k] || 0 : 0) ? c : a, null);
+      return top ? `<li><span>${col.award}</span><b translate="no">${esc(top.name)}</b><em>${big(top[col.k])}</em></li>` : '';
+    }).join('');
+    const maxOf = k => Math.max(0, ...crew.map(c => c[k] || 0));
+    const cols = [{ k: 'ki', label: 'Derrotados' }].concat(CREW_COLS);
+    const rows = crew.map(c => `<tr class="${c.me ? 'me' : ''}">
+        <th translate="no">${c === mvp ? G.Icons.html('crown', 14) + ' ' : ''}${esc(c.name)}</th>
+        ${cols.map(col => { const v = c[col.k] || 0; return `<td class="${v && v === maxOf(col.k) ? 'top' : ''}">${big(v)}</td>`; }).join('')}
+      </tr>`).join('');
+    return `<div class="crew" style="grid-column:1/-1">
+      ${mvp ? `<div class="crew-mvp"><div id="over-mvp"></div><div><span>${G.Icons.html('crown', 14)} MVP de la partida</span>
+        <b translate="no">${esc(mvp.name)}</b><small>${G.DEX_BY[mvp.dex] ? G.DEX_BY[mvp.dex].name : ''}</small></div></div>` : ''}
+      ${awards ? `<ul class="crew-awards">${awards}</ul>` : ''}
+      <div class="crew-scroll"><table class="crew-table">
+        <thead><tr><th></th>${cols.map(col => `<th>${col.label}</th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+  }
+
   function showOver(r, onBack) {
     $('over-title').textContent = r.dead ? 'Has caído…' : 'Run terminada';
     $('over-stats').innerHTML = `
@@ -125,6 +186,7 @@ G.RunUI = (() => {
         ${r.t1 ? G.Icons.html('ticket', 22) + ' +' + r.t1 + ' ' : ''}${r.t10 ? G.Icons.html('ticket10', 22) + ' +' + r.t10 + ' ×10' : ''}</b></div>` : ''}
       <div style="grid-column:1/-1"><span>Movimientos</span><b style="font-size:15px">
         ${r.moves.map(m => `${G.Icons.html('move:' + m.id, 16)} ${m.name} Nv.${m.lvl}`).join(' · ') || '—'}</b></div>
+      ${crewHtml(r.crew)}
       ${r.caught && r.caught.length ? `<div style="grid-column:1/-1" class="caught"><span>${G.Icons.html('shiny', 12)} Shinies conseguidos</span>
         <div class="caught-row" id="over-caught"></div></div>` : ''}
       ${r.record ? '<div style="grid-column:1/-1;text-align:center" class="gold">¡Nuevo récord de tiempo!</div>' : ''}
@@ -136,6 +198,11 @@ G.RunUI = (() => {
     const ask = $('over-ask');
     if (ask) ask.querySelector('.x').onclick = () => ask.remove();
     $('btn-again').onclick = onBack;
+    const mvpBox = $('over-mvp');
+    if (mvpBox) {
+      const mvp = mvpOf(r.crew);
+      if (G.DEX_BY[mvp.dex]) mvpBox.appendChild(G.UI.spriteCanvas(mvp.dex, 72, 60, { shiny: mvp.shiny, lively: true, scale: 2 }));
+    }
     if (r.caught && r.caught.length) {
       const row = $('over-caught');
       for (const c of r.caught) {

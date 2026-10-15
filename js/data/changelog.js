@@ -7,6 +7,8 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
+    ['Al acabar la run ves lo que hizo tu Pokémon: daño hecho, daño recibido y cofres abiertos. En cooperativo se compara al grupo: quién hizo más daño, quién recibió más, quién abrió más cofres, quién levantó más veces a los compañeros y el MVP de la partida.',
+     'At the end of a run you see what your Pokémon did: damage dealt, damage taken and chests opened. In co-op the group is compared: who dealt the most damage, who took the most, who opened the most chests, who revived teammates the most and the match MVP.'],
     ['En Pokémon y al elegir el compañero inicial puedes ordenar la lista por vida, ataque, velocidad o total. La Pokédex de la web también.',
      'In Pokémon and when picking your starter you can sort the list by HP, attack, speed or total. The website Pokédex can too.'],
     ['Cooperativo: ahora caben hasta 10 jugadores en cada sala. Con más de 4 salen más Pokémon a la vez para que haya para todos.',

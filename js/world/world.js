@@ -375,12 +375,13 @@ G.World = (() => {
 
   // ---------------- daño a objetos ----------------
 
-  function damageProp(p, amount, color = '#fff') {
+  /** @param by  quién lo golpea (un cofre roto cuenta para él en el resumen) */
+  function damageProp(p, amount, color = '#fff', by = null) {
     if (!p.destructible || p.hp <= 0) return false;
     p.hp -= amount;
     p.flash = 0.08;
     if (p.type !== 'grass') G.FX.spark(p.x, p.y - 10, color, 0, -1, 3);
-    if (p.hp <= 0) { destroyProp(p); return true; }
+    if (p.hp <= 0) { destroyProp(p, false, by); return true; }
     return false;
   }
 
@@ -398,7 +399,7 @@ G.World = (() => {
     if (p) destroyProp(p, true); else broken.add(k);
   }
 
-  function destroyProp(p, fromNet = false) {
+  function destroyProp(p, fromNet = false, by = null) {
     broken.add(p.tx + ',' + p.ty);
     if (G.Coop.active && !fromNet) G.Coop.propBroken(p);
     const cx = Math.floor(p.tx / N), cy = Math.floor(p.ty / N);
@@ -426,6 +427,7 @@ G.World = (() => {
       return;
     }
     if (p.type === 'chest') {
+      if (by) by.chests++;
       G.FX.burst(p.x, p.y - 10, '#f2c443', 22, 180);
       G.FX.ring(p.x, p.y - 8, 6, 46, '#f2c443', 0.45, 4);
       G.Camera.kick(0.25);

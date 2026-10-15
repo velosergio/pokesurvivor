@@ -57,6 +57,10 @@ G.Player = class Player {
     this.coins = 0;            // monedas recogidas en esta run
     this.t1 = 0; this.t10 = 0; // tickets del gacha recogidos en esta run
     this.dmgDealt = 0;
+    // Para el resumen de la run: daño recibido, cofres abiertos y compañeros levantados.
+    this.dmgTaken = 0;
+    this.chests = 0;
+    this.revives = 0;
 
     this.invuln = 0;
     this.flash = 0;
@@ -255,6 +259,7 @@ G.Player = class Player {
     // estar encima de los enemigos para pegar (iban muy por detrás).
     const close = this.activeGroup().some(m => m.kind === 'melee') ? 0.75 : 1;
     const d = pure ? Math.max(1, amount) : Math.max(1, amount * (1 - this.reduction) * close);
+    const hp0 = this.hp;
     this.hp -= d;
     this.invuln = 0.45;
     this.flash = 0.14;
@@ -269,8 +274,10 @@ G.Player = class Player {
       G.FX.dmgText(this.x, this.y - this.bodyH - 16, '¡Banda Focus!', '#ff9a3d', true);
       G.FX.ring(this.x, this.y, 6, 70, '#ff9a3d', 0.5, 4);
     }
+    if (this.hp <= 0) this.hp = 0;
+    this.dmgTaken += Math.max(0, hp0 - this.hp);
     if (this.hp <= 0) {
-      this.hp = 0; this.dead = true;
+      this.dead = true;
       this.anim.play('Faint', { hold: true });
       G.Projectiles.clearOrbs(this);
       this.reviveT = 0;

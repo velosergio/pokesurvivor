@@ -463,6 +463,28 @@ img.pix { image-rendering: pixelated; image-rendering: crisp-edges; vertical-ali
 .caught-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }
 .caught-row > div { text-align: center; }
 .caught-row small { display: block; font-size: 12px; color: #c9f3ff; }
+/* Resumen por personaje (fin de run) */
+.stats > .crew-solo, .stats > .crew { background: none; padding: 0; }
+.crew-solo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.crew-solo > div { background: rgba(0,0,0,.22); border-radius: 9px; padding: 8px 10px; }
+.crew-solo span, .crew-mvp span, .crew-awards span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.crew-solo b { font-size: 18px; }
+.crew-mvp { display: flex; align-items: center; gap: 10px; background: rgba(255,210,63,.1); border: 1px solid rgba(255,210,63,.35); border-radius: 9px; padding: 6px 10px; }
+.crew-mvp span { color: var(--gold); }
+.crew-mvp b { font-size: 20px; display: block; }
+.crew-mvp small { color: var(--muted); }
+.crew-awards { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.crew-awards li { background: rgba(0,0,0,.22); border-radius: 9px; padding: 6px 10px; }
+.crew-awards b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.crew-awards em { font-style: normal; font-size: 12px; color: var(--muted); }
+.crew-scroll { overflow-x: auto; }
+.crew-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.crew-table th, .crew-table td { padding: 4px 4px; text-align: right; white-space: nowrap; }
+.crew-table thead th { color: var(--muted); font-size: 10px; font-weight: normal; text-transform: uppercase; white-space: normal; vertical-align: bottom; }
+.crew-table tbody th { text-align: left; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.crew-table tbody tr { border-top: 1px solid rgba(255,255,255,.08); }
+.crew-table tr.me th { color: #c9f3ff; }
+.crew-table td.top { color: var(--gold); font-weight: bold; }
 
 /* ============ sonido ============ */
 .sound-panel { position: fixed; top: 62px; right: 16px; z-index: 30; width: 270px; padding: 14px 16px; }

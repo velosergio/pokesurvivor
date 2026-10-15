@@ -75,10 +75,11 @@ G.Interact = (() => {
         break;
       case 'bigchest':
         if (!authority()) break;                 // en grupo, la apertura llega del servidor (chs)
-        if (who.some(q => !q.dead && d2(q) < Math.max(46, p.r + q.r + 24) ** 2)) {
+        const near = who.filter(q => !q.dead && d2(q) < Math.max(46, p.r + q.r + 24) ** 2);
+        if (near.length) {
           if (p.open === 0) G.Audio.sfx('select');
           p.open += dt;
-          if (p.open >= CHEST_TIME) { p.open = 0; G.World.breakProp(p); }
+          if (p.open >= CHEST_TIME) { p.open = 0; for (const q of near) q.chests++; G.World.breakProp(p); }
         } else if (p.open > 0) p.open = Math.max(0, p.open - dt * 1.5);
         // Servidor: cómo va, en décimas (sólo cuando cambia).
         if (G.Coop.isHost && p.open >= 0) {

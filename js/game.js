@@ -87,7 +87,7 @@ G.Game = (() => {
 
   /** @param coop  { seed, members } para una partida en grupo (lo de `started`) */
   function startRun(coop = null) {
-    waitBy = []; awayBy = null;
+    waitBy = []; awayBy = null; crew = null;
     const save = G.DB.save;
     const mon = G.DEX_BY[save.partner];
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
@@ -249,6 +249,7 @@ G.Game = (() => {
     over(r) {
       Object.assign(pl, { kills: r.ki | 0, bosses: r.bo | 0, coins: r.co | 0, level: Math.max(pl.level, r.lv | 0), t1: r.t1 | 0, t10: r.t10 | 0 });
       if (r.t) time = r.t;
+      crew = Array.isArray(r.crew) ? r.crew.map(c => Object.assign({}, c, { me: c.uid === r.uid })) : null;
       if (r.why === 'error') G.UI.toast('La partida ha fallado en el servidor: se guarda lo conseguido', 3600);
       endRun(r.why === 'down');
     },
@@ -266,6 +267,8 @@ G.Game = (() => {
     }
   };
   let awayBy = null;
+  /** Grupo: lo que hizo cada uno según el servidor (`over`), para el resumen. */
+  let crew = null;
 
   /** Has llevado a casa a un Pokémon perdido y se une a ti (events.js). */
   G.onRescue = (dex, name) => {
@@ -335,6 +338,9 @@ G.Game = (() => {
     G.RunUI.showOver({
       dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge,
       moves: pl.moves, caught,
+      // Resumen por personaje: en grupo, el del servidor; solo, el tuyo.
+      crew: crew || [{ me: true, name: (G.Social.me && G.Social.me.name) || '', dex: pl.dex, shiny: pl.shiny, ki: pl.kills,
+                       dmg: Math.round(pl.dmgDealt), hit: Math.round(pl.dmgTaken), ch: pl.chests, rv: pl.revives }],
       breakdown: Object.entries(parts).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ') +
                  (mul > 1 ? ` · ×${mul.toFixed(2)} Fortuna` : '')
     }, () => { pl = null; G.Flow.afterRun(); });

@@ -118,6 +118,7 @@ G.Weather = (() => {
         const d = Math.max(1, q.maxHp * 0.012);
         if (q.hp > d + 1) {
           q.hp -= d;
+          q.dmgTaken += d;
           G.FX.dmgText(q.x, q.y - q.bodyH - 4, '-' + Math.round(d), def().color);
         }
       }

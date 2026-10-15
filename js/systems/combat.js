@@ -136,7 +136,7 @@ G.Combat = (() => {
       hit(pl, e, m.dmg * pl.atk, col, e.x - pl.x, e.y - pl.y, m.knock || 0, m);
     }
     for (const p of G.World.propsInCircle(pl.x, pl.y, m.radius)) {
-      if (inArc(pl.x, pl.y, p.x, p.y, pl.aim, half)) G.World.damageProp(p, m.dmg * pl.atk, col);
+      if (inArc(pl.x, pl.y, p.x, p.y, pl.aim, half)) G.World.damageProp(p, m.dmg * pl.atk, col, pl);
     }
   }
 
@@ -165,7 +165,7 @@ G.Combat = (() => {
       if (onBeam(e.x, e.y, e.r)) hit(pl, e, m.dmg * pl.atk, col, ca, sa, 0, m);
     }
     for (const p of G.World.propsInCircle(mx, my, len / 2 + w)) {
-      if (onBeam(p.x, p.y, p.r)) G.World.damageProp(p, m.dmg * pl.atk, col);
+      if (onBeam(p.x, p.y, p.r)) G.World.damageProp(p, m.dmg * pl.atk, col, pl);
     }
   }
 
@@ -191,7 +191,7 @@ G.Combat = (() => {
       hit(pl, e, m.dmg * pl.atk, col, e.x - pl.x, e.y - pl.y, 0, m);
       if (m.drain) healed += m.drain;
     }
-    for (const p of G.World.propsInCircle(pl.x, pl.y, m.radius)) G.World.damageProp(p, m.dmg * pl.atk, col);
+    for (const p of G.World.propsInCircle(pl.x, pl.y, m.radius)) G.World.damageProp(p, m.dmg * pl.atk, col, pl);
     if (healed > 0) pl.heal(Math.min(healed, 6));
   }
 
@@ -323,7 +323,7 @@ G.Combat = (() => {
       if (segDist2(sx, sy, pl.x, pl.y, e.x, e.y) <= (w / 2 + e.r) ** 2) hit(pl, e, m.dmg * pl.atk, col, ca, sa, m.knock || 0, m);
     }
     for (const p of G.World.propsInCircle(mx, my, len / 2 + w)) {
-      if (segDist2(sx, sy, pl.x, pl.y, p.x, p.y) <= (w / 2 + p.r) ** 2) G.World.damageProp(p, m.dmg * pl.atk, col);
+      if (segDist2(sx, sy, pl.x, pl.y, p.x, p.y) <= (w / 2 + p.r) ** 2) G.World.damageProp(p, m.dmg * pl.atk, col, pl);
     }
     G.Camera.kick(0.12);
   }
@@ -363,7 +363,7 @@ G.Combat = (() => {
     if (f.ghost) return;
     const pl = f.owner, m = f.m;
     for (const e of G.EnemyMgr.queryCircle(f.x, f.y, r)) hit(pl, e, f.dmg * k, f.col, e.x - f.x, e.y - f.y, m.knock || 0, m);
-    for (const p of G.World.propsInCircle(f.x, f.y, r)) G.World.damageProp(p, f.dmg * k, f.col);
+    for (const p of G.World.propsInCircle(f.x, f.y, r)) G.World.damageProp(p, f.dmg * k, f.col, pl);
   }
 
   function updateFields(dt) {
@@ -615,12 +615,12 @@ G.Combat = (() => {
           const k = 'p' + prop.id, last = p.hitLog.get(k) || -99;
           if (now - last < p.rehit) continue;
           p.hitLog.set(k, now);
-          G.World.damageProp(prop, p.dmg, p.color);
+          G.World.damageProp(prop, p.dmg, p.color, own);
           continue;
         }
         if (p.phits.has(prop.id)) continue;
         p.phits.add(prop.id);
-        if (!p.ghost) G.World.damageProp(prop, p.dmg, p.color);
+        if (!p.ghost) G.World.damageProp(prop, p.dmg, p.color, own);
         // La hierba no frena; lo sólido sí gasta perforación.
         if (prop.solid) {
           if (p.pierce > 0) p.pierce--;
