@@ -4,7 +4,7 @@ Fecha: 14-10-2026 · Estado: pasos 1-4 hechos; del 5, retirado el código antigu
 `database.rules.json`, sección `database` de `firebase.json`) y desplegado `game` en Easypanel
 (`wss://poke.sergioveloza.com/ws` responde; Node 24.12 como mínimo), con prueba de carga en el VPS
 y `MAX_ROOMS=20` (§5), `FIREBASE_SERVICE_ACCOUNT` puesta (§2.3) y `firestore.rules` desplegadas
-(`firebase deploy --only firestore:rules`, 15-10-2026). Lo que falta, en §9.
+(`firebase deploy --only firestore:rules`, 15-10-2026) y Realtime Database borrada. Lo que falta, en §9.
 
 **Paso 4 (15-10-2026):** `js/net/net.js` es un WebSocket con el servidor (`hello` → `hi`; se
 reconecta solo 20 s), `js/net/coop.js` dibuja lo que manda el servidor y sólo envía `in`; salas con
@@ -92,7 +92,7 @@ la sala en Realtime Database de `social.js`.
 - Registrar la app web y copiar su configuración a `js/config.js`.
 - Crear Firestore (ubicación `eur3` o la más cercana a los jugadores) y desplegar
   `firestore.rules` + `firestore.indexes.json`.
-- ~~Crear una Realtime Database~~ (sólo hasta el paso 5; el código ya no la usa: falta borrarla).
+- ~~Crear una Realtime Database~~ (sólo hasta el paso 5; borrada el 15-10-2026).
 - Authentication: activar usuario/contraseña (email interno) y Google, en modo **normal**.
   **Nunca** Identity Platform ni funciones de bloqueo (cobran por usuario).
 - Dominios autorizados: añadir `poke.sergioveloza.com`.
@@ -300,8 +300,6 @@ español e inglés, nunca Identity Platform, commits sin firma de IA.
   2 min, ver enemigos y ataques del otro, cartas que esperan a los dos, una pestaña que se va y
   el otro sigue, y la marca en Ranking > Grupo (prueba también la cuenta de servicio).
 - Probar a mano la reconexión (cortar la red unos segundos en partida y volver).
-- Borrar la Realtime Database del proyecto en la consola de Firebase (borrado permanente: lo hace
-  el dueño). Ya no la usa nadie.
 - Confirmar en Easypanel el tiempo de parada de `game` (45 min, §3.7): no sale en la
   configuración que devuelve el MCP.
 
