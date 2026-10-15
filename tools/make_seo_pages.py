@@ -270,6 +270,50 @@ How long can you last?</p>
     write(pid, lang, page(pid, lang, title, desc, body, ld))
 
 # ================= Pokédex =================
+SORT_JS = r'''<script>
+(function () {
+  var bar = document.getElementById('dex-sort');
+  if (!bar) return;
+  var key = 'dex', dir = 1;
+  var grids = Array.prototype.slice.call(document.querySelectorAll('ul.dexgrid'));
+  var orig = grids.map(function (ul) { return Array.prototype.slice.call(ul.children); });
+  function num(li) { return key === 'dex' ? +li.id.slice(1) : +li.dataset[key]; }
+  function label(li) {
+    if (key === 'atk') return '\u00d7' + (+li.dataset.atk).toFixed(2);
+    return li.dataset[key];
+  }
+  function paint() {
+    Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) {
+      var on = b.getAttribute('data-k') === key;
+      b.classList.toggle('on', on);
+      b.textContent = b.getAttribute('data-l') + (on ? (dir < 0 ? ' \u2193' : ' \u2191') : '');
+    });
+    grids.forEach(function (ul, i) {
+      var items = orig[i].slice();
+      if (!(key === 'dex' && dir > 0)) items.sort(function (a, b) {
+        return (num(a) - num(b)) * dir || (+a.id.slice(1) - +b.id.slice(1));
+      });
+      items.forEach(function (li) {
+        var s = li.querySelector('.stv');
+        if (key === 'dex') { if (s) s.remove(); }
+        else {
+          if (!s) { s = document.createElement('span'); s.className = 'stv'; li.appendChild(s); }
+          s.textContent = label(li);
+        }
+        ul.appendChild(li);
+      });
+    });
+  }
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b || !bar.contains(b)) return;
+    var id = b.getAttribute('data-k');
+    if (key === id) dir = -dir; else { key = id; dir = id === 'dex' ? 1 : -1; }
+    paint();
+  });
+})();
+</script>'''
+
 def dexcard(e, lang, up, with_stats=False):
     d = e['dex']
     tag = f'<b class="leg">{"Legendario" if lang == "es" else "Legendary"}</b>' if d in LEG else (
@@ -291,7 +335,7 @@ def pokedex(lang):
             ('dex', 'No.'), ('hp', 'HP'), ('atk', 'Attack'), ('spd', 'Speed'), ('bst', 'Total')]
     cap = 'Ordenar' if lang == 'es' else 'Sort'
     btns = ''.join(f'<button type="button" data-k="{k}" data-l="{esc(lab)}"{" class=\"on\"" if k == "dex" else ""}>{esc(lab)}{" ↑" if k == "dex" else ""}</button>' for k, lab in labs)
-    sort = f'<div class="sortbar" id="dex-sort"><span>{cap}</span>{btns}</div>' + SORT_JS
+    sort = f'<div class="sortbar" id="dex-sort"><span>{cap}</span>{btns}</div>'
     if lang == 'es':
         h1, lead, c = f'Pokédex de PokéSurvivor: los {N} Pokémon jugables', (f'Todos estos Pokémon pueden ser tu compañero en PokéSurvivor, el juego gratis de supervivencia con Pokémon para '
               f'navegador y móvil. Hay {N} de las 9 regiones; los consigues como compañero inicial o en el gacha (con tickets que se ganan jugando), y también '
@@ -302,7 +346,7 @@ def pokedex(lang):
               f'There are {N} from all 9 regions; you get them as a starter or from the gacha (with tickets you earn by playing), and they also show up as wild '
               f'enemies, bosses and legendaries in rifts.'), 'Pick your partner and play free'
         title, desc = f'PokéSurvivor Pokédex: all {N} playable Pokémon (9 regions)', f'The full list of the {N} Pokémon you can play in PokéSurvivor, from Kanto to Paldea, with their types. A free Pokémon game in your browser.'
-    body = f'<article class="doc wide"><h1>{esc(h1)}</h1><p class="lead">{esc(lead)}</p><nav class="gens">{gens}</nav>{sort}{"".join(secs)}{cta(pid, lang, c)}</article>'
+    body = f'<article class="doc wide"><h1>{esc(h1)}</h1><p class="lead">{esc(lead)}</p><nav class="gens">{gens}</nav>{sort}{"".join(secs)}{SORT_JS}{cta(pid, lang, c)}</article>'
     ld = {'@context': 'https://schema.org', '@graph': [{'@type': 'CollectionPage', 'name': h1, 'url': SITE + PATH[lang][pid], 'inLanguage': lang}, crumbs(pid, lang, 'Pokédex')]}
     write(pid, lang, page(pid, lang, title, desc, body, ld))
 
@@ -630,7 +674,11 @@ def extra():
     open(os.path.join(ROOT, 'sitemap.xml'), 'w', encoding='utf-8').write(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + ''.join(urls) + '</urlset>\n')
 
-for lang in ('es', 'en'):
-    guide(lang); pokedex(lang); legends(lang); shinies(lang); types_page(lang); moves_page(lang); items_page(lang); ach_page(lang); news(lang); support(lang)
-game_en(); extra()
-print('ok:', 2 * (len(PAGES) - 1), 'páginas + en/ (juego en inglés), 404, robots, sitemap')
+def main():
+    for lang in ('es', 'en'):
+        guide(lang); pokedex(lang); legends(lang); shinies(lang); types_page(lang); moves_page(lang); items_page(lang); ach_page(lang); news(lang); support(lang)
+    game_en(); extra()
+    print('ok:', 2 * (len(PAGES) - 1), 'páginas + en/ (juego en inglés), 404, robots, sitemap')
+
+if __name__ == '__main__':
+    main()

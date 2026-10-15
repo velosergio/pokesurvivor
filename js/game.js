@@ -159,9 +159,10 @@ G.Game = (() => {
     return Math.ceil((pl.xpNext - pl.xp + 1) / k);
   }
 
-  // Destello de pantalla completa (viaje a la grieta).
+  // Destello de pantalla completa (la Sentencia de Arceus).
   let flashT = 0, flashDur = 1, flashCol = '#fff';
   function flash(col, dur) { flashCol = col; flashDur = dur; flashT = dur; }
+  // Telón del viaje a la grieta (ver core/curtain.js).
   const veil = G.Curtain.create();
   function curtain(col) { veil.start(col); }
 
