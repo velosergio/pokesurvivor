@@ -53,6 +53,24 @@ G.Social = (() => {
   const pres = new Map();           // otherUid -> { online, play, room, seen } (lo último leído)
   const sentInv = new Set();        // a quién invitaste (para retirarlo al salir)
   let room = null;                  // { id: código, host: líder, isHost, open, members: [{ uid, name, dex, shiny, on }] }
+  // Partida en curso: sobrevive a recargar esta pestaña (no a cerrarla). El
+  // servidor guarda el sitio 60 s; al volver, el hello recupera la partida.
+  const RUN_KEY = 'ps.coop.run';
+  function pinRun() {
+    if (!room || !uid) return;
+    try { sessionStorage.setItem(RUN_KEY, JSON.stringify({ uid, code: room.id })); } catch (e) { /* privado */ }
+  }
+  function clearRun() {
+    try { sessionStorage.removeItem(RUN_KEY); } catch (e) { /* nada */ }
+  }
+  function peekRun() {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null');
+      if (!v || typeof v.uid !== 'string' || !/^[A-Z0-9]{6}$/.test(v.code || '')) return null;
+      return v;
+    } catch (e) { return null; }
+  }
+  const hasRun = () => !!peekRun();
   const invites = new Map();        // fromUid -> { from, name, room, at }
   const listeners = new Set();
   let started = false;
@@ -343,10 +361,15 @@ G.Social = (() => {
       if (!was || was.id !== room.id) writeStatus();
       settleRoom(null);
       emit('room');
+    } else if (m.type === 'started' && room) {
+      pinRun();
+    } else if (m.type === 'over') {
+      clearRun();
     } else if (m.type === 'err') {
       if (roomWait) settleRoom(ERR[m.reason] || 'No se pudo (' + m.reason + ').');
       else if (ERR[m.reason]) G.UI.toast(ERR[m.reason], 3000);
     } else if (m.type === 'down') {
+      clearRun();
       settleRoom(downText(m.reason));
       if (room) {
         room = null;
@@ -373,6 +396,7 @@ G.Social = (() => {
   }
 
   async function leaveRoom() {
+    clearRun();
     if (!room) return;
     room = null;
     G.Net.send('leave');
@@ -385,6 +409,60 @@ G.Social = (() => {
   /** El líder abre (o cierra) la sala a nuevos jugadores. */
   function setOpen(open) {
     if (room && room.isHost) G.Net.send('open', { v: !!open });
+  }
+
+  /**
+   * Tras recargar, si esta pestaña estaba en una partida en grupo: se conecta
+   * sola y el servidor devuelve `room` + `started` (coop.js entra en la partida).
+   * Si el sitio ya no está, se olvida y se sigue al menú.
+   * → true si has vuelto a la partida.
+   */
+  async function resumeRun() {
+    const pin = peekRun();
+    if (!pin) return false;
+    const st = await start();
+    // Sin nube todavía (invitado, o la sesión no ha vuelto): se deja el recuerdo.
+    if (st === 'off') return false;
+    if (st !== 'ok' || uid !== pin.uid) { clearRun(); return false; }
+    let done = null, sawRoom = false;
+    const on = m => {
+      if (m.type === 'room') sawRoom = true;
+      if (done) return;
+      if (m.type === 'started') done = 'started';
+      else if (m.type === 'down') done = 'down';
+    };
+    G.Net.on(on);
+    let failed = null;
+    try { await G.Net.connect(); } catch (e) { failed = e; }
+    if (failed) {
+      G.Net.off(on);
+      clearRun();
+      if (!sawRoom) G.UI.toast(downText(failed.message), 4000);
+      return false;
+    }
+    const back = await new Promise(resolve => {
+      const finish = ok => { clearTimeout(t); G.Net.off(on2); resolve(ok); };
+      const t = setTimeout(() => finish(false), 3000);
+      function on2(m) {
+        on(m);
+        if (done === 'started') finish(!!G.Coop.active);
+        else if (done === 'down') finish(false);
+      }
+      G.Net.off(on);
+      G.Net.on(on2);
+      if (done === 'started') finish(!!G.Coop.active);
+      else if (done === 'down') finish(false);
+    });
+    if (!back) {
+      clearRun();
+      // `down` ya avisó. Sin `room`: el servidor ya no te guardaba el sitio.
+      if (done !== 'down' && !room) {
+        G.Net.close();
+        G.UI.toast('La partida ha seguido sin ti.', 4000);
+      }
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -510,7 +588,7 @@ G.Social = (() => {
 
   return {
     start, stop, claimNick, request, accept, remove, publishProfile, getProfile, profileData,
-    createRoom, joinRoom, leaveRoom, setOpen, refreshMember, setPlaying, refreshPresence,
+    createRoom, joinRoom, leaveRoom, setOpen, refreshMember, resumeRun, peekRun, hasRun, setPlaying, refreshPresence,
     invite, acceptInvite, declineInvite,
     on(fn) { listeners.add(fn); }, off(fn) { listeners.delete(fn); },
     get me() { return me; },

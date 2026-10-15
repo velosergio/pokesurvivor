@@ -10,6 +10,8 @@ G.CHANGELOG = [
     ['Cooperativo: ahora caben hasta 10 jugadores en cada sala. Con más de 4 salen más Pokémon a la vez para que haya para todos.',
      'Co-op: rooms now hold up to 10 players. With more than 4, more Pokémon show up at once so there are enough for everyone.']
   ], fix: [
+    ['Cooperativo: si recargas la página o se te corta la conexión en mitad de una partida en grupo, vuelves a entrar solo a la misma partida. Tienes un minuto.',
+     'Co-op: if you reload the page or your connection drops in the middle of a group game, you rejoin that same game on your own. You have one minute.'],
     ['Cooperativo: en la ventana de vincular movimientos (al derrotar a un jefe) y en la de elegir objeto vuelven a funcionar las teclas de los números.',
      'Co-op: the number keys work again in the move-bond window (after beating a boss) and in the item choice window.'],
     ['Cooperativo: ya puedes cambiar las cartas de nivel también en grupo (1 vez gratis por partida más las que tengas en Mejoras).',

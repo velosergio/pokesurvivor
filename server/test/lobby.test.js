@@ -2,7 +2,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { createLobby } = require('../lobby.js');
+const { createLobby, BACK_MS } = require('../lobby.js');
 
 /** Partida falsa: apunta las llamadas. */
 function fakeRooms() {
@@ -150,7 +150,7 @@ test('reenvía in/pick/hold a la partida', () => {
   assert.deepStrictEqual(g.calls.slice(1), [['input', 'b', m], ['pick', 'a', 2], ['hold', 'b', true]]);
 });
 
-test('corte en partida: vuelve antes de 20 s y recupera su sitio', () => {
+test('corte en partida: vuelve antes de 1 min y recupera su sitio', () => {
   const s = setup();
   const { cs: [a, b] } = room(s, 'a', 'b');
   s.lobby.message(a, { t: 'start' });
@@ -160,7 +160,7 @@ test('corte en partida: vuelve antes de 20 s y recupera su sitio', () => {
   assert.strictEqual(a.last('room').members.find(m => m.uid === 'b').on, false);
   g.opts.send('b', { t: 'x' }); // desconectado: no le llega
   assert.notDeepStrictEqual(b.last(), { t: 'x' });
-  s.clk.tick(19000);
+  s.clk.tick(BACK_MS - 1000);
   const b2 = s.hi('b');
   assert.deepStrictEqual(g.calls.at(-1), ['back', 'b']);
   assert.strictEqual(b2.sent[0].t, 'room');
@@ -171,13 +171,13 @@ test('corte en partida: vuelve antes de 20 s y recupera su sitio', () => {
   assert.strictEqual(s.clk.pending, 0);
 });
 
-test('corte en partida: pasados 20 s queda fuera', () => {
+test('corte en partida: pasado 1 min queda fuera', () => {
   const s = setup();
   const { cs: [a, b] } = room(s, 'a', 'b');
   s.lobby.message(a, { t: 'start' });
   const g = s.fr.made[0];
   s.lobby.close(a);
-  s.clk.tick(20000);
+  s.clk.tick(BACK_MS);
   assert.deepStrictEqual(b.last('room').members.map(m => m.uid), ['b']);
   assert.strictEqual(b.last('room').leader, 'b');
   assert.strictEqual(g.calls.filter(c => c[0] === 'drop').length, 1);
@@ -196,16 +196,55 @@ test('corte en espera: sale al momento', () => {
   assert.strictEqual(s.lobby.size, 0);
 });
 
-test('sala sin nadie conectado: stop y se borra', () => {
+test('sala sin nadie conectado: aguanta 1 min (para recargar) y luego se borra', () => {
   const s = setup();
   const { cs: [a, b] } = room(s, 'a', 'b');
   s.lobby.message(a, { t: 'start' });
   const g = s.fr.made[0];
   s.lobby.close(a);
   s.lobby.close(b);
+  assert.ok(!g.calls.some(c => c[0] === 'stop'), 'la partida sigue mientras pueden volver');
+  assert.strictEqual(s.lobby.size, 1);
+  s.clk.tick(BACK_MS - 1000);
+  const a2 = s.hi('a');
+  assert.strictEqual(a2.sent[1].t, 'started');
+  assert.strictEqual(s.lobby.size, 1);
+  s.lobby.close(a2);
+  s.clk.tick(BACK_MS);
   assert.deepStrictEqual(g.calls.at(-1), ['stop']);
   assert.strictEqual(s.lobby.size, 0);
   assert.strictEqual(s.clk.pending, 0);
+  const a3 = s.hi('a');
+  assert.strictEqual(a3.sent.length, 0);
+});
+
+test('un jugador solo puede recargar y volver a su partida', () => {
+  const s = setup();
+  const { cs: [a] } = room(s, 'a');
+  s.lobby.message(a, { t: 'start' });
+  const g = s.fr.made[0];
+  s.lobby.close(a);
+  assert.strictEqual(s.lobby.size, 1);
+  assert.ok(!g.calls.some(c => c[0] === 'stop'));
+  s.clk.tick(BACK_MS - 1000);
+  const a2 = s.hi('a');
+  assert.deepStrictEqual(g.calls.at(-1), ['back', 'a']);
+  assert.strictEqual(a2.sent[0].t, 'room');
+  assert.strictEqual(a2.sent[1].t, 'started');
+  assert.strictEqual(s.lobby.size, 1);
+});
+
+test('si se corta el último, quien se cortó antes y aún está a tiempo puede volver', () => {
+  const s = setup();
+  const { cs: [a, b] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  s.lobby.close(a);
+  s.clk.tick(BACK_MS - 10000);
+  s.lobby.close(b);
+  s.clk.tick(10000);
+  assert.strictEqual(s.lobby.size, 1, 'al caducar A, B sigue a tiempo');
+  const b2 = s.hi('b');
+  assert.strictEqual(b2.sent[1].t, 'started');
   const a2 = s.hi('a');
   assert.strictEqual(a2.sent.length, 0);
 });

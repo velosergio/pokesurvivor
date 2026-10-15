@@ -7,9 +7,11 @@
  *
  * Desconexiones:
  *  - en espera: el jugador sale de la sala al momento;
- *  - en partida: room.drop(uid) y tiene 20 s para volver con el mismo uid
+ *  - en partida: room.drop(uid) y tiene 60 s para volver con el mismo uid
  *    (hello → room.back(uid) y se le repiten `room` y `started`); pasado, sale.
- * Si en una sala no queda nadie conectado, se para la partida y se borra.
+ *    Aunque no quede nadie conectado, la partida sigue ese minuto: así quien
+ *    recarga la página (o se queda solo) puede volver. Si sale a propósito, no.
+ * Si pasado ese tiempo no queda nadie, se para la partida y se borra.
  *
  * Al empezar, si hay checkKits (rank.js, con la cuenta de servicio), se leen
  * antes las partidas guardadas de los miembros (5 s como mucho): las mejoras de
@@ -31,8 +33,8 @@ const crypto = require('crypto');
 const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 6;
 const MAX_MEMBERS = 10;
-/** Tiempo para volver tras un corte en partida (ms). */
-const BACK_MS = 20000;
+/** Tiempo para volver tras un corte o una recarga en partida (ms). Igual que RETRY_FOR en js/net/net.js. */
+const BACK_MS = 60000;
 
 /**
  * Crea el lobby.
@@ -101,7 +103,12 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     const [m] = r.members.splice(i, 1);
     if (byUid.get(uid) === r.code) byUid.delete(uid);
     if (r.game && m.on) r.game.drop(uid);
-    if (!r.members.some(m => m.on)) { destroy(r); return; }
+    if (!r.members.some(x => x.on)) {
+      // Partida en marcha y alguien más aún está a tiempo de volver (su corte
+      // fue después): no se tira la sala al caducar el primero.
+      if (!(r.game && r.timers.size > 0)) { destroy(r); return; }
+    }
+    if (!r.members.length) { destroy(r); return; }
     if (r.leader === uid) r.leader = (r.members.find(x => x.on) || r.members[0]).uid;
     if (!quiet) each(r, info(r));
   }
@@ -288,7 +295,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       if (!r.game) { remove(r, conn.uid); return; }
       m.on = false;
       r.game.drop(conn.uid);
-      if (!r.members.some(x => x.on)) { destroy(r); return; }
+      // Aunque sea el último: la sala aguanta BACK_MS para una recarga.
       r.timers.set(conn.uid, setTimer(() => {
         r.timers.delete(conn.uid);
         const mm = r.members.find(x => x.uid === conn.uid);
@@ -314,4 +321,4 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
   };
 }
 
-module.exports = { createLobby };
+module.exports = { createLobby, BACK_MS };

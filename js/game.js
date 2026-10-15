@@ -869,9 +869,20 @@ G.Flow = {
     G.Game.init();
     // La base de datos (nube o local) recupera la sesión anterior.
     G.DB.ready().then(restored => {
-      document.getElementById('boot').classList.add('hidden');
-      // En otra tarea: crear el sonido para comprobarlo cuesta ~60 ms y no debe bloquear la carga.
-      setTimeout(() => this.tapToStart(() => { if (restored) this.afterLogin(); else this.toLogin(); }), 0);
+      const bootEl = document.getElementById('boot');
+      const go = () => {
+        bootEl.classList.add('hidden');
+        // En otra tarea: crear el sonido para comprobarlo cuesta ~60 ms y no debe bloquear la carga.
+        setTimeout(() => this.tapToStart(() => { if (restored) this.afterLogin(); else this.toLogin(); }), 0);
+      };
+      // Recarga en mitad de una partida en grupo: se entra sola, sin esperar al clic.
+      if (restored && G.Social.peekRun()) {
+        const ld = bootEl.querySelector('.boot-ld');
+        if (ld) ld.textContent = 'Volviendo a la partida…';
+        G.Social.resumeRun().then(back => { if (!back) go(); else bootEl.classList.add('hidden'); });
+        return;
+      }
+      go();
     });
   },
   /**
@@ -898,6 +909,20 @@ G.Flow = {
   toLogin() { G.Audio.music('village'); G.LoginUI.open(); },
   afterLogin() {
     G.Audio.music('village');
+    // Entró con la cuenta después de recargar: la partida en grupo sigue un minuto.
+    if (G.DB.online && G.Social.peekRun() && !G.Coop.active) {
+      const bootEl = document.getElementById('boot');
+      bootEl.classList.remove('hidden');
+      const ld = bootEl.querySelector('.boot-ld');
+      if (ld) ld.textContent = 'Volviendo a la partida…';
+      G.Social.resumeRun().then(back => {
+        bootEl.classList.add('hidden');
+        if (back) return;
+        if (!G.DB.save.partner) G.TestUI.start();
+        else this.goMenu();
+      });
+      return;
+    }
     if (!G.DB.save.partner) G.TestUI.start();
     else this.goMenu();
   },
@@ -920,6 +945,10 @@ G.Flow = {
   /** Empieza la partida en grupo (`started` del servidor: { seed, members }). */
   startCoop(cfg) {
     if (G.Game.state !== 'ui' || !G.Social.room) return;
+    const boot = document.getElementById('boot');
+    if (boot) boot.classList.add('hidden');
+    const tap = document.getElementById('tap-start');
+    if (tap) tap.classList.add('hidden');
     G.LobbyUI.close();
     G.Game.startRun(cfg);
   }

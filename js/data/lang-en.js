@@ -201,6 +201,9 @@ G.I18n.add({
   'Arrastra el dedo para moverte · toca un ataque para cambiarlo': 'Drag your finger to move · tap a move to switch',
   'WASD moverse · 1-4 / Q / E o clic en un ataque para cambiarlo · Esc pausa': 'WASD move · 1-4 / Q / E or click a move to switch · Esc pause',
   'El anfitrión ha terminado la partida': 'The host has ended the game', 'Se ha perdido la conexión con el anfitrión.': 'Lost connection to the host.',
+  'Se ha perdido la conexión con el servidor.': 'Lost connection to the server.',
+  'Reconectando…': 'Reconnecting…', 'Volviendo a la partida…': 'Rejoining the game…',
+  'La partida ha seguido sin ti.': 'The game went on without you.',
 
   // ---------------- pausa y fin ----------------
   'Pausa': 'Pause', 'Continuar': 'Continue', 'Abandonar run': 'Quit run', 'moverse ·': 'move ·', 'movimiento ·': 'move ·', 'ciclar ·': 'cycle ·', 'pausa': 'pause',

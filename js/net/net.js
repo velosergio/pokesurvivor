@@ -7,8 +7,9 @@
  * la web de esta copia (G.Config.site) o desde localhost, con cuenta en la
  * nube (como el resto de lo online: ver allowedHosts en db.js).
  *
- * Si la conexión se corta estando en una sala, se reintenta sola durante 20 s
- * (el servidor guarda tu sitio en la partida ese tiempo).
+ * Si la conexión se corta estando en una sala (o con una partida en grupo
+ * pendiente de recuperar tras recargar), se reintenta sola durante 60 s
+ * (el servidor guarda tu sitio en la partida ese tiempo: BACK_MS en server/lobby.js).
  *
  * API:  available() · connect() → Promise · renew() · close() · send(type, campos)
  *       sendIn({seq,x,y,dx,dy,move}) · on(fn(msg)) · onState(fn(estado))
@@ -16,7 +17,7 @@
  */
 G.Net = (() => {
   const OPEN_TIMEOUT = 10000;      // ms para conectar y presentarse
-  const RETRY_FOR = 20000;         // ms reintentando tras un corte (lo que guarda el servidor)
+  const RETRY_FOR = 60000;         // ms reintentando tras un corte (lo que guarda el servidor)
   const RETRY_GAP = 1500;
 
   let ws = null, state = 'closed', want = false, ready = null;
@@ -130,7 +131,8 @@ G.Net = (() => {
   /** Se ha cortado: si sigues en una sala, se reintenta un rato; si no, cerrado. */
   function onDown(err) {
     const hard = ['update', 'full', 'restart', 'dup', 'replaced', 'auth', 'flood', 'hello'].includes(err.message);
-    if (want && !hard && G.Social.room) {
+    // Sala en memoria, o una partida recordada al recargar (aún no ha llegado `room`).
+    if (want && !hard && (G.Social.room || G.Social.hasRun())) {
       if (!retryUntil) retryUntil = Date.now() + RETRY_FOR;
       if (Date.now() < retryUntil) {
         setState('retry');
