@@ -14,7 +14,9 @@ G.CHANGELOG = [
     ['Cooperativo: ves cómo se abre un cofre con candado aunque lo esté abriendo un compañero, y las trampas saltan igual para todos.',
      'Co-op: you can see a locked chest opening even when a teammate is opening it, and traps go off the same way for everyone.'],
     ['Cooperativo: la cámara ya no da saltos al usar una embestida, y cuando el servidor recoloca a tu Pokémon (una pared, una trampa pegajosa) se mueve suave en vez de a tirones.',
-     'Co-op: the camera no longer jumps when you use a dash, and when the server repositions your Pokémon (a wall, a sticky trap) it moves smoothly instead of jerking.']
+     'Co-op: the camera no longer jumps when you use a dash, and when the server repositions your Pokémon (a wall, a sticky trap) it moves smoothly instead of jerking.'],
+    ['Cooperativo: al levantar a un compañero caído vuelve a verse el anillo verde que se va llenando a su alrededor.',
+     'Co-op: when reviving a downed teammate you can see the green ring filling up around them again.']
   ] },
   { d: '2026-10-14', title: ['Recupera tu cuenta con Gmail', 'Recover your account with Gmail'], new: [
     ['Cooperativo nuevo: la partida en grupo la lleva ahora un servidor, no el navegador del anfitrión. Si alguien se va o cambia de pestaña, los demás siguen jugando; si se te corta la conexión tienes 20 segundos para volver a tu sitio.',

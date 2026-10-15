@@ -640,7 +640,7 @@ G.Game = (() => {
     if (coop) {
       // Los ataques (también los tuyos) llegan del servidor; las órbitas se dibujan aquí.
       for (const p of [pl, ...G.Coop.puppets()]) { if (p !== pl) p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
-      if (pl.dead) reviveTick(dt);
+      reviveTick(dt);
     }
     // (En grupo, la cámara sigue a tu Pokémon donde se dibuja: ver netOff en net/coop.js.)
     G.Camera.follow(pl.x + (pl.netOffX || 0), pl.y + (pl.netOffY || 0), dt);
@@ -653,12 +653,16 @@ G.Game = (() => {
   }
 
   /**
-   * Caído en grupo: un compañero a tu lado te va levantando. Aquí sólo la barra
-   * (la misma cuenta que server/room.js): quien te levanta es el servidor.
+   * Caídos en grupo (tú y tus compañeros): uno vivo al lado los va levantando. Aquí
+   * sólo la barra (la misma cuenta que server/room.js): quien levanta es el servidor.
    */
   function reviveTick(dt) {
-    const helper = G.Coop.puppets().some(p => !p.dead && G.U.dist2(p.x, p.y, pl.x, pl.y) < 56 * 56);
-    pl.reviveT = Math.min(G.Player.REVIVE_TIME, helper ? (pl.reviveT || 0) + dt : Math.max(0, (pl.reviveT || 0) - dt * 0.5));
+    const all = everyone();
+    for (const p of all) {
+      if (!p.dead) { p.reviveT = 0; continue; }
+      const helper = all.some(o => o !== p && !o.dead && G.U.dist2(o.x, o.y, p.x, p.y) < 56 * 56);
+      p.reviveT = Math.min(G.Player.REVIVE_TIME, helper ? (p.reviveT || 0) + dt : Math.max(0, (p.reviveT || 0) - dt * 0.5));
+    }
   }
 
   // ---------------- dibujo ----------------

@@ -401,7 +401,7 @@ G.Player = class Player {
   /**
    * Un compañero en otro ordenador: su dueño manda su estado (posición, vida,
    * movimiento activo...) y aquí se sigue con suavidad.
-   * n = { x, y, ang, walk, hp, maxHp, dead, mv, ml, mag, aim, rev }
+   * n = { x, y, ang, walk, hp, maxHp, dead, mv, ml, mag, aim }
    */
   netUpdate(dt) {
     this.anim.update(dt);
@@ -414,7 +414,6 @@ G.Player = class Player {
     if (n.hp < this.hp - 0.5 && !n.dead) this.flash = 0.14;
     this.hp = n.hp; this.maxHp = n.maxHp;
     this.magnet = n.mag || this.magnet;
-    this.reviveT = n.rev || 0;
     if (n.dead && !this.dead) { this.dead = true; this.anim.play('Faint', { hold: true }); G.Projectiles.clearOrbs(this); }
     else if (!n.dead && this.dead) this.revive(n.hp / (n.maxHp || 1));
     // Movimiento activo (para el halo, el HUD y los orbes).
