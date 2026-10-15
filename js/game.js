@@ -512,23 +512,25 @@ G.Game = (() => {
       if (['space', 'enter', 'escape'].some(k => G.Input.tap(k))) G.Judgment.skip();
       return;
     }
-    if (state === 'levelup') {
-      for (let i = 0; i < 3; i++) {
-        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) G.RunUI.pick(i);
-      }
-      if (G.Input.tap('keyr')) G.RunUI.reroll();
-      return;
-    }
+    // El vínculo y el objeto van antes que las cartas: en grupo también abren
+    // con state 'levelup' y, si no, los números se iban a las cartas de nivel.
     if (G.UI.isOpen('scr-bond')) {
-      for (let i = 0; i < 4; i++) {
-        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) G.RunUI.pickBond(i);
+      for (let i = 0; i < 9; i++) {
+        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) { G.RunUI.pickBond(i); break; }
       }
       return;
     }
     if (G.UI.isOpen('scr-item')) {
       for (let i = 0; i < 2; i++) {
-        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) document.querySelectorAll('#item-cards .card')[i].click();
+        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) { document.querySelectorAll('#item-cards .card')[i].click(); break; }
       }
+      return;
+    }
+    if (state === 'levelup') {
+      for (let i = 0; i < 3; i++) {
+        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) G.RunUI.pick(i);
+      }
+      if (G.Input.tap('keyr')) G.RunUI.reroll();
       return;
     }
     if (state === 'ui') {
