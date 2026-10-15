@@ -270,11 +270,12 @@ How long can you last?</p>
     write(pid, lang, page(pid, lang, title, desc, body, ld))
 
 # ================= Pokédex =================
-def dexcard(e, lang, up):
+def dexcard(e, lang, up, with_stats=False):
     d = e['dex']
     tag = f'<b class="leg">{"Legendario" if lang == "es" else "Legendary"}</b>' if d in LEG else (
           f'<b class="st">{"Inicial" if lang == "es" else "Starter"}</b>' if e.get('starter') else '')
-    return (f'<li id="p{d}">{sprite(d, up=up)}<span class="n">#{d:03d}</span><span class="nm">{esc(e["name"])}</span>'
+    attrs = f' data-hp="{e["hp"]}" data-atk="{e["atk"]}" data-spd="{e["spd"]}" data-bst="{e["bst"]}"' if with_stats else ''
+    return (f'<li id="p{d}"{attrs}>{sprite(d, up=up)}<span class="n">#{d:03d}</span><span class="nm">{esc(e["name"])}</span>'
             f'<span class="tys">{"".join(tbadge(t, lang) for t in e.get("types", []))}</span>{tag}</li>')
 
 def pokedex(lang):
@@ -284,8 +285,13 @@ def pokedex(lang):
         mons = [e for e in DEX if e.get('gen') == g]
         gn = gen_name(g, lang)
         head = f'(generación {g} · {len(mons)} Pokémon)' if lang == 'es' else f'(generation {g} · {len(mons)} Pokémon)'
-        secs.append(f'<section id="{gn.lower()}"><h2>{gn} <small>{head}</small></h2><ul class="dexgrid">{"".join(dexcard(e, lang, up) for e in mons)}</ul></section>')
+        secs.append(f'<section id="{gn.lower()}"><h2>{gn} <small>{head}</small></h2><ul class="dexgrid">{"".join(dexcard(e, lang, up, True) for e in mons)}</ul></section>')
     gens = ''.join(f'<a href="#{gen_name(g, lang).lower()}">{gen_name(g, lang)}</a>' for g in range(1, 10))
+    labs = [('dex', 'Nº'), ('hp', 'Vida'), ('atk', 'Ataque'), ('spd', 'Velocidad'), ('bst', 'Total')] if lang == 'es' else [
+            ('dex', 'No.'), ('hp', 'HP'), ('atk', 'Attack'), ('spd', 'Speed'), ('bst', 'Total')]
+    cap = 'Ordenar' if lang == 'es' else 'Sort'
+    btns = ''.join(f'<button type="button" data-k="{k}" data-l="{esc(lab)}"{" class=\"on\"" if k == "dex" else ""}>{esc(lab)}{" ↑" if k == "dex" else ""}</button>' for k, lab in labs)
+    sort = f'<div class="sortbar" id="dex-sort"><span>{cap}</span>{btns}</div>' + SORT_JS
     if lang == 'es':
         h1, lead, c = f'Pokédex de PokéSurvivor: los {N} Pokémon jugables', (f'Todos estos Pokémon pueden ser tu compañero en PokéSurvivor, el juego gratis de supervivencia con Pokémon para '
               f'navegador y móvil. Hay {N} de las 9 regiones; los consigues como compañero inicial o en el gacha (con tickets que se ganan jugando), y también '
@@ -296,7 +302,7 @@ def pokedex(lang):
               f'There are {N} from all 9 regions; you get them as a starter or from the gacha (with tickets you earn by playing), and they also show up as wild '
               f'enemies, bosses and legendaries in rifts.'), 'Pick your partner and play free'
         title, desc = f'PokéSurvivor Pokédex: all {N} playable Pokémon (9 regions)', f'The full list of the {N} Pokémon you can play in PokéSurvivor, from Kanto to Paldea, with their types. A free Pokémon game in your browser.'
-    body = f'<article class="doc wide"><h1>{esc(h1)}</h1><p class="lead">{esc(lead)}</p><nav class="gens">{gens}</nav>{"".join(secs)}{cta(pid, lang, c)}</article>'
+    body = f'<article class="doc wide"><h1>{esc(h1)}</h1><p class="lead">{esc(lead)}</p><nav class="gens">{gens}</nav>{sort}{"".join(secs)}{cta(pid, lang, c)}</article>'
     ld = {'@context': 'https://schema.org', '@graph': [{'@type': 'CollectionPage', 'name': h1, 'url': SITE + PATH[lang][pid], 'inLanguage': lang}, crumbs(pid, lang, 'Pokédex')]}
     write(pid, lang, page(pid, lang, title, desc, body, ld))
 

@@ -7,6 +7,8 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
+    ['En Pokémon y al elegir el compañero inicial puedes ordenar la lista por vida, ataque, velocidad o total. La Pokédex de la web también.',
+     'In Pokémon and when picking your starter you can sort the list by HP, attack, speed or total. The website Pokédex can too.'],
     ['Cooperativo: ahora caben hasta 10 jugadores en cada sala. Con más de 4 salen más Pokémon a la vez para que haya para todos.',
      'Co-op: rooms now hold up to 10 players. With more than 4, more Pokémon show up at once so there are enough for everyone.'],
     ['Cooperativo: si tu última partida en grupo sigue en marcha sin ti (cerraste el juego o se cortó más de un minuto), en el menú sale «Reconectar» para volver a ella con tu Pokémon como lo dejaste.',
@@ -28,6 +30,8 @@ G.CHANGELOG = [
      'Co-op: when reviving a downed teammate you can see the green ring filling up around them again.']
   ] },
   { d: '2026-10-14', title: ['Recupera tu cuenta con Gmail', 'Recover your account with Gmail'], new: [
+    ['Carta nueva «Olvidar»: con los 4 huecos llenos puede salir al subir de nivel. Eliges qué movimiento olvidar, su hueco queda libre y ese movimiento puede volver a salir en las cartas. Los movimientos de un vínculo no se olvidan.',
+     'New “Forget” card: with all 4 slots full it can show up when you level up. You choose which move to forget, its slot is freed and that move can show up in the cards again. Moves in a bond cannot be forgotten.'],
     ['Cooperativo nuevo: la partida en grupo la lleva ahora un servidor, no el navegador del anfitrión. Si alguien se va o cambia de pestaña, los demás siguen jugando; si se te corta la conexión tienes 20 segundos para volver a tu sitio.',
      'New co-op: group games now run on a server instead of the host’s browser. If someone leaves or switches tabs, everyone else keeps playing; if your connection drops you have 20 seconds to get back to your spot.'],
     ['Salas con código: en Amigos > Jugar en grupo creas una sala y pasas su código de 6 letras, o escribes el de un amigo para entrar. Las invitaciones siguen funcionando.',

@@ -3,6 +3,8 @@
  *   new   aprender un movimiento nuevo (sólo si quedan huecos de los 4; un vínculo libera huecos)
  *   up    mejorar un movimiento que ya tienes
  *   stat  mejora permanente de la run
+ *   forget  olvidar un movimiento (con los 4 huecos llenos): abre una segunda
+ *           elección (`then`) con una carta `unlearn` por movimiento suelto
  */
 G.LevelUp = (() => {
 
@@ -101,7 +103,33 @@ G.LevelUp = (() => {
       });
     }
 
+    // --- olvidar: con los huecos llenos, deja libre uno para aprender otro ---
+    if (pl.slots.length >= pl.maxMoves && unlearnable(pl).length) {
+      out.push({
+        w: 3, type: 'forget', key: 'forget',
+        icon: 'ban', color: '#c98fb4', tag: 'Hueco libre',
+        title: 'Olvidar',
+        desc: 'Olvida un movimiento: su hueco queda libre y vuelve a salir en las cartas.',
+        apply: () => {}, then: forgetCards
+      });
+    }
+
     return out;
+  }
+
+  /** Movimientos que se pueden olvidar: los sueltos (los de un vínculo no). */
+  function unlearnable(pl) {
+    return pl.slots.filter(g => g.length === 1).map(g => g[0]);
+  }
+
+  /** Segunda elección de «Olvidar»: una carta por movimiento suelto. */
+  function forgetCards(pl) {
+    return unlearnable(pl).map(m => ({
+      w: 0, type: 'unlearn', key: 'unlearn:' + m.id,
+      icon: 'move:' + m.id, color: G.U.TYPE_COLOR[m.type], tag: 'Nv.' + m.lvl,
+      title: m.name, desc: 'Lo olvidas: su hueco queda libre y sus mejoras se pierden.',
+      apply: p => p.forget(m.id)
+    }));
   }
 
   /** Devuelve 3 cartas distintas, elegidas por peso. */
@@ -125,5 +153,5 @@ G.LevelUp = (() => {
     return picked;
   }
 
-  return { offer, STATS };
+  return { offer, forgetCards, STATS };
 })();

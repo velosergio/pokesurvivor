@@ -434,7 +434,7 @@ G.DB = (() => {
       try {
         const g = await fs.collection('grants').doc(uid).get();
         const d = G.Grant.applyGrant(save, g.exists ? g.data() : null);
-        grantDue = d.dc > 0 || d.dt > 0;
+        grantDue = d.dc > 0 || d.dt > 0 || d.dm > 0;
       } catch (e) { /* sin red: la próxima subida lo lee dentro de la transacción */ }
     }
     write(K_CLOUD + uid, save);

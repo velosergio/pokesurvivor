@@ -243,26 +243,42 @@ service cloud.firestore {
     }
 
     // Libreta de regalos del moderador (js/ui/debug-ui.js). Totales, nunca se borran.
+    // mons / shinies: { dex: true }, Pokémon regalados (cada escritura añade uno solo).
+    function gm(d, k) { return d.get(k, {}); }
+    // Mapas de Pokémon: o iguales, o (si one) con exactamente un dex nuevo entre los dos y nada quitado ni cambiado.
+    function monsStep(n, o, one) {
+      let dm = gm(n, 'mons').diff(gm(o, 'mons'));
+      let ds = gm(n, 'shinies').diff(gm(o, 'shinies'));
+      return gm(n, 'mons') is map && gm(n, 'shinies') is map
+        && gm(n, 'mons').size() <= 2000 && gm(n, 'shinies').size() <= 2000
+        && dm.removedKeys().size() == 0 && dm.changedKeys().size() == 0
+        && ds.removedKeys().size() == 0 && ds.changedKeys().size() == 0
+        && dm.addedKeys().size() + ds.addedKeys().size() == (one ? 1 : 0);
+    }
+    function grantShape() {
+      return request.resource.data.keys().hasOnly(['coins', 't10', 'at', 'mons', 'shinies'])
+        && request.resource.data.coins is int
+        && request.resource.data.t10 is int
+        && request.resource.data.at == request.time;
+    }
     match /grants/{uid} {
       allow read: if admin() || (signedIn() && me() == uid);
 
-      allow create: if admin()
-        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
-        && request.resource.data.coins is int
-        && request.resource.data.t10 is int
-        && request.resource.data.at == request.time
-        && ((request.resource.data.coins == 100000 && request.resource.data.t10 == 0)
-            || (request.resource.data.t10 == 100 && request.resource.data.coins == 0));
+      allow create: if admin() && grantShape()
+        && ((request.resource.data.coins == 100000 && request.resource.data.t10 == 0 && monsStep(request.resource.data, {}, false))
+            || (request.resource.data.t10 == 100 && request.resource.data.coins == 0 && monsStep(request.resource.data, {}, false))
+            || (request.resource.data.coins == 0 && request.resource.data.t10 == 0 && monsStep(request.resource.data, {}, true)));
 
-      allow update: if admin()
-        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
-        && request.resource.data.coins is int
-        && request.resource.data.t10 is int
-        && request.resource.data.at == request.time
+      allow update: if admin() && grantShape()
         && ((request.resource.data.coins == resource.data.coins + 100000
-              && request.resource.data.t10 == resource.data.t10)
+              && request.resource.data.t10 == resource.data.t10
+              && monsStep(request.resource.data, resource.data, false))
             || (request.resource.data.t10 == resource.data.t10 + 100
-              && request.resource.data.coins == resource.data.coins));
+              && request.resource.data.coins == resource.data.coins
+              && monsStep(request.resource.data, resource.data, false))
+            || (request.resource.data.coins == resource.data.coins
+              && request.resource.data.t10 == resource.data.t10
+              && monsStep(request.resource.data, resource.data, true)));
 
       allow delete: if false;
     }

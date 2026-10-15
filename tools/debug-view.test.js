@@ -12,6 +12,9 @@ test('el botón nace oculto y la pantalla existe', () => {
   assert.match(html, /id="scr-debug"/);
   assert.match(html, /id="dbg-coins"/);
   assert.match(html, /id="dbg-t10"/);
+  assert.match(html, /id="dbg-mon-form"/);
+  assert.match(html, /id="dbg-mon-shiny"/);
+  assert.match(html, /id="dbg-mon-give"[^>]*disabled/);
   assert.ok(html.indexOf('js/ui/debug-ui.js') > html.indexOf('js/ui/mod-ui.js'));
 });
 
@@ -31,4 +34,12 @@ test('solo el moderador lo ve y puede abrirlo', () => {
   assert.match(view, /100 tickets ×10/);
   assert.match(view, /collection\('grants'\)/);
   assert.match(view, /No hay ningún jugador con ese apodo/);
+});
+
+test('dar Pokémon: uno por escritura y sin pisar la libreta', () => {
+  const view = read('js/ui/debug-ui.js');
+  assert.match(view, /const field = sh \? 'shinies' : 'mons'/);
+  assert.match(view, /doc\[field\]\[d\] = true/);
+  assert.match(view, /if \(d\.mons\) doc\.mons = d\.mons/);
+  assert.match(view, /if \(d\.shinies\) doc\.shinies = d\.shinies/);
 });

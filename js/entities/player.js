@@ -135,6 +135,23 @@ G.Player = class Player {
 
   hasMove(id) { return this.moves.some(m => m.id === id); }
 
+  /**
+   * Olvida un movimiento suelto (carta «Olvidar»): su hueco queda libre y el
+   * movimiento vuelve a poder salir en las cartas (desde Nv.1).
+   */
+  forget(id) {
+    const i = this.slots.findIndex(g => g.length === 1 && g[0].id === id);
+    if (i < 0 || this.slots.length < 2) return false;
+    const cur = this.slots[this.active];
+    this.slots.splice(i, 1);
+    this.moves = this.moves.filter(m => m.id !== id);
+    this.arrange();                              // los de hueco fijo (Atajos) vuelven a su número
+    const a = this.slots.indexOf(cur);
+    this.active = a >= 0 ? a : Math.min(i, this.slots.length - 1);
+    G.Projectiles.clearOrbs(this);
+    return true;
+  }
+
   setActive(i) {
     if (i < 0 || i >= this.slots.length || i === this.active) return;
     // Cinta Elección: no se puede cambiar de movimiento.

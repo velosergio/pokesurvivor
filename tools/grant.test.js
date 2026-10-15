@@ -8,11 +8,11 @@ const base = () => ({ coins: 10, tickets: { t1: 1, t10: 2 }, grantedCoins: 0, gr
 
 test('suma monedas una sola vez', () => {
   const s = base();
-  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 100000, dt: 0 });
+  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 100000, dt: 0, dm: 0 });
   assert.equal(s.coins, 100010);
   assert.equal(s.grantedCoins, 100000);
   assert.equal(s.tickets.t10, 2);
-  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 0, dt: 0 });
+  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 0, dt: 0, dm: 0 });
   assert.equal(s.coins, 100010);
 });
 
@@ -20,7 +20,7 @@ test('un gasto posterior se conserva y el segundo regalo solo suma el delta', ()
   const s = base();
   applyGrant(s, { coins: 100000, t10: 0 });
   s.coins -= 500;
-  assert.deepEqual(applyGrant(s, { coins: 200000, t10: 1000 }), { dc: 100000, dt: 1000 });
+  assert.deepEqual(applyGrant(s, { coins: 200000, t10: 1000 }), { dc: 100000, dt: 1000, dm: 0 });
   assert.equal(s.coins, 100010 - 500 + 100000);
   assert.equal(s.tickets.t10, 1002);
   assert.equal(s.grantedCoins, 200000);
@@ -32,16 +32,16 @@ test('no baja granted ni regala si la copia local ya se pasó', () => {
   const s = base();
   s.grantedCoins = 150000;
   s.coins = 50;
-  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 0, dt: 0 });
+  assert.deepEqual(applyGrant(s, { coins: 100000, t10: 0 }), { dc: 0, dt: 0, dm: 0 });
   assert.equal(s.coins, 50);
   assert.equal(s.grantedCoins, 150000);
 });
 
 test('libreta vacía o ausente no cambia nada', () => {
   const s = base();
-  assert.deepEqual(applyGrant(s, null), { dc: 0, dt: 0 });
+  assert.deepEqual(applyGrant(s, null), { dc: 0, dt: 0, dm: 0 });
   assert.equal(s.coins, 10);
-  assert.deepEqual(applyGrant(s, {}), { dc: 0, dt: 0 });
+  assert.deepEqual(applyGrant(s, {}), { dc: 0, dt: 0, dm: 0 });
   assert.equal(s.coins, 10);
 });
 
@@ -63,4 +63,29 @@ test('la partida nueva y la subida usan la libreta', () => {
   const uses = db.split('G.Grant.applyGrant').length - 1;
   assert.equal(uses, 3);
   assert.ok(html.indexOf('js/core/grant.js') < html.indexOf('js/core/db.js'));
+});
+
+test('da Pokémon y shinies una sola vez', () => {
+  const s = base();
+  s.owned = { 4: { at: 1, from: 'starter' } };
+  s.shiny = {};
+  assert.deepEqual(applyGrant(s, { mons: { 25: true, 4: true }, shinies: { 150: true } }), { dc: 0, dt: 0, dm: 3 });
+  assert.equal(s.owned[25].from, 'gift');
+  assert.equal(s.owned[4].from, 'starter');
+  assert.ok(s.owned[150] && s.shiny[150]);
+  assert.deepEqual(applyGrant(s, { mons: { 25: true }, shinies: { 150: true } }), { dc: 0, dt: 0, dm: 0 });
+});
+
+test('el shiny de uno que ya tienes solo añade el shiny', () => {
+  const s = base();
+  s.owned = { 25: { at: 1, from: 'gacha' } };
+  assert.deepEqual(applyGrant(s, { shinies: { 25: true } }), { dc: 0, dt: 0, dm: 1 });
+  assert.equal(s.owned[25].from, 'gacha');
+  assert.equal(s.shiny[25].from, 'gift');
+});
+
+test('ignora claves raras en la libreta de Pokémon', () => {
+  const s = base();
+  assert.deepEqual(applyGrant(s, { mons: { abc: true, '-3': true, '07': true, 9: false } }), { dc: 0, dt: 0, dm: 0 });
+  assert.deepEqual(s.owned, {});
 });

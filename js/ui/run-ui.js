@@ -29,7 +29,7 @@ G.RunUI = (() => {
   }
 
   function reroll() {
-    if (!offers || rerollsLeft() <= 0) return;
+    if (!offers || rerollsLeft() <= 0 || offers.some(c => c.type === 'unlearn')) return;
     const p = G.Game.player;
     p.rerolls = (p.rerolls || 0) + 1;
     G.Audio.sfx('select');
@@ -39,9 +39,13 @@ G.RunUI = (() => {
 
   function renderCards(list) {
     offers = list;
+    // La segunda elección de «Olvidar» (qué movimiento) no se cambia.
+    const unlearn = list.length > 0 && list.every(c => c.type === 'unlearn');
     const left = rerollsLeft();
     $('lvl-rr-n').textContent = left;
-    $('lvl-reroll').classList.toggle('hidden', left <= 0);
+    $('lvl-reroll').classList.toggle('hidden', left <= 0 || unlearn);
+    $('lvl-sub').innerHTML = (unlearn ? '¿Qué movimiento olvidas? · ' : 'Elige una recompensa · ')
+      + list.map((c, i) => `<kbd>${i + 1}</kbd>`).join(' ');
     const box = $('cards');
     box.innerHTML = '';
     list.forEach((c, i) => {
@@ -49,7 +53,7 @@ G.RunUI = (() => {
       el.className = 'card';
       const tag = c.type === 'new'
         ? `<span class="tag-chip" style="background:${c.color}">Nuevo · ${c.tag}</span>`
-        : c.type === 'up' || c.type === 'evo'
+        : c.type === 'up' || c.type === 'evo' || c.type === 'forget' || c.type === 'unlearn'
           ? `<span class="tag-chip" style="background:${c.color}">${c.tag}</span>`
           : `<span class="tag-chip" style="background:${c.color === '#ffd23f' ? '#ffd23f' : '#9fb1c9'}">${c.tag}</span>`;
       if (c.type === 'evo') el.classList.add('evo');

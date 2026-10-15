@@ -281,6 +281,49 @@ G.UI = (() => {
     return cv;
   }
 
+  // Orden de una lista de Pokémon por una estadística de juego.
+  // key: dex | hp | atk | spd | bst. dir: 1 de menor a mayor, -1 al revés.
+  const STAT_SORTS = [
+    { id: 'dex', label: 'Nº' }, { id: 'hp', label: 'Vida' }, { id: 'atk', label: 'Ataque' },
+    { id: 'spd', label: 'Velocidad' }, { id: 'bst', label: 'Total' }
+  ];
+
+  function statText(p, key) {
+    if (key === 'atk') return '×' + p.atk.toFixed(2);
+    if (key === 'hp' || key === 'spd' || key === 'bst') return String(p[key]);
+    return '';
+  }
+
+  function byStat(key, dir) {
+    const d = dir || 1;
+    return (a, b) => (a[key] - b[key]) * d || a.dex - b.dex;
+  }
+
+  /** Primera pulsación: el número de menor a mayor, el resto de mayor a menor. Otra vez, se invierte. */
+  function toggleSort(cur, id) {
+    if (cur.key === id) return { key: id, dir: -cur.dir };
+    return { key: id, dir: id === 'dex' ? 1 : -1 };
+  }
+
+  /** Chips de orden dentro de `box`. `cur` = { key, dir }. */
+  function sortBar(box, cur, onPick) {
+    box.innerHTML = '';
+    const lab = document.createElement('span');
+    lab.className = 'sort-lab';
+    lab.textContent = 'Orden';
+    box.appendChild(lab);
+    for (const s of STAT_SORTS) {
+      const b = document.createElement('button');
+      const on = cur.key === s.id;
+      b.type = 'button';
+      b.className = 'chip' + (on ? ' on' : '');
+      b.textContent = s.label + (on ? (cur.dir < 0 ? ' ↓' : ' ↑') : '');
+      b.title = 'Pulsa otra vez para invertir el orden';
+      b.onclick = () => onPick(s.id);
+      box.appendChild(b);
+    }
+  }
+
   return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete,
-           sprite, spriteCanvas, tick, initChrome, soundControls };
+           sprite, spriteCanvas, tick, initChrome, soundControls, statText, byStat, toggleSort, sortBar };
 })();

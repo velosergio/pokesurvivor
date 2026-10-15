@@ -153,6 +153,7 @@
   <div class="box wide">
     <h2>Elige a tu compañero</h2>
     <p class="sub">Los iniciales de todas las regiones, y dos amigos más.</p>
+    <div class="filters" id="starter-sort"></div>
     <div class="grid" id="starter-grid"></div>
     <div class="row between" style="margin-top:14px">
       <button id="starter-back" class="btn ghost">Volver</button>
@@ -436,6 +437,12 @@
       <button id="dbg-coins" class="btn small" type="button" disabled>Dar 100.000 monedas</button>
       <button id="dbg-t10" class="btn small" type="button" disabled>Dar 100 tickets ×10</button>
     </div>
+    <form id="dbg-mon-form" class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <input id="dbg-mon" class="field" list="dbg-mon-list" placeholder="Pokémon (nombre o nº)" autocomplete="off" spellcheck="false" disabled>
+      <datalist id="dbg-mon-list"></datalist>
+      <label class="sub"><input id="dbg-mon-shiny" type="checkbox" disabled> Shiny</label>
+      <button id="dbg-mon-give" class="btn small" type="submit" disabled>Dar Pokémon</button>
+    </form>
   </div>
 </section>
 
@@ -477,6 +484,7 @@
     <div class="split" style="margin-top:8px">
       <div>
         <div class="filters" id="dex-filters"></div>
+        <div class="filters" id="dex-sort"></div>
         <div class="grid" id="dex-grid"></div>
       </div>
       <div class="panel" id="dex-detail"></div>
@@ -538,7 +546,7 @@
 <section id="scr-levelup" class="scr dim hidden">
   <div class="box center">
     <h2>¡Nivel <span id="lvl-num">2</span>!</h2>
-    <p class="sub">Elige una recompensa · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+    <p id="lvl-sub" class="sub">Elige una recompensa · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
     <div id="cards" class="cards"></div>
     <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>) · <kbd>R</kbd></button>
     <p id="lvl-wait" class="note hidden"></p>

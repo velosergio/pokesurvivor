@@ -36,6 +36,37 @@ test('misma semilla, misma partida; otra semilla, otra', () => {
   assert.notStrictEqual(print(a, ra), print(c, rc));
 });
 
+test('Olvidar: sólo con los huecos llenos; el hueco queda libre y el movimiento vuelve a las cartas', () => {
+  const sim = createSim({ seed: 4 });
+  const { G } = sim;
+  const r = soloRun(sim);
+  const pl = r.pl;
+  const all = () => G.LevelUp.offer(pl, 99);
+  assert.ok(!all().some(c => c.type === 'forget'), 'con huecos libres no sale');
+  for (const id of G.Moves.poolFor(pl.mon)) { if (pl.slots.length >= pl.maxMoves) break; if (G.Moves.BY_ID[id].kind !== 'buff') pl.addMove(id); }
+  assert.strictEqual(pl.slots.length, 4);
+  const card = all().find(c => c.type === 'forget');
+  assert.ok(card && card.then, 'con los 4 llenos sale');
+  const list = card.then(pl);
+  assert.strictEqual(list.length, 4);
+  assert.ok(list.every(c => c.type === 'unlearn'));
+  const gone = pl.slots[2][0].id;
+  pl.active = 3;
+  list.find(c => c.key === 'unlearn:' + gone).apply(pl);
+  assert.strictEqual(pl.slots.length, 3);
+  assert.ok(!pl.hasMove(gone));
+  assert.strictEqual(pl.active, 2, 'sigue en el mismo movimiento');
+  let back = false;
+  for (let i = 0; i < 200 && !back; i++) back = all().some(c => c.key === 'new:' + gone);
+  assert.ok(back, 'vuelve al pozo');
+  assert.ok(!all().some(c => c.type === 'forget'), 'con un hueco libre ya no sale');
+  // Los de un vínculo no se olvidan.
+  pl.addMove(G.Moves.poolFor(pl.mon).find(id => !pl.hasMove(id) && G.Moves.BY_ID[id].kind !== 'buff'));
+  pl.fuse([pl.slots[0][0], pl.slots[1][0]]);
+  assert.ok(!all().some(c => c.type === 'forget'), 'con 3 huecos (uno de vínculo) hay hueco libre');
+  assert.strictEqual(G.LevelUp.forgetCards(pl).length, 2, 'sólo los sueltos');
+});
+
 test('una grieta: entra en la arena y vuelve', () => {
   const sim = createSim({ seed: 5 });
   const r = soloRun(sim, { god: true });

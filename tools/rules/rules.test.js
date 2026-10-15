@@ -103,3 +103,22 @@ test('el ranking se puede leer con sesión', async () => {
   await assertSucceeds(db.doc('lbs/' + GB).get());
   await assertFails(env.unauthenticatedContext().firestore().doc('lbs/' + GB).get());
 });
+
+// ---------- libreta de regalos (js/ui/debug-ui.js) ----------
+const ADMIN = 'MufTp04DgIR02OExhPau6TopYzo2';
+const gift = (o = {}) => Object.assign({ coins: 0, t10: 0, at: ts() }, o);
+
+test('libreta: el moderador da un Pokémon y luego otro, de uno en uno', async () => {
+  const db = env.authenticatedContext(ADMIN).firestore();
+  await assertSucceeds(db.doc('grants/ana').set(gift({ mons: { 25: true }, shinies: {} })));
+  await assertSucceeds(db.doc('grants/ana').set(gift({ mons: { 25: true }, shinies: { 150: true } })));
+  await assertFails(db.doc('grants/ana').set(gift({ mons: { 25: true, 1: true, 4: true }, shinies: { 150: true } })));
+  // Las monedas conservan los Pokémon; quitarlos no se puede.
+  await assertSucceeds(db.doc('grants/ana').set(gift({ coins: 100000, mons: { 25: true }, shinies: { 150: true } })));
+  await assertFails(db.doc('grants/ana').set(gift({ coins: 200000 })));
+});
+
+test('libreta: un jugador no se regala Pokémon', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertFails(db.doc('grants/ana').set(gift({ mons: { 25: true } })));
+});

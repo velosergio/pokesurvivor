@@ -1,8 +1,11 @@
 /* ============ grant.js — aplicar la libreta de regalos a una partida ya fusionada ============
  * Puro: no toca la red. En el navegador queda en G.Grant.applyGrant.
+ * Pokémon: libreta.mons / libreta.shinies son { dex: true }. No hace falta llevar la cuenta
+ * de lo ya dado: owned y shiny se fusionan por unión, así que darlo otra vez no cambia nada.
  */
 (function (root) {
   const num = v => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
+  const dexes = m => (m && typeof m === 'object' ? Object.keys(m).filter(d => m[d] && num(d) > 0 && String(num(d)) === d) : []);
   function applyGrant(save, grant) {
     grant = grant || {};
     if (!save.tickets) save.tickets = { t1: 0, t10: 0 };
@@ -13,7 +16,13 @@
     save.tickets.t10 = num(save.tickets.t10) + dt;
     save.grantedCoins = num(save.grantedCoins) + dc;
     save.grantedT10 = num(save.grantedT10) + dt;
-    return { dc: dc, dt: dt };
+    let dm = 0;
+    if (!save.owned) save.owned = {};
+    if (!save.shiny) save.shiny = {};
+    const give = (coll, d) => { if (!save[coll][d]) { save[coll][d] = { at: Date.now(), from: 'gift' }; dm++; } };
+    for (const d of dexes(grant.mons)) give('owned', d);
+    for (const d of dexes(grant.shinies)) { give('owned', d); give('shiny', d); }
+    return { dc: dc, dt: dt, dm: dm };
   }
   root.applyGrant = applyGrant;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (G.Grant = G.Grant || {}));

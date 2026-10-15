@@ -366,11 +366,14 @@ G.Game = (() => {
     pendingLevels--;
     state = 'levelup';
     G.Audio.sfx('levelup');
-    G.RunUI.showLevelUp(pl.level, G.LevelUp.offer(pl), card => {
+    const take = card => {
       G.Audio.sfx('confirm');
       card.apply(pl);
-      state = 'playing';
-    });
+      // «Olvidar» abre una segunda elección: qué movimiento.
+      if (card.then) G.RunUI.showLevelUp(pl.level, card.then(pl), take);
+      else state = 'playing';
+    };
+    G.RunUI.showLevelUp(pl.level, G.LevelUp.offer(pl), take);
   }
 
   // ---------------- vínculos ----------------
@@ -527,8 +530,8 @@ G.Game = (() => {
       return;
     }
     if (state === 'levelup') {
-      for (let i = 0; i < 3; i++) {
-        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) G.RunUI.pick(i);
+      for (let i = 0; i < 4; i++) {           // (4: las cartas de «Olvidar», una por movimiento)
+        if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) { G.RunUI.pick(i); break; }
       }
       if (G.Input.tap('keyr')) G.RunUI.reroll();
       return;

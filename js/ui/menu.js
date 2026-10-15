@@ -3,6 +3,7 @@ G.MenuUI = (() => {
   const $ = G.UI.$;
   const GEN_NAMES = ['Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Teselia', 'Kalos', 'Alola', 'Galar', 'Paldea'];
   let dexFilter = 'all', dexGen = 1, dexSel = null;
+  let dexSort = { key: 'dex', dir: 1 };
 
   function init() {
     const ICON = { rejoin: 'friends', play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', debug: 'flag' };
@@ -142,6 +143,7 @@ G.MenuUI = (() => {
       c.onclick = () => { dexFilter = k; openDex(); };
       fb.appendChild(c);
     }
+    G.UI.sortBar($('dex-sort'), dexSort, id => { dexSort = G.UI.toggleSort(dexSort, id); openDex(); });
     renderGrid();
     showDetail(dexSel);
   }
@@ -150,6 +152,7 @@ G.MenuUI = (() => {
     const s = G.DB.save;
     const grid = $('dex-grid');
     grid.innerHTML = '';
+    const list = [];
     for (const p of G.DEX) {
       if (p.gen !== dexGen) continue;
       const own = !!s.owned[p.dex], sh = !!(s.shiny && s.shiny[p.dex]);
@@ -157,7 +160,11 @@ G.MenuUI = (() => {
       if (dexFilter === 'miss' && own) continue;
       if (dexFilter === 'shiny' && !sh) continue;
       if (/^\d$/.test(dexFilter) && p.rarity !== +dexFilter) continue;
-
+      list.push(p);
+    }
+    list.sort(G.UI.byStat(dexSort.key, dexSort.dir));
+    for (const p of list) {
+      const own = !!s.owned[p.dex], sh = !!(s.shiny && s.shiny[p.dex]);
       const cell = document.createElement('div');
       cell.className = 'cell' + (own ? '' : ' locked') + (p.dex === dexSel ? ' on' : '');
       cell.insertAdjacentHTML('beforeend', `<span class="no">${String(p.dex).padStart(3, '0')}</span>`);
@@ -166,6 +173,7 @@ G.MenuUI = (() => {
       const useShiny = sh && p.dex === s.partner && s.partnerShiny;
       cell.appendChild(G.UI.spriteCanvas(p.dex, 92, 80, { scale: 2, silhouette: !own, shadow: own, shiny: useShiny }));
       cell.insertAdjacentHTML('beforeend', `<b>${own ? p.name : '???'}</b>${G.UI.stars(p.rarity, 9)}`);
+      if (dexSort.key !== 'dex') cell.insertAdjacentHTML('beforeend', `<span class="statn">${G.UI.statText(p, dexSort.key)}</span>`);
       cell.onclick = () => {
         dexSel = p.dex;
         grid.querySelectorAll('.cell').forEach(c => c.classList.remove('on'));

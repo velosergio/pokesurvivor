@@ -2,14 +2,6 @@
 
 ## Poco trabajo
 
-### Habilidad «Olvidar»
-
-Una elección que quita una habilidad ya cogida. El hueco queda vacío y esa habilidad vuelve al pozo, para poder sustituirla más adelante. No borra al Pokémon ni el resto de la build.
-
-### Filtros de Pokémon por estadísticas
-
-En la elección de Pokémon (y, si encaja, en la pokédex), poder ordenar o filtrar por ataque, vida, velocidad y estadísticas parecidas, en vez de recorrer la lista a ojo.
-
 ### Ritmo de la partida a medida
 
 Opciones, sobre todo al crear la sala, para subir o bajar con qué frecuencia aparecen enemigos y grietas, y qué porcentaje de monedas y de tickets sueltan. Sirve para probar, para partidas más tranquilas o para farmeos acordados por el grupo.

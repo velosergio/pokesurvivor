@@ -235,6 +235,54 @@ test('quien no elige en 20 s se queda con la primera', () => {
   assert.ok(r.room.debug.time > t0, 'sigue esperando pasados 20 s');
 });
 
+test('quien no elige no se lleva «Olvidar» aunque salga primera', () => {
+  const r = makeRoom({ n: 2 });
+  const G = r.G, a = r.pl('u0');
+  calm(G);
+  for (const id of G.Moves.poolFor(a.mon)) { if (a.slots.length >= a.maxMoves) break; if (G.Moves.BY_ID[id].kind !== 'buff') a.addMove(id); }
+  const offer = G.LevelUp.offer;
+  G.LevelUp.offer = (pl, n) => { const l = offer(pl, 99); const f = l.filter(c => c.type === 'forget'); return f.concat(l.filter(c => c.type !== 'forget')).slice(0, n || 3); };
+  r.room.tick();
+  r.room.debug.levelUp();
+  r.room.tick();
+  G.LevelUp.offer = offer;
+  assert.strictEqual(of(r.sent, 'u0', 'level')[0].options[0].type, 'forget');
+  r.room.pick('u1', 0);
+  for (let i = 0; i < 21 * 20; i++) r.room.tick();
+  assert.strictEqual(of(r.sent, 'u0', 'level').length, 1, 'no le llega la elección de qué olvidar');
+  assert.strictEqual(a.slots.length, 4);
+  assert.ok(!r.room.debug.paused, 'la partida sigue');
+});
+
+test('Olvidar: tras la carta llega qué movimiento (sin cambio de cartas), y al elegir se olvida', () => {
+  const r = makeRoom({ n: 2 });
+  const G = r.G, a = r.pl('u0');
+  calm(G);
+  for (const id of G.Moves.poolFor(a.mon)) { if (a.slots.length >= a.maxMoves) break; if (G.Moves.BY_ID[id].kind !== 'buff') a.addMove(id); }
+  assert.strictEqual(a.slots.length, 4);
+  const offer = G.LevelUp.offer;
+  G.LevelUp.offer = pl => offer(pl, 99).filter(c => c.type === 'forget' || pl !== a);
+  r.room.tick();
+  r.room.debug.levelUp();
+  r.room.tick();
+  G.LevelUp.offer = offer;
+  const lv = () => of(r.sent, 'u0', 'level');
+  assert.strictEqual(lv()[0].options[0].type, 'forget');
+  r.room.pick('u0', 0); r.room.pick('u1', 0);
+  const second = lv()[1];
+  assert.ok(second && second.options.length === 4 && second.options.every(o => o.type === 'unlearn'));
+  assert.strictEqual(second.rr, 0);
+  r.room.reroll('u0');
+  assert.strictEqual(lv().length, 2, 'no se cambia');
+  assert.ok(r.room.debug.paused, 'sigue eligiendo');
+  const gone = second.options[1].id.split(':')[1];
+  r.room.pick('u0', 1);
+  assert.ok(!a.hasMove(gone));
+  assert.strictEqual(a.slots.length, 3);
+  r.room.tick(); r.room.tick();
+  assert.ok(!r.room.debug.paused);
+});
+
 test('hold para la partida mientras dura', () => {
   const r = makeRoom({ n: 2 });
   r.room.tick();

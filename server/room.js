@@ -295,7 +295,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
 
   /** Mensaje de la elección que tiene delante (rr: cambios de cartas que le quedan). */
   function choiceMsg(c, s) {
-    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, rr: rerollsLeft(s), options: c.options.map(cardOut) };
+    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, rr: c.fixed ? 0 : rerollsLeft(s), options: c.options.map(cardOut) };
     if (c.kind === 'item') return { t: 'level', kind: 'item', options: [itemOut(c.cur), itemOut(c.next)] };
     return { t: 'level', kind: 'bond', options: c.options.map(groupOut) };
   }
@@ -313,7 +313,16 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     const c = s.queue.shift();
     if (!c) return;
     const p = s.pl;
-    if (c.kind === 'level') { const card = c.options[i] || c.options[0]; if (card) card.apply(p); }
+    if (c.kind === 'level') {
+      const card = c.options[i] || c.options[0];
+      if (card) card.apply(p);
+      // «Olvidar»: delante, la elección de qué movimiento (fija: no se cambia).
+      // A un desconectado no se le hace olvidar nada.
+      if (card && card.then && s.on) {
+        const options = card.then(p);
+        if (options.length) s.queue.unshift({ kind: 'level', lv: c.lv, options, fixed: true, wait: 0 });
+      }
+    }
     else if (c.kind === 'item') { if (i === 1 && p.item !== c.next) p.equip(c.next); }
     else if (c.kind === 'bond') {
       const opt = p.bondOptions();
@@ -323,7 +332,10 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     }
     if (s.on && s.queue.length) send(s.uid, choiceMsg(s.queue[0], s));
   }
-  function resolveAll(s) { while (s.queue.length) resolve(s, 0); }
+  /** Lo que se elige por quien no elige: la primera, salvo «Olvidar» (gastaría el nivel). */
+  const autoPick = c => c.kind === 'level' ? Math.max(0, c.options.findIndex(o => !o.then)) : 0;
+  // (Lo que iba a olvidar se queda: sin elegir, no se olvida nada.)
+  function resolveAll(s) { while (s.queue.length) { if (s.queue[0].fixed) s.queue.shift(); else resolve(s, autoPick(s.queue[0])); } }
 
   function offerItem(s, id) {
     const p = s.pl;
@@ -365,7 +377,11 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   function choiceClock(dt) {
     for (const s of active()) {
       if (!s.on) continue;
-      if (s.queue.length && (s.queue[0].wait += dt) >= CHOICE_MAX) resolve(s, 0);
+      if (s.queue.length && (s.queue[0].wait += dt) >= CHOICE_MAX) {
+        // Sin elegir qué olvidar: no se olvida nada.
+        if (s.queue[0].fixed) { s.queue.shift(); if (s.queue.length) send(s.uid, choiceMsg(s.queue[0], s)); }
+        else resolve(s, autoPick(s.queue[0]));
+      }
       if (s.holdOn && (s.holdT += dt) >= CHOICE_MAX) s.holdOn = false;
     }
   }
@@ -681,7 +697,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       const s = byUid.get(uid);
       if (!s || !s.queue.length || over) return;
       const c = s.queue[0];
-      if (c.kind !== 'level' || rerollsLeft(s) <= 0) return;
+      if (c.kind !== 'level' || c.fixed || rerollsLeft(s) <= 0) return;
       s.rr++;
       c.options = G.LevelUp.offer(s.pl);
       send(s.uid, choiceMsg(c, s));

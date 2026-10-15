@@ -114,7 +114,10 @@ G.I18n.add({
   '+6% de reducción de daño recibido.': '+6% damage reduction.', '+0.9 de vida regenerada por segundo.': '+0.9 HP regenerated per second.',
   '+30% de radio de recogida de experiencia.': '+30% experience pickup radius.', '+12% de experiencia ganada.': '+12% experience gained.',
   'Baya Zidra': 'Sitrus Berry', 'Recupera el 45% de tu vida ahora mismo.': 'Restores 45% of your HP right now.',
-  '¡Nivel': 'Level', '¡Nivel {x}!': 'Level {x}!', 'Elige una recompensa ·': 'Choose a reward ·', 'Elige tu carta': 'Choose your card',
+  '¡Nivel': 'Level', '¡Nivel {x}!': 'Level {x}!', 'Elige una recompensa ·': 'Choose a reward ·', '¿Qué movimiento olvidas? ·': 'Which move do you forget? ·',
+  'Olvidar': 'Forget', 'Hueco libre': 'Free slot',
+  'Olvida un movimiento: su hueco queda libre y vuelve a salir en las cartas.': 'Forget a move: its slot is freed and it can show up in the cards again.',
+  'Lo olvidas: su hueco queda libre y sus mejoras se pierden.': 'You forget it: its slot is freed and its upgrades are lost.', 'Elige tu carta': 'Choose your card',
   'Faltan por elegir: {x}': 'Still choosing: {x}', 'Esperando a {x}…': 'Waiting for {x}…', 'tú': 'you',
 
   // ---------------- objetos ----------------
@@ -292,6 +295,7 @@ G.I18n.add({
   // colección
   'Volver': 'Back', 'Todos': 'All', 'Tengo': 'Owned', 'Me faltan': 'Missing', 'Legendaria': 'Legendary', 'Épica': 'Epic', 'Rara': 'Rare',
   'Poco común': 'Uncommon', 'Común': 'Common', 'Ninguno con este filtro.': 'None with this filter.', 'Ataque': 'Attack', 'Vida': 'HP', 'Velocidad': 'Speed',
+  'Orden': 'Sort', 'Pulsa otra vez para invertir el orden': 'Click again to reverse the order',
   'Empieza con': 'Starts with', 'Es tu compañero': 'It\'s your partner', 'Elegir de compañero{x}': 'Choose as partner{x}', '(shiny)': '(shiny)',
   'Aún no lo tienes.': 'You don\'t have it yet.', 'Consíguelo en el banner de': 'Get it from the banner of', 'o derrotándolo cuando salga shiny.': 'or by defeating it when it shows up shiny.',
   '{x} es ahora tu compañero': '{x} is now your partner', '{x} shiny es ahora tu compañero': 'Shiny {x} is now your partner',

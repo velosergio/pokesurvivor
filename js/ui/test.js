@@ -2,6 +2,7 @@
 G.TestUI = (() => {
   const $ = G.UI.$;
   let idx = 0, scores = {}, result = null, picked = null;
+  let starterSort = { key: 'dex', dir: 1 };
 
   function init() {
     $('res-ok').onclick = () => choose(result.dex);
@@ -58,26 +59,43 @@ G.TestUI = (() => {
     picked = null;
     $('starter-ok').disabled = true;
     $('starter-info').textContent = 'Selecciona un Pokémon';
+    drawStarters();
+    G.UI.show('scr-starters');
+  }
+
+  function describe(s) {
+    const mon = G.DEX_BY[s.dex];
+    const mv = G.Moves.BY_ID[s.start];
+    $('starter-info').innerHTML = `${G.UI.typeChips(mon.types)} ${G.Icons.html('move:' + s.start, 16)} ${mv.name} · ${s.traits.join(', ')}`
+      + `<br>Vida ${mon.hp} · Ataque ×${mon.atk.toFixed(2)} · Velocidad ${mon.spd}`;
+    $('starter-ok').disabled = false;
+  }
+
+  function drawStarters() {
+    G.UI.sortBar($('starter-sort'), starterSort, id => {
+      starterSort = G.UI.toggleSort(starterSort, id);
+      drawStarters();
+    });
     const grid = $('starter-grid');
     grid.innerHTML = '';
-    for (const s of G.STARTERS) {
+    const list = G.STARTERS.slice().sort((a, b) => G.UI.byStat(starterSort.key, starterSort.dir)(G.DEX_BY[a.dex], G.DEX_BY[b.dex]));
+    for (const s of list) {
       const mon = G.DEX_BY[s.dex];
       const cell = document.createElement('div');
-      cell.className = 'cell' + (result && s.dex === result.dex ? ' on' : '');
+      const suggested = !picked && result && s.dex === result.dex;
+      cell.className = 'cell' + (s.dex === picked || suggested ? ' on' : '');
       cell.appendChild(G.UI.spriteCanvas(s.dex, 92, 80, { scale: 2 }));
       cell.insertAdjacentHTML('beforeend', `<b>${mon.name}</b>`);
+      if (starterSort.key !== 'dex') cell.insertAdjacentHTML('beforeend', `<span class="statn">${G.UI.statText(mon, starterSort.key)}</span>`);
       cell.onclick = () => {
         grid.querySelectorAll('.cell').forEach(c => c.classList.remove('on'));
         cell.classList.add('on');
         picked = s.dex;
-        const mv = G.Moves.BY_ID[s.start];
-        $('starter-info').innerHTML = `${G.UI.typeChips(mon.types)} ${G.Icons.html('move:' + s.start, 16)} ${mv.name} · ${s.traits.join(', ')}`;
-        $('starter-ok').disabled = false;
+        describe(s);
       };
-      if (result && s.dex === result.dex) { picked = s.dex; $('starter-ok').disabled = false; }
+      if (suggested) { picked = s.dex; describe(s); }
       grid.appendChild(cell);
     }
-    G.UI.show('scr-starters');
   }
 
   function choose(dex) {

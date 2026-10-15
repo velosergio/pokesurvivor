@@ -27,3 +27,10 @@ test('el jugador no se quita el baneo', () => {
   assert.match(src, /request\.resource\.data\.get\('ban', false\) == resource\.data\.get\('ban', false\)/);
   assert.match(src, /hasOnly\(\['ban', 'sus'\]\)/);
 });
+
+test('Pokémon: de uno en uno y sin quitar ninguno', () => {
+  assert.match(src, /hasOnly\(\['coins', 't10', 'at', 'mons', 'shinies'\]\)/);
+  assert.match(src, /dm\.removedKeys\(\)\.size\(\) == 0/);
+  assert.match(src, /dm\.addedKeys\(\)\.size\(\) \+ ds\.addedKeys\(\)\.size\(\) == \(one \? 1 : 0\)/);
+});
+
