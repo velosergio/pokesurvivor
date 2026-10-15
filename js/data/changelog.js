@@ -19,6 +19,8 @@ G.CHANGELOG = [
   ], fix: [
     ['Al entrar o salir de una grieta, la pantalla se tapa un momento y apareces ya en el sitio: la cámara ya no recorre el mapa.',
      'Entering or leaving a rift covers the screen for a moment and you appear already there: the camera no longer travels across the map.'],
+    ['Al volver de una grieta con la ventana del vínculo o de las cartas abierta, la pantalla ya no se queda morada y parada hasta que eliges.',
+     'Coming back from a rift with the bond or level-up window open, the screen no longer stays purple and frozen until you choose.'],
     ['Cooperativo: si recargas la página o se te corta la conexión en mitad de una partida en grupo, vuelves a entrar solo a la misma partida. Tienes un minuto.',
      'Co-op: if you reload the page or your connection drops in the middle of a group game, you rejoin that same game on your own. You have one minute.'],
     ['Cooperativo: en la ventana de vincular movimientos (al derrotar a un jefe) y en la de elegir objeto vuelven a funcionar las teclas de los números.',

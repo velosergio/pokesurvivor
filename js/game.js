@@ -594,6 +594,10 @@ G.Game = (() => {
 
     handleKeys();
 
+    // El telón de la grieta se abre aunque el juego esté parado: al volver se
+    // abre el vínculo o las cartas en el mismo fotograma y, si sólo avanzaba
+    // jugando, la pantalla se quedaba morada y quieta hasta elegir.
+    veil.tick(dt);
     if (state === 'playing') update(dt);
     else if (pl && state !== 'ui') { G.FX.update(dt * 0.25); pl.anim.update(dt * 0.25); }
     // Tu posición al servidor siempre (también con las cartas abiertas: quieto).
@@ -611,7 +615,6 @@ G.Game = (() => {
   function update(dt) {
     const coop = G.Coop.active;
     if (flashT > 0) flashT -= dt;
-    veil.tick(dt);
     // La Sentencia de Arceus: mientras dura la animación, todo lo demás se para.
     if (G.Judgment.cinematic) {
       G.Judgment.cineTick(dt);
