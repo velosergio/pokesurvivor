@@ -1,7 +1,7 @@
 /* ============ lobby.js — salas del cooperativo (Node) ============
  *
  * Las salas viven en memoria. Cada una tiene un código corto (6 caracteres sin
- * ambiguos), hasta 4 miembros, un líder (el primero; si se va, el siguiente) y
+ * ambiguos), hasta 10 miembros, un líder (el primero; si se va, el siguiente) y
  * puede estar abierta o cerrada. Cuando el líder empieza, se crea la partida
  * (createRoom, room.js) y el lobby le reenvía las órdenes de cada jugador.
  *
@@ -30,7 +30,7 @@ const crypto = require('crypto');
 /** Letras del código: sin 0/O ni 1/I para que se lea y se dicte sin dudas. */
 const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 6;
-const MAX_MEMBERS = 4;
+const MAX_MEMBERS = 10;
 /** Tiempo para volver tras un corte en partida (ms). */
 const BACK_MS = 20000;
 

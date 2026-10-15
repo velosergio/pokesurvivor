@@ -80,8 +80,8 @@ test('códigos únicos', () => {
 
 test('unirse avisa a todos; llena, cerrada e inexistente dan err', () => {
   const s = setup();
-  const { cs, code } = room(s, 'a', 'b', 'c', 'd');
-  for (const c of cs) assert.strictEqual(c.last('room').members.length, 4);
+  const { cs, code } = room(s, 'a', 'b', 'c', 'd', 'f', 'g', 'h', 'i', 'j', 'k');
+  for (const c of cs) assert.strictEqual(c.last('room').members.length, 10);
   const e = s.hi('e');
   s.lobby.message(e, { t: 'join', code });
   assert.deepStrictEqual(e.last(), { t: 'err', reason: 'full' });

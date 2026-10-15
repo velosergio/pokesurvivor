@@ -421,7 +421,7 @@ G.Ranking = (() => {
     if (!done.has(key)) {
       // (Si ya lo habías reportado desde otro ordenador, el servidor no deja repetirlo: da igual.)
       await fb.fs.collection('reports').doc(key + '__' + fb.uid)
-        .set({ board: b, e: row.id, names: row.names.slice(0, 4), t: row.t | 0, by: fb.uid, at: now() }).catch(() => {});
+        .set({ board: b, e: row.id, names: row.names.slice(0, 10), t: row.t | 0, by: fb.uid, at: now() }).catch(() => {});
       done.add(key);
       try { localStorage.setItem(repKey(), JSON.stringify([...done].slice(-300))); } catch (e) { /* lleno */ }
     }

@@ -7,7 +7,7 @@ const { createRoom } = require('../room.js');
 const proto = require('../proto.js');
 
 const DT = 0.05;
-const DEX = [4, 7, 1, 25];
+const DEX = [4, 7, 1, 25, 133, 39, 52, 54, 60, 63];
 const quiet = { error() {}, warn() {}, log() {} };
 
 /** Sala de n jugadores con un `send` falso que guarda todo. */
@@ -70,6 +70,17 @@ test('4 bots llegan a la Sentencia de Arceus sin errores', () => {
   assert.ok(r.evs.has('jd'), 'no se ha avisado de la Sentencia');
   assert.ok(r.evs.has('ja'), 'no se manda dónde está Arceus');
   assert.ok(r.snaps > 4 * 100, 'pocos snaps: ' + r.snaps);
+});
+
+test('10 bots: cada uno con su color, más enemigos a la vez y snaps que caben', () => {
+  const r = makeRoom({ n: 10, seed: 5 });
+  const step = bots(r);
+  steps(step, 90);
+  assert.ok(!r.over, 'la partida ha terminado: ' + JSON.stringify(r.over));
+  assert.strictEqual(new Set(r.G.Coop.COLORS).size, 10);
+  assert.strictEqual(r.G.Spawner.cap(), 64 + 12 * 6);
+  assert.ok(r.G.EnemyMgr.count > 64, 'no pasa del tope de 4: ' + r.G.EnemyMgr.count);
+  assert.ok(r.maxSnap < 16000, 'snap demasiado grande: ' + r.maxSnap);
 });
 
 test('misma semilla y mismas órdenes, mismos snaps (byte a byte)', () => {

@@ -19,7 +19,7 @@
  */
 G.Social = (() => {
   const VALID = /^[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]{3,16}$/;
-  const MAX_PLAYERS = 4;
+  const MAX_PLAYERS = 10;
   const INVITE_TTL = 3 * 60 * 1000;
   /*
    * Hora real: la del servidor de la web (cabecera Date de version.json, gratis).

@@ -129,7 +129,7 @@ service cloud.firestore {
     //     (runs/{uid}), con 30 s de margen; ni más de 1 h (la Sentencia de
     //     Arceus acaba las partidas hacia el minuto 31-32; 1 h por si alguien
     //     muy bueno aguanta mucho más)
-    //   - nivel y derrotados con margen de sobra (un grupo de 4 muy bueno)
+    //   - nivel y derrotados con margen de sobra (un grupo de 10 muy bueno)
     //   - la cuenta no puede estar baneada por el admin (saves/{uid}.ban)
     function validEntry(board, id) {
       let d = request.resource.data;
@@ -230,8 +230,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['board', 'e', 'names', 't', 'by', 'at'])
         && request.resource.data.by == me()
         && request.resource.data.board is string && request.resource.data.board.size() <= 40
-        && request.resource.data.e is string && request.resource.data.e.size() <= 160
-        && request.resource.data.names is list && request.resource.data.names.size() <= 4
+        && request.resource.data.e is string && request.resource.data.e.size() <= 400
+        && request.resource.data.names is list && request.resource.data.names.size() <= 10
         && request.resource.data.t is int
         && request.resource.data.at == request.time
         && rid == request.resource.data.board + '__' + request.resource.data.e + '__' + me();

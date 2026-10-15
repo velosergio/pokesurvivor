@@ -22,7 +22,7 @@
  *          · u16 n + n disparos             (x f32 · y f32 · kind u8)  9 B
  *          · u16 n + n objetos nuevos       (id u32 · kind u8 · x f32 · y f32)  13 B
  *          · u16 n + n ids de objetos idos  (u32)
- *   Un snap típico (4 jugadores, 80 enemigos, 20 disparos, 30 objetos) ocupa ~2,5 KB.
+ *   Un snap típico (4 jugadores; con 10, ~120 B más; 80 enemigos, 20 disparos, 30 objetos) ocupa ~2,5 KB.
  *
  * Coordenadas, vida y XP van en float32 (de sobra para el mundo); lo que no
  * cabe en su tipo (ids, índices) lanza un Error al codificar.
@@ -30,7 +30,7 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 1;
+  const VERSION = 2;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */

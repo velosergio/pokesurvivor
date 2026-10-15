@@ -1,4 +1,4 @@
-/* ============ coop.js — partida en grupo contra el servidor (hasta 4 jugadores) ============
+/* ============ coop.js — partida en grupo contra el servidor (hasta 10 jugadores) ============
  *
  * La partida la lleva el servidor (server/room.js): enemigos, golpes, vida,
  * experiencia, reloj, cartas de nivel y el final. Aquí, en cada navegador:
@@ -23,7 +23,7 @@
  */
 G.Coop = (() => {
   const ANIMS = ['Idle', 'Walk', 'Attack', 'Shoot', 'Charge', 'Hurt', 'Faint'];
-  const COLORS = ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8'];
+  const COLORS = ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8', '#ff8a3d', '#b48cff', '#4de0d0', '#ff5a6e', '#d6f06a', '#f4f8ff'];
   const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item'];
   const IN_EVERY = 1 / 15;              // s entre envíos de tu posición
   const FIX_MIN = 6;                    // px: por debajo, la corrección del servidor se ignora
@@ -45,7 +45,8 @@ G.Coop = (() => {
 
   // ---------------- escalado de dificultad (lo usa también el servidor) ----------------
 
-  const scaleRate = n => 1 + 0.75 * Math.max(0, n - 1);
+  // Hasta 4 jugadores, +75% de enemigos por cada uno de más; desde el 5.º, +40%.
+  const scaleRate = n => 1 + 0.75 * Math.min(3, Math.max(0, n - 1)) + 0.4 * Math.max(0, n - 4);
   const scaleHp = n => 1 + 0.3 * Math.max(0, n - 1);
 
   // ---------------- arranque / fin ----------------

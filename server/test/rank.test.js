@@ -196,7 +196,7 @@ test('datos fuera de lo que admiten las reglas no suben', async () => {
   const rk = rankOf(fs);
   const bad = [
     run({ members: [member('aa', 4), member('aa', 25)] }),                       // la misma cuenta dos veces
-    run({ members: ['a', 'b', 'c', 'd', 'e'].map(u => member(u, 1)) }),           // 5 jugadores
+    run({ members: 'abcdefghijk'.split('').map(u => member(u, 1)) }),            // 11 jugadores
     run({ members: [member('aa', 4), null] }),
     run({ members: [member('a/x', 4), member('bb', 4)] }),
     run({ members: [member('aa', 4), member('bb', 2.5)] }),

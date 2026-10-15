@@ -29,8 +29,8 @@ const TOP = 50;
 /** Las partidas de menos de 2 minutos no se suben. */
 const MIN_T = 120;
 const ALL = 'all2';
-/** Límites de firestore.rules (validEntry): hasta 1 h y de 2 a 4 jugadores. */
-const MAX_T = 3600, MAX_TEAM = 4;
+/** Hasta 1 h (como validEntry en firestore.rules) y de 2 a 10 jugadores (como las salas). */
+const MAX_T = 3600, MAX_TEAM = 10;
 /** Tiempo máximo de cada petición a Google (ms). */
 const TIMEOUT = 15000;
 

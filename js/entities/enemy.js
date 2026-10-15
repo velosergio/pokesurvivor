@@ -620,7 +620,7 @@
     summon() {
       this.minions = this.minions.filter(m => !m.dead && G.EnemyMgr.get(m.id));
       // Con el tope general de enemigos (menos Pokémon en pantalla), con un pequeño margen.
-      if (this.minions.length >= 4 || G.EnemyMgr.count > G.Spawner.CAP + 15) return;
+      if (this.minions.length >= 4 || G.EnemyMgr.count > G.Spawner.cap() + 15) return;
       const dex = this.def.minion || this.dex;
       const mon = G.DEX_BY[dex];
       const def = { dex, name: mon ? mon.name : '', hp: Math.round(this.def.hp * 0.35), spd: Math.round(this.def.spd * 1.1),

@@ -195,8 +195,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   };
 
   const coopOwn = {
-    active: true, isHost: true, ANIMS, COLORS: ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8'],
-    scaleRate: n => 1 + 0.75 * Math.max(0, n - 1),
+    active: true, isHost: true, ANIMS, COLORS: ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8', '#ff8a3d', '#b48cff', '#4de0d0', '#ff5a6e', '#d6f06a', '#f4f8ff'],
+    scaleRate: n => 1 + 0.75 * Math.min(3, Math.max(0, n - 1)) + 0.4 * Math.max(0, n - 4),
     scaleHp: n => 1 + 0.3 * Math.max(0, n - 1),
     /** Lo que multiplica la experiencia de un orbe (aquí no hay "tu" xpMul que quitar). */
     xpFactor: xpK,
