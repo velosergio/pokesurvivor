@@ -227,6 +227,13 @@ su propio Pokémon al momento; cuando llega la posición validada, corrige suave
 
 ## 5. Coste y capacidad (estimaciones a comprobar)
 
+**Medido en el VPS (15-10-2026, `load.js --spawn --rooms 30 --secs 90` dentro del contenedor de
+`game`, bots en el mismo proceso):** 30 salas de 4 (120 jugadores) = 89,5 % de un núcleo (2,98 % por
+sala), retraso del bucle p99 208 ms (demasiado: el paso es de 50 ms), RAM ~19,6 MB por sala (pico
+649 MB), snap medio 403 B (máx. 1,9 KB), 3,7 KB/s por jugador (~13 MB por jugador y hora).
+**`MAX_ROOMS=20`** (~60 % de un núcleo, margen para la Sentencia y las hordas grandes). Node simula
+todas las salas en un hilo: más vCPU no suben el tope; para más salas, otro proceso o servicio.
+
 - CPU: una sala de 4 con varios cientos de enemigos a 20 Hz se estima en 2-5 % de un vCPU →
   20-40 salas en un VPS de 1-2 vCPU. Se confirma en la prueba de carga.
 - RAM: ~30-60 MB por sala (sobre todo `sprites-meta`, que se carga una sola vez y se comparte).
