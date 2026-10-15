@@ -13,7 +13,9 @@ G.Step = {
    * @param time     segundos de partida
    * @param all      todos los jugadores (en solitario, [me])
    * @param me       el jugador cuyos ataques se resuelven en este paso
-   * @param host     lleva enemigos y apariciones (solitario o anfitrión)
+   * @param host     lleva enemigos, apariciones y ataques (solitario). Si no
+   *                 (en grupo: lo lleva el servidor), los enemigos son copias y
+   *                 tus ataques llegan del servidor como fantasma (net/coop.js)
    * @param collect  (objeto, quién) al recoger algo del suelo
    */
   world(dt, time, all, me, host, collect) {
@@ -22,7 +24,7 @@ G.Step = {
     else G.Spawner.tickBanner(dt);
     G.EnemyMgr.update(dt, all);
     G.EnemyMgr.rebuildGrid();
-    G.Combat.tick(dt, me, time);
+    if (host) G.Combat.tick(dt, me, time);
     G.Projectiles.update(dt, me, G.EnemyMgr.all());
     G.Combat.resolve(dt, me, time);
     G.Combat.updateFields(dt);

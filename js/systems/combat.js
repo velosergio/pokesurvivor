@@ -5,9 +5,9 @@
  *
  * Todo ocurre en el plano del suelo: (x, y) son pies / sombra.
  *
- * Cooperativo: cada ordenador ejecuta los ataques de SU jugador. Los de los
- * compañeros llegan por la red y se repiten como "fantasma" (ghostCast): se
- * ven igual, pero no hacen daño aquí (ya lo hizo su dueño).
+ * Cooperativo: los ataques de todos (también los tuyos) los ejecuta el
+ * servidor. Llegan por la red y se repiten como "fantasma" (ghostCast): se
+ * ven igual, pero no hacen daño aquí.
  *
  * Lo que se queda en el mapa un rato (minas, meteoros que caen, torretas,
  * charcos del rastro) vive en `fields` y se actualiza/dibuja aquí.
@@ -686,7 +686,8 @@ G.Combat = (() => {
     if (pl.dead) return;
     for (const e of G.EnemyMgr.queryCircle(pl.x, pl.y, pl.r + 40)) {
       if (G.U.dist2(e.x, e.y, pl.x, pl.y) > (e.r + pl.r) * (e.r + pl.r)) continue;
-      if (e.touchCd > 0 || e.behavior === 'thief') continue;
+      // Copia de un enemigo del servidor (en grupo): el contacto lo decide él.
+      if (e.touchCd > 0 || e.behavior === 'thief' || e.remote) continue;
       e.touchCd = 0.55;
       e.strike(pl);
       pl.hurt(e.dmg, e.atkType);

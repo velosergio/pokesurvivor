@@ -1,0 +1,105 @@
+/* Pruebas de firestore.rules con el emulador de Firestore (ranking).
+ *
+ *   cd tools/rules && npm install     (una vez)
+ *   npm test --prefix tools/rules     (desde la raíz; arranca y para el emulador)
+ *
+ * Lo que se comprueba (spec del cooperativo, §3.6):
+ *   - un navegador sigue pudiendo subir su marca de solitario (s_...) y su fila del top;
+ *   - no puede escribir en las tablas de grupo (g_...): ni la marca ni el resumen;
+ *   - su fila del top tiene que ser su marca campo a campo (también nivel,
+ *     derrotados y shiny);
+ *   - al borrar la cuenta puede seguir quitando sus filas de grupo del top.
+ */
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
+const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
+const firebase = require('firebase/compat/app');
+require('firebase/compat/firestore');
+
+const RULES = fs.readFileSync(process.env.RULES_FILE || path.join(__dirname, '..', '..', 'firestore.rules'), 'utf8');
+const ts = () => firebase.firestore.FieldValue.serverTimestamp();
+const S = 's_d20261014', GB = 'g_d20261014';
+
+let env;
+test.before(async () => {
+  env = await initializeTestEnvironment({ projectId: 'demo-pokesurvivor', firestore: { rules: RULES } });
+});
+test.after(async () => { if (env) await env.cleanup(); });
+test.beforeEach(async () => {
+  await env.clearFirestore();
+  // Partidas guardadas (las reglas miran saves/{uid}.ban) y la hora de empezar (runs/{uid}).
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    const hourAgo = firebase.firestore.Timestamp.fromMillis(Date.now() - 3600 * 1000);
+    for (const u of ['ana', 'bea']) {
+      await db.doc('saves/' + u).set({ coins: 0 });
+      await db.doc('runs/' + u).set({ startedAt: hourAgo, mode: 's' });
+    }
+  });
+});
+
+const entry = (o = {}) => Object.assign({ t: 300, uids: ['ana'], names: ['Ana'], dex: [25], shiny: [false], lv: 10, kills: 100, at: ts() }, o);
+const row = (o = {}) => Object.assign({ t: 300, uids: ['ana'], names: ['Ana'], dex: [25], lv: 10, kills: 100 }, o);
+
+/** Marca + resumen en el mismo lote (como la transacción de js/net/ranking.js). */
+function submit(db, board, id, e, r) {
+  const b = db.batch();
+  b.set(db.doc(`lb/${board}/e/${id}`), e);
+  b.set(db.doc('lbs/' + board), { top: { [id]: r }, me: id, ev: '' });
+  return b.commit();
+}
+
+test('solitario: la marca y su fila del top se pueden subir', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertSucceeds(submit(db, S, 'ana', entry(), row()));
+});
+
+test('solitario: con shiny, la fila lo lleva igual que la marca', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertFails(submit(db, S, 'ana', entry({ shiny: [true] }), row()));
+  await assertSucceeds(submit(db, S, 'ana', entry({ shiny: [true] }), row({ shiny: [true] })));
+});
+
+test('solitario: la fila del top no puede inflar nivel ni derrotados', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertFails(submit(db, S, 'ana', entry(), row({ lv: 50 })));
+  await assertFails(submit(db, S, 'ana', entry(), row({ kills: 9999 })));
+  await assertFails(submit(db, S, 'ana', entry(), row({ extra: 1 })));
+});
+
+test('grupo: un navegador no puede escribir la marca de grupo', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  const e = entry({ uids: ['ana', 'bea'], names: ['Ana', 'Bea'], dex: [25, 4], shiny: [false, false] });
+  await assertFails(db.doc(`lb/${GB}/e/ana_bea`).set(e));
+  await assertFails(submit(db, GB, 'ana_bea', e, row({ uids: ['ana', 'bea'], names: ['Ana', 'Bea'], dex: [25, 4] })));
+});
+
+test('grupo: tampoco el resumen del top aunque la marca la haya puesto el servidor', async () => {
+  const e = { t: 400, uids: ['ana', 'bea'], names: ['Ana', 'Bea'], dex: [25, 4], shiny: [false, false], lv: 12, kills: 200 };
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc(`lb/${GB}/e/ana_bea`).set(e));
+  const db = env.authenticatedContext('ana').firestore();
+  const { shiny, ...r } = e;
+  await assertFails(db.doc('lbs/' + GB).set({ top: { ana_bea: r }, me: 'ana_bea', ev: '' }));
+});
+
+test('grupo: al borrar la cuenta quitas tu fila del top y tu marca', async () => {
+  const e = { t: 400, uids: ['ana', 'bea'], names: ['Ana', 'Bea'], dex: [25, 4], shiny: [false, false], lv: 12, kills: 200 };
+  const { shiny, ...r } = e;
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await db.doc(`lb/${GB}/e/ana_bea`).set(e);
+    await db.doc('lbs/' + GB).set({ top: { ana_bea: r }, me: 'ana_bea', ev: '' });
+  });
+  const db = env.authenticatedContext('ana').firestore();
+  await assertSucceeds(db.doc('lbs/' + GB).set({ top: {}, me: '', ev: 'ana_bea' }));
+  await assertSucceeds(db.doc(`lb/${GB}/e/ana_bea`).delete());
+});
+
+test('el ranking se puede leer con sesión', async () => {
+  const db = env.authenticatedContext('bea').firestore();
+  await assertSucceeds(db.doc('lbs/' + GB).get());
+  await assertFails(env.unauthenticatedContext().firestore().doc('lbs/' + GB).get());
+});

@@ -113,7 +113,7 @@ service cloud.firestore {
 
     // ---------- ranking ----------
 
-    // Al empezar cada partida (en grupo, el anfitrión) el servidor apunta la hora.
+    // Al empezar cada partida en solitario el servidor de Firebase apunta la hora.
     match /runs/{uid} {
       allow read, delete: if signedIn() && me() == uid;
       allow create, update: if signedIn() && me() == uid
@@ -121,6 +121,9 @@ service cloud.firestore {
         && request.resource.data.startedAt == request.time;
     }
 
+    // Sólo las tablas de solitario (s_...): las de grupo las escribe el
+    // servidor del cooperativo con la cuenta de servicio (server/rank.js),
+    // que no pasa por estas reglas. Un navegador no puede escribir en ellas.
     // Una entrada sólo se puede mejorar, nunca empeorar. Anti-trampas:
     //   - no puede durar más que el tiempo real desde que empezó tu partida
     //     (runs/{uid}), con 30 s de margen; ni más de 1 h (la Sentencia de
@@ -142,9 +145,7 @@ service cloud.firestore {
         && d.dex is list && d.dex.size() == d.uids.size()
         && d.shiny is list && d.shiny.size() == d.uids.size()
         && d.at == request.time
-        && (board.matches('s_.*')
-              ? (d.uids.size() == 1 && id == me())
-              : (d.uids.size() >= 2 && d.uids.size() <= 4 && id == d.uids.join('_')))
+        && board.matches('s_.*') && d.uids.size() == 1 && id == me()
         && (resource == null || d.t > resource.data.t);
     }
 
@@ -173,12 +174,17 @@ service cloud.firestore {
     function adminRemove(d, old) {
       return admin() && old.keys().hasAll(d.top.keys()) && d.top.diff(old).changedKeys().size() == 0;
     }
+    // Tu fila del top es tu marca validada, campo a campo (sin "shiny" si no
+    // hay ninguno). Sólo en las tablas de solitario, como validEntry.
     function addMine(board, d, old, changed) {
       let e = getAfter(/databases/$(database)/documents/lb/$(board)/e/$(d.me)).data;
       let row = d.top[d.me];
-      return me() in e.uids
+      return board.matches('s_.*') && me() in e.uids
         && changed.hasOnly([d.me, d.ev])
+        && row.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills'])
         && row.t == e.t && row.uids == e.uids && row.names == e.names && row.dex == e.dex
+        && row.lv == e.lv && row.kills == e.kills
+        && ('shiny' in row ? row.shiny == e.shiny : !(true in e.shiny))
         && (d.ev == '' || (!(d.ev in d.top) && d.ev in old && old[d.ev].t <= e.t));
     }
     function removeMine(d, old, changed) {

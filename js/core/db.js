@@ -313,7 +313,7 @@ G.DB = (() => {
   //                               MODO NUBE
   // =====================================================================
 
-  let auth = null, fs = null, rtdb = null, uid = null, unlisten = null;
+  let auth = null, fs = null, uid = null, unlisten = null;
   let pushT = 0, retryT = 0, pending = false, pushing = null, lastPush = 0;
   // Como mucho una subida cada 30 min (con miles de jugadores, cada 5 min
   // eran decenas de miles de escrituras por hora); lo que cuesta algo
@@ -346,7 +346,7 @@ G.DB = (() => {
   }
 
   /*
-   * La nube (Firebase, el TURN del cooperativo) sólo desde la web de esta copia
+   * La nube (Firebase y el servidor del cooperativo) sólo desde la web de esta copia
    * y desde localhost. El código está en GitHub: una republicación en otra web,
    * sin cambiar js/config.js, guardaría cuentas y partidas en el Firebase de
    * esta instalación. Ahí el juego va en modo local. La idea es la del original
@@ -369,20 +369,16 @@ G.DB = (() => {
     await loadScript(SDK + 'firebase-app-compat.js');
     await loadScript(SDK + 'firebase-auth-compat.js');
     await loadScript(SDK + 'firebase-firestore-compat.js');
-    // Base de datos en tiempo real: amigos en línea, invitaciones y salas.
-    if (cfg.databaseURL) await loadScript(SDK + 'firebase-database-compat.js');
     firebase.initializeApp(cfg);
     auth = firebase.auth();
     fs = firebase.firestore();
     // Algunas redes y antivirus cortan las actualizaciones en directo (amigos,
     // invitaciones): Firebase prueba otra forma de recibirlas si hace falta.
     try { fs.settings({ experimentalAutoDetectLongPolling: true }); } catch (e) { /* ya estaba */ }
-    rtdb = cfg.databaseURL ? firebase.database() : null;
     // Sólo para pruebas: { ..., emulator: true } usa el emulador local de Firebase.
     if (cfg.emulator) {
       auth.useEmulator('http://127.0.0.1:9099');
       fs.useEmulator('127.0.0.1', 8080);
-      if (rtdb) rtdb.useEmulator('127.0.0.1', 9000);
     }
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     auth.languageCode = 'es';
@@ -774,7 +770,7 @@ G.DB = (() => {
     onSync(fn) { listeners.add(fn); },
     onLeave(fn) { leaveHooks.push(fn); },
     /** Acceso de bajo nivel para los módulos de red (sólo en modo nube). */
-    get fb() { return mode === 'cloud' ? { auth, fs, rtdb, uid, emulator: !!(G.FIREBASE_CONFIG || {}).emulator } : null; },
+    get fb() { return mode === 'cloud' ? { auth, fs, uid, emulator: !!(G.FIREBASE_CONFIG || {}).emulator } : null; },
     /** ¿Está disponible lo online (amigos, ranking, multijugador)? */
     get online() { return mode === 'cloud' && !guest && !!uid && !!save; },
     /** ¿La cuenta es de usuario y contraseña (no de Google)? */

@@ -3,9 +3,9 @@
  * aceleran hacia ti. Para que no se acumulen miles, al pasar de MAX se fusionan
  * los más antiguos.
  *
- * Cooperativo: los objetos los crea el anfitrión (cada uno con su id) y los
- * demás reciben una copia. Todos vuelan hacia el jugador más cercano; quien
- * decide quién lo ha cogido es el anfitrión.
+ * Cooperativo: los objetos los crea el servidor (cada uno con su id) y cada
+ * navegador recibe una copia. Todos vuelan hacia el jugador más cercano; quien
+ * decide quién lo ha cogido es el servidor.
  */
 G.Pickups = (() => {
   let list = [];
@@ -191,7 +191,8 @@ G.Pickups = (() => {
           ctx.beginPath(); ctx.arc(p.x, y, 18, 0, 6.2832); ctx.fill();
           ctx.globalAlpha = 1;
         }
-        G.Icons.draw(ctx, p.kind === 'item' ? p.value : ICON[p.kind], p.x - sz / 2, y - sz / 2 - 1, sz);
+        // (Un objeto que llega del servidor no dice cuál es: estrella hasta que lo coges.)
+        G.Icons.draw(ctx, p.kind === 'item' ? p.value || 'star' : ICON[p.kind], p.x - sz / 2, y - sz / 2 - 1, sz);
         continue;
       }
       ctx.fillStyle = 'rgba(255,255,255,.8)';

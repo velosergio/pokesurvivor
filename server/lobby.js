@@ -114,7 +114,7 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
   }
 
   function member(conn) {
-    return { uid: conn.uid, name: conn.name, dex: conn.dex, shiny: conn.shiny, on: true };
+    return { uid: conn.uid, name: conn.name, dex: conn.dex, shiny: conn.shiny, kit: conn.kit, on: true };
   }
 
   /** Sala actual de uid (o null). */
@@ -183,7 +183,7 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
       r.seed = Math.floor(random() * 0x100000000) >>> 0;
       let game = null;
       game = createRoom({
-        members: r.members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny })),
+        members: r.members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, kit: m.kit })),
         seed: r.seed,
         send(uid, m) {
           if (rooms.get(r.code) !== r || r.game !== game) return;
@@ -214,13 +214,16 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
       if (!r) return;
       const m = r.members.find(x => x.uid === conn.uid);
       if (!m) return;
+      // En la espera, el hello nuevo trae su Pokémon y sus mejoras de ahora.
+      if (!r.game) Object.assign(m, { name: conn.name, dex: conn.dex, shiny: conn.shiny, kit: conn.kit });
       if (!m.on) {
         const t = r.timers.get(conn.uid);
         if (t !== undefined) { clearTimer(t); r.timers.delete(conn.uid); }
         m.on = true;
         if (r.game) r.game.back(conn.uid);
         each(r, info(r));
-      } else conn.send(info(r));
+      } else if (!r.game) each(r, info(r));
+      else conn.send(info(r));
       if (r.game) conn.send(started(r));
     },
 

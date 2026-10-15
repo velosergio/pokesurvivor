@@ -9,10 +9,11 @@
  * Estados del bucle: 'ui' (menús, con el mundo de fondo), 'playing',
  * 'levelup', 'paused', 'over'.
  *
- * Cooperativo (G.Coop.active): el anfitrión lleva enemigos, objetos y
- * experiencia; cada uno su Pokémon. La pausa no para el juego, las cartas de
- * nivel esperan a que elijan todos y un compañero caído se levanta si otro
- * se queda a su lado. Ver net/coop.js.
+ * Cooperativo (G.Coop.active): la partida la lleva el servidor (enemigos,
+ * golpes, vida, experiencia, cartas, fin); aquí sólo mueves tu Pokémon y se
+ * dibuja lo que llega. La pausa no para el juego, las cartas de nivel esperan
+ * a que elijan todos y un compañero caído se levanta si otro se queda a su
+ * lado. Ver net/coop.js.
  */
 G.Game = (() => {
   let cv, ctx, dpr = 1, w = 0, h = 0;
@@ -68,7 +69,7 @@ G.Game = (() => {
   }
 
   /** Pausa/continúa (tecla Esc o P, o el botón de pausa del móvil). */
-  let holdBy = [];                   // grupo: quién está eligiendo fusión (todo parado)
+  let waitBy = [];                   // grupo: quién está eligiendo (todo parado)
 
   function togglePause() {
     // En grupo la pausa no para el juego (los demás siguen jugando).
@@ -84,9 +85,9 @@ G.Game = (() => {
 
   // ---------------- run ----------------
 
-  /** @param coop  { seed, host, members } para una partida en grupo */
+  /** @param coop  { seed, members } para una partida en grupo (lo de `started`) */
   function startRun(coop = null) {
-    holdBy = []; awayBy = null;
+    waitBy = []; awayBy = null;
     const save = G.DB.save;
     const mon = G.DEX_BY[save.partner];
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
@@ -128,6 +129,8 @@ G.Game = (() => {
     }
 
     if (coop) {
+      // Las cartas no se cambian en grupo (las reparte el servidor).
+      pl.rerolls = Infinity;
       G.Coop.begin(coop, pl, coopApi);
       G.Social.setPlaying(true);
     }
@@ -136,7 +139,8 @@ G.Game = (() => {
     G.Sprites.preload([mon.dex], 8000, pl.shiny);
     G.Audio.music(G.BIOME_MUSIC[0]);
     // Para el ranking: el servidor apunta cuándo empieza la partida (anti-trampas).
-    if (!coop || G.Coop.isHost) G.Ranking.runStarted(coop ? 'g' : 's');
+    // (El de grupo lo escribe el servidor del cooperativo con su propio reloj.)
+    if (!coop) G.Ranking.runStarted('s');
     deathT = 0;
 
     state = 'playing';
@@ -161,12 +165,6 @@ G.Game = (() => {
   let flashT = 0, flashDur = 1, flashCol = '#fff';
   function flash(col, dur) { flashCol = col; flashDur = dur; flashT = dur; }
 
-  function teamState() {
-    return { time, level: pl.level, xp: pl.xp, xpNext: pl.xpNext, kills: pl.kills, bosses: pl.bosses, coins: pl.coins, t1: pl.t1, t10: pl.t10 };
-  }
-  function summary() { return { t: time, ki: pl.kills, bo: pl.bosses, co: pl.coins, lv: pl.level, t1: pl.t1, t10: pl.t10 }; }
-
-  /** Lo que el cooperativo necesita del juego. */
   /**
    * Los tickets recogidos se guardan en cuanto los coges (como los shinies):
    * antes sólo al acabar, y si la pestaña se cerraba de golpe se perdían.
@@ -184,78 +182,85 @@ G.Game = (() => {
     if (save_) G.DB.commit('run');
   }
 
+  /** Lo que el cooperativo (net/coop.js) necesita del juego. */
   const coopApi = {
-    team: teamState,
-    summary,
-    // Invitado: el anfitrión manda el reloj y lo del equipo.
+    /** El servidor manda el reloj y la experiencia del equipo. */
     syncTeam(t) {
       if (Math.abs(t.time - time) > 0.4) time = t.time;
-      if (t.level > pl.level) G.Audio.sfx('xp');
       pl.level = t.level; pl.xp = t.xp; pl.xpNext = t.xpNext;
-      pl.kills = t.kills; pl.bosses = t.bosses; pl.coins = t.coins;
-      if (t.t1 > pl.t1 || t.t10 > pl.t10) G.Audio.sfx('shiny');
-      pl.t1 = t.t1 || 0; pl.t10 = t.t10 || 0;
-      bankTickets();
     },
-    levelStart(level) {
-      // (Si tenías abierta la elección de objeto, vuelve al terminar: afterLevelUp.)
-      if (state === 'choice' && openItem && G.Coop.active) G.Coop.holdEnd();
-      state = 'levelup';
+    /** El servidor te pone delante una elección: cartas de nivel, objeto o fusión. */
+    choice(m) {
+      const opts = m.options || [];
       G.UI.hide('scr-pause');
+      state = 'levelup';
       G.Audio.sfx('levelup');
-      G.RunUI.showLevelUp(level, G.LevelUp.offer(pl), card => {
-        G.Audio.sfx('confirm');
-        card.apply(pl);
-        G.Coop.localPicked();
-      }, true);
+      if (m.kind === 'item' && opts.length === 2 && G.Items.BY[opts[0].id] && G.Items.BY[opts[1].id]) {
+        G.RunUI.showItemChoice(opts[0].id, opts[1].id, got => G.Coop.pick(got === opts[1].id ? 1 : 0));
+      } else if (m.kind === 'bond') {
+        G.RunUI.showBondList(opts, i => { G.Audio.sfx('legend'); G.Coop.pick(i); });
+      } else {
+        const cards = opts.map(o => ({ key: o.id, type: o.type, title: o.name, tag: o.tag, desc: o.desc, icon: o.icon, color: o.color }));
+        G.RunUI.showLevelUp(m.lv || pl.level, cards, card => { G.Audio.sfx('confirm'); G.Coop.pick(cards.indexOf(card)); }, true);
+      }
+      G.RunUI.setWaiting(waitBy);
     },
-    waiting(names) { G.RunUI.setWaiting(names); },
-    resume() {
-      G.RunUI.closeLevelUp();
-      if (state === 'levelup') { state = holdBy.length ? 'held' : 'playing'; afterLevelUp(); }
+    /** Quién está eligiendo (la partida se para para todos). Vacía: sigue. */
+    waiting(names) {
+      waitBy = names || [];
+      G.RunUI.setWaiting(waitBy);
+      if (!waitBy.length) {
+        G.RunUI.closeLevelUp(); G.UI.hide('scr-item'); G.UI.hide('scr-bond');
+        if (state === 'levelup' || state === 'held') state = awayBy ? 'held' : 'playing';
+        G.Spawner.say(awayBy || '', awayBy ? 999 : 0, true);
+        return;
+      }
+      if (state === 'playing') state = 'held';
+      const others = waitBy.filter(n => n !== (G.Social.me && G.Social.me.name));
+      if (state === 'held' && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
     },
-    /** ¿Estás eligiendo algo que para la partida (objeto o vínculo)? */
-    choosing() { return state === 'choice'; },
-    inLevelUp() { return state === 'levelup'; },
-    shiny(dex) { G.onShinyCaught({ dex, name: (G.DEX_BY[dex] || {}).name || '' }); },
-    over(d) {
-      if (d) Object.assign(pl, { kills: d.ki, bosses: d.bo, coins: d.co, level: Math.max(pl.level, d.lv || 1), t1: d.t1 || pl.t1, t10: d.t10 || pl.t10 });
-      if (d && d.t) time = d.t;
-      if (d && d.why === 'host') G.UI.toast('El anfitrión ha terminado la partida', 3200);
-      endRun(!(d && d.why === 'host'));
+    /** Tu Pokémon según el servidor: movimientos, objeto, vínculos y velocidad. */
+    kit(ev) {
+      const [, slots, act, item, bonds, st] = ev;
+      const had = pl.slots.length;
+      const old = new Map(pl.moves.map(m => [m.id, m]));
+      pl.moves = [];
+      pl.slots = (slots || []).map(g => g.map(([id, lvl, evo]) => {
+        let m = old.get(id);
+        if (!m || m.lvl !== lvl || !!m.evolved !== !!evo) {
+          m = G.Moves.instance(id, lvl);
+          if (evo) G.Moves.evolve(m);
+        }
+        pl.moves.push(m);
+        return m;
+      }));
+      // El hueco activo lo eliges tú; el del servidor sólo si cambian los huecos.
+      if (pl.slots.length !== had || pl.active >= pl.slots.length) pl.active = Math.max(0, Math.min(act | 0, pl.slots.length - 1));
+      pl.item = item || null;
+      pl.bonds = bonds | 0;
+      if (st) { pl.spdMul = st[0] || pl.spdMul; pl.magnet = st[1] || pl.magnet; }
+    },
+    /** Fin (te llega tu resumen del servidor). */
+    over(r) {
+      Object.assign(pl, { kills: r.ki | 0, bosses: r.bo | 0, coins: r.co | 0, level: Math.max(pl.level, r.lv | 0), t1: r.t1 | 0, t10: r.t10 | 0 });
+      if (r.t) time = r.t;
+      if (r.why === 'error') G.UI.toast('La partida ha fallado en el servidor: se guarda lo conseguido', 3600);
+      endRun(r.why === 'down');
     },
     lost(msg) { G.UI.toast(msg, 3600); endRun(false); },
-    item(id) { offerItem(id); },
-    mateLeft() {},
-    /** Grupo: quién está eligiendo fusión. Mientras haya alguien, todo parado. */
-    hold(names) {
-      holdBy = names || [];
-      const mine = G.UI.isOpen('scr-bond');
-      if (holdBy.length) {
-        if (state === 'playing') state = 'held';
-        if (pl && pl.bonds > 0) offerBond(true);      // si tú también tienes vínculo, eliges a la vez
-        const others = holdBy.filter(n => n !== (G.Social.me && G.Social.me.name) && n !== 'Tú');
-        if (!mine && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
-        else if (!others.length) G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);   // sólo tú: sin aviso viejo
-      } else {
-        if (state === 'held' && !awayBy) state = 'playing';
-        G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);
-      }
-    },
-    /** Grupo (invitado): el anfitrión se ha ido de la pestaña o no responde: todo parado. */
-    away(name) {
-      awayBy = name || null;
+    /** Conexión cortada: todo quieto mientras se reconecta (null: vuelve). */
+    away(text) {
+      awayBy = text || null;
       if (awayBy) {
         if (state === 'playing') state = 'held';
-        G.Spawner.say(awayText(), 999, true);
-      } else if (!holdBy.length) {
+        G.Spawner.say(awayBy, 999, true);
+      } else if (!waitBy.length) {
         if (state === 'held') state = 'playing';
         G.Spawner.say('', 0, true);
       }
     }
   };
   let awayBy = null;
-  const awayText = () => 'Pausa: esperando a ' + awayBy + ' (anfitrión)…';
 
   /** Has llevado a casa a un Pokémon perdido y se une a ti (events.js). */
   G.onRescue = (dex, name) => {
@@ -270,7 +275,6 @@ G.Game = (() => {
   /** Un shiny salvaje cae: te lo quedas (y la versión normal si no la tenías). */
   G.onShinyCaught = e => {
     if (!G.DB.save || !pl) return;
-    if (G.Coop.isHost) G.Coop.shinyCaught(e);
     const isNew = G.DB.grantShiny(e.dex, 'wild');
     G.DB.save.stats.shinies++;
     G.DB.commit(true);
@@ -283,8 +287,6 @@ G.Game = (() => {
   function endRun(dead = true) {
     if (state === 'over' || !pl) return;
     const coop = !!pl.uid;                    // sólo las partidas en grupo le ponen uid
-    const wasHost = !!pl.coopHost;
-    const team = coop ? G.Coop.members.slice() : [];
     if (G.Coop.active) G.Coop.end();
     if (coop) G.Social.setPlaying(false);
     state = 'over';
@@ -319,12 +321,10 @@ G.Game = (() => {
     G.DB.commit('run');
     if (G.Social.me) G.Social.publishProfile();
 
-    // Ranking: en solitario cada uno lo suyo; en grupo lo sube el anfitrión.
+    // Ranking: en solitario lo sube cada uno; el de grupo, el servidor del cooperativo.
     const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
-    const ok = clean();
-    const sent = ok && !coop ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny }))
-               : ok && wasHost ? G.Ranking.submitGroup(Object.assign(mark, { members: team })) : null;
+    const sent = !coop && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny })) : null;
     if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
 
     G.RunUI.showOver({
@@ -357,14 +357,8 @@ G.Game = (() => {
   // ---------------- subida de nivel ----------------
 
   function maybeLevelUp() {
-    if (pendingLevels <= 0 || state !== 'playing') return;
-    if (G.Coop.active) {
-      // En grupo, las cartas salen a la vez para todos y se espera a que elijan.
-      if (G.Coop.players().every(p => p.dead)) return;
-      pendingLevels--;
-      G.Coop.levelStart(pl.level);
-      return;
-    }
+    // (En grupo las cartas las reparte el servidor: ver coopApi.choice.)
+    if (pendingLevels <= 0 || state !== 'playing' || G.Coop.active) return;
     // Nunca abras cartas con el Pokémon caído (morir y recoger XP en el mismo frame).
     if (pl.dead) return;
     pendingLevels--;
@@ -382,21 +376,20 @@ G.Game = (() => {
   /**
    * Vínculo de un legendario: eliges qué movimientos se fusionan.
    * Si ahora no se puede (no hay dos sueltos), se guarda hasta que aprendas
-   * otro movimiento. Se mira en cada fotograma: si otra pantalla la tapa (cartas
-   * de nivel en grupo, pausa), vuelve a salir al cerrarla.
+   * otro movimiento. Se mira en cada fotograma: si otra pantalla la tapa
+   * (pausa), vuelve a salir al cerrarla. (En grupo lo ofrece el servidor.)
    * @param quiet  no avisar si todavía no se puede
    */
   function offerBond(quiet = false) {
-    if (!pl || pl.bonds <= 0 || pl.dead || (state !== 'playing' && state !== 'held') || G.Rift.inArena) return;
+    if (!pl || pl.bonds <= 0 || pl.dead || state !== 'playing' || G.Rift.inArena || G.Coop.active) return;
     if (['scr-bond', 'scr-pause', 'scr-item', 'scr-levelup'].some(G.UI.isOpen)) return;
     const opt = pl.bondOptions();
     if (!opt) {
       if (!quiet) G.Spawner.say('Guardas el vínculo: aprende otro movimiento para usarlo', 3, true);
       return;
     }
-    // Se para el juego; en grupo, para todos hasta que cada uno elige (G.Coop.holdStart).
+    // Se para el juego hasta que eliges.
     state = 'choice';
-    if (G.Coop.active) G.Coop.holdStart();
     G.Audio.sfx('levelup');
     G.RunUI.showBond(opt, picked => {
       const group = pl.fuse(picked, opt.group);
@@ -404,8 +397,7 @@ G.Game = (() => {
       G.FX.ring(pl.x, pl.y, 8, 130, '#ff8ad8', 0.8, 6);
       G.FX.burst(pl.x, pl.y - pl.bodyH * 0.5, '#ffb3e6', 40, 240);
       G.Spawner.say('¡Vínculo! ' + group.length + ' movimientos a la vez', 2.6, true);
-      if (state === 'choice') state = holdBy.length ? 'held' : 'playing';
-      if (G.Coop.active) G.Coop.holdEnd();
+      if (state === 'choice') state = 'playing';
     });
   }
 
@@ -414,11 +406,10 @@ G.Game = (() => {
   const PICK_SFX = { xp: 'xp', xpBig: 'xp', coin: 'coin', heal: 'heal', bomb: 'break', magnet: 'confirm', ticket: 'shiny', ticket10: 'legend', item: 'legend' };
 
   /*
-   * Cooperativo: la elección de objeto y las cartas de nivel no pueden taparse.
-   * Si llega un objeto con las cartas abiertas, espera a que elijas carta; y si
-   * las cartas llegan con la elección de objeto abierta, ésta vuelve a salir al
-   * terminar. (Antes una cerraba la otra, nadie podía terminar de elegir y la
-   * partida se quedaba parada para todos.)
+   * La elección de objeto y las cartas de nivel no pueden taparse. Si llega un
+   * objeto con las cartas abiertas, espera a que elijas carta; y si las cartas
+   * llegan con la elección de objeto abierta, ésta vuelve a salir al terminar.
+   * (En grupo los objetos los ofrece el servidor: ver coopApi.choice.)
    */
   let openItem = null;           // { cur, next, take } elección de objeto sin terminar
   const laterItems = [];         // objetos recogidos con las cartas de nivel abiertas
@@ -426,7 +417,7 @@ G.Game = (() => {
     if (state !== 'playing' && state !== 'held') return;
     if (openItem && !G.UI.isOpen('scr-item')) {
       const o = openItem;
-      if (o.mine) { state = 'choice'; if (G.Coop.active) G.Coop.holdStart(); }
+      if (o.mine) state = 'choice';
       G.RunUI.showItemChoice(o.cur, o.next, o.take);
       return;
     }
@@ -446,18 +437,15 @@ G.Game = (() => {
         G.Progress.event('item', { id: got });
       }
       if (!mine) { afterLevelUp(); return; }
-      if (state === 'choice') state = holdBy.length ? 'held' : 'playing';
-      if (G.Coop.active) G.Coop.holdEnd();
+      if (state === 'choice') state = 'playing';
       afterLevelUp();
     };
     if (!pl.item) { take(id); return; }
     if (pl.item === id) { G.Spawner.say('Ya llevas ' + G.Items.BY[id].name, 2, true); return; }
-    // Se para el juego mientras eliges; en grupo, para todos (como con las
-    // fusiones). Antes en grupo seguía y te pegaban mientras elegías.
-    if (state === 'playing' || state === 'held') {
+    // Se para el juego mientras eliges.
+    if (state === 'playing') {
       mine = true;
       state = 'choice';
-      if (G.Coop.active) G.Coop.holdStart();
     }
     openItem = { cur: pl.item, next: id, take, get mine() { return mine; } };
     G.RunUI.showItemChoice(pl.item, id, take);
@@ -466,12 +454,11 @@ G.Game = (() => {
   /** @param who  quien lo ha cogido (en cooperativo puede ser un compañero) */
   function onCollect(p, who = pl) {
     const mine = who === pl;
-    if (G.Coop.active && !G.Coop.isHost) {
-      // Copia de un objeto del anfitrión: el efecto lo decide él.
+    if (G.Coop.active) {
+      // Copia de un objeto del servidor: el efecto lo decide él.
       if (mine) G.Audio.sfx(PICK_SFX[p.kind]);
       return;
     }
-    if (G.Coop.active) G.Coop.collected(p, who);
     if (mine || p.kind === 'bomb') G.Audio.sfx(PICK_SFX[p.kind]);
     if (p.kind === 'xp' || p.kind === 'xpBig') {
       pendingLevels += pl.gainXp(p.value * (G.Coop.active ? G.Coop.xpFactor() : 1));
@@ -599,8 +586,11 @@ G.Game = (() => {
 
     if (state === 'playing') update(dt);
     else if (pl && state !== 'ui') { G.FX.update(dt * 0.25); pl.anim.update(dt * 0.25); }
-    // La red se atiende siempre (también con las cartas de nivel abiertas).
-    if (G.Coop.active && pl && state !== 'ui' && state !== 'over') G.Coop.tick(dt);
+    // Tu posición al servidor siempre (también con las cartas abiertas: quieto).
+    if (G.Coop.active && pl && state !== 'ui' && state !== 'over') {
+      if (state !== 'playing') pl.frozen = true;
+      G.Coop.tick(dt);
+    }
 
     if (pl && state !== 'ui') render(); else Backdrop.render(ctx, w, h, dpr, dt);
     G.UI.tick(dt);
@@ -643,38 +633,29 @@ G.Game = (() => {
       G.FX.ring(pl.x, pl.y, 10, G.Camera.outerRadius(), '#ffffff', 0.7, 6);
     }
 
-    pl.frozen = coop && (G.UI.isOpen('scr-pause') || G.UI.isOpen('scr-item'));
+    pl.frozen = coop && G.UI.isOpen('scr-pause');
     pl.update(dt);
     if (coop) {
-      for (const p of G.Coop.puppets()) { p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
+      // Los ataques (también los tuyos) llegan del servidor; las órbitas se dibujan aquí.
+      for (const p of [pl, ...G.Coop.puppets()]) { if (p !== pl) p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
       if (pl.dead) reviveTick(dt);
     }
     G.Camera.follow(pl.x, pl.y, dt);
-    G.Step.world(dt, time, everyone(), pl, !coop || G.Coop.isHost, onCollect);
+    G.Step.world(dt, time, everyone(), pl, !coop, onCollect);
     G.FX.update(dt);
 
     G.Audio.music(G.Judgment.active ? G.Judgment.music : G.Rift.inArena ? 'rift' : G.EnemyMgr.bossAlive() ? 'boss' : G.BIOME_MUSIC[biome % G.BIOME_MUSIC.length]);
-    if (!coop || G.Coop.isHost) maybeLevelUp();
+    if (!coop) maybeLevelUp();
     if (pl.bonds > 0) offerBond(true);
-    if (G.Coop.isHost) checkAllDown(dt);
   }
 
-  /** Caído en grupo: un compañero a tu lado te va levantando. */
+  /**
+   * Caído en grupo: un compañero a tu lado te va levantando. Aquí sólo la barra
+   * (la misma cuenta que server/room.js): quien te levanta es el servidor.
+   */
   function reviveTick(dt) {
     const helper = G.Coop.puppets().some(p => !p.dead && G.U.dist2(p.x, p.y, pl.x, pl.y) < 56 * 56);
-    pl.reviveT = helper ? (pl.reviveT || 0) + dt : Math.max(0, (pl.reviveT || 0) - dt * 0.5);
-    if (pl.reviveT >= G.Player.REVIVE_TIME) pl.revive(0.5);
-  }
-
-  /** Anfitrión: si caéis todos, se acaba (tras ver caer al último). */
-  function checkAllDown(dt) {
-    if (G.Rift.inArena || !G.Coop.players().every(p => p.dead)) { deathT = 0; return; }
-    deathT += dt;
-    if (deathT > 1.6) {
-      deathT = 0;
-      G.Coop.over(summary());
-      endRun(true);
-    }
+    pl.reviveT = Math.min(G.Player.REVIVE_TIME, helper ? (pl.reviveT || 0) + dt : Math.max(0, (pl.reviveT || 0) - dt * 0.5));
   }
 
   // ---------------- dibujo ----------------
@@ -921,7 +902,7 @@ G.Flow = {
     } else this.goMenu();
   },
   play() { G.Game.startRun(); },
-  /** Empieza la partida en grupo (el anfitrión la manda a todos). */
+  /** Empieza la partida en grupo (`started` del servidor: { seed, members }). */
   startCoop(cfg) {
     if (G.Game.state !== 'ui' || !G.Social.room) return;
     G.LobbyUI.close();

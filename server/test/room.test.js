@@ -325,3 +325,36 @@ test('al volver tras un corte se le manda todo de nuevo', () => {
   const alive = r.G.EnemyMgr.all().filter(e => !e.dead && r.G.U.dist(e.x, e.y, r.pl('u1').x, r.pl('u1').y) <= 900).length;
   assert.ok(s.enemies.add.length >= Math.min(alive, 100), 'no se le vuelven a mandar los enemigos');
 });
+
+test('mejoras de la tienda, Repertorio y veto del kit; `kit` a cada uno al empezar y al cambiar', () => {
+  const kit = { up: { hp: 3, spd: 2, moves: 1, ban: 1, xx: 9 }, bind: [], ban: ['tackle', 'growl'] };
+  const members = [{ uid: 'a', name: 'A', dex: 25, shiny: false, kit }, { uid: 'b', name: 'B', dex: 4, shiny: false }];
+  const sent = [];
+  const room = createRoom({ members, seed: 3, logger: quiet, send: (uid, m) => sent.push({ uid, m }) });
+  const G = room.debug.G, a = room.debug.player('a'), b = room.debug.player('b');
+  const perks = G.Upgrades.perks({ hp: 3, spd: 2, moves: 1, ban: 1 });
+  assert.ok(perks.hp > 0);
+  assert.strictEqual(a.maxHp, G.DEX_BY[25].hp + perks.hp);
+  assert.ok(Math.abs(a.spdMul - perks.spdMul) < 1e-9 && a.spdMul > 1);
+  assert.strictEqual(b.spdMul, 1);
+  assert.strictEqual(a.slots.length, 2, 'Repertorio: dos movimientos');
+  assert.strictEqual(b.slots.length, 1);
+  assert.deepStrictEqual([...a.banned], ['tackle'], 'sólo tantos vetos como la mejora');
+  calm(G);
+  room.tick(); room.tick();
+  const kitOf = uid => of(sent, uid, 'ev').flatMap(m => m.list).filter(ev => ev[0] === 'kit');
+  const ka = kitOf('a');
+  assert.strictEqual(ka.length, 1);
+  assert.deepStrictEqual(ka[0][1].map(g => g[0][0]), a.slots.map(g => g[0].id));
+  assert.strictEqual(ka[0][2], a.active);
+  assert.ok(Math.abs(ka[0][5][0] - a.spdMul) < 0.01);
+  // Sin cambios no se repite; con una carta elegida, sí.
+  sent.length = 0;
+  room.tick(); room.tick();
+  assert.strictEqual(kitOf('a').length, 0);
+  room.debug.levelUp();
+  room.tick();
+  room.pick('a', 0); room.pick('b', 0);
+  room.tick(); room.tick();
+  assert.ok(kitOf('a').length >= 1 || kitOf('b').length >= 1, 'tras la carta llega el kit nuevo');
+});

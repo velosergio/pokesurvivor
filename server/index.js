@@ -5,7 +5,7 @@
  *   /ws          → WebSocket del juego (ws, upgrade manual con noServer).
  *
  * Cada conexión: el primer mensaje tiene que ser `hello {token, proto, name,
- * dex, shiny}` en 10 s como mucho. Si el protocolo no es el nuestro → `bye
+ * dex, shiny, kit}` en 10 s como mucho (kit: ver cleanKit). Si el protocolo no es el nuestro → `bye
  * update`; si el token no vale → `bye auth`. Con el hello bueno se crea el
  * `conn` y se pasa al lobby; desde ahí cada mensaje va decodificado a
  * lobby.message(conn, msg). Límites: 4 KB por mensaje, 40 mensajes por
@@ -37,6 +37,23 @@ function cleanName(v) {
 /** Número de la Pokédex: entero positivo; si no, 1. */
 function cleanDex(v) {
   return Number.isInteger(v) && v > 0 && v < 100000 ? v : 1;
+}
+
+/**
+ * Lo que el navegador cuenta de su Pokémon: { up: {mejora: nivel}, bind: [ids], ban: [ids] }.
+ * Sólo claves cortas, niveles enteros 0-99 e ids de texto; room.js lo recorta con los datos del juego.
+ */
+function cleanKit(v) {
+  const k = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  const up = {};
+  if (k.up && typeof k.up === 'object' && !Array.isArray(k.up)) {
+    for (const key of Object.keys(k.up).slice(0, 32)) {
+      const n = k.up[key];
+      if (/^[a-z]{1,12}$/.test(key) && Number.isInteger(n) && n > 0 && n < 100) up[key] = n;
+    }
+  }
+  const ids = a => (Array.isArray(a) ? a.slice(0, 4).map(x => (typeof x === 'string' && /^[a-z0-9_-]{1,24}$/.test(x) ? x : '')) : []);
+  return { up, bind: ids(k.bind), ban: ids(k.ban).filter(Boolean) };
 }
 
 /** ¿Se acepta este Origin? Lista vacía = cualquiera (en local). */
@@ -219,7 +236,7 @@ function start({
       if (old && old !== st && old.seq > st.seq) { bye('dup'); return; }
 
       const conn = {
-        uid, name: cleanName(msg.name), dex: cleanDex(msg.dex), shiny: !!msg.shiny,
+        uid, name: cleanName(msg.name), dex: cleanDex(msg.dex), shiny: !!msg.shiny, kit: cleanKit(msg.kit),
         send: sendMsg,
         close: reason => bye(reason)
       };
@@ -231,6 +248,8 @@ function start({
       if (old && old !== st) old.conn.close('dup');
       byUid.set(uid, st);
       st.phase = 'ready';
+      // hello aceptado (el navegador sabe así que puede crear o unirse).
+      sendMsg({ t: 'hi', uid });
       try { lobby.hello(conn); } catch (e) {
         logger.error('[lobby] hello:', e && e.stack || e);
         detach(st);
@@ -315,7 +334,7 @@ function start({
   return { server, wss, ready, shutdown, close, get draining() { return draining; } };
 }
 
-module.exports = { start, parseOrigins, cleanName, cleanDex, originOk, envInt };
+module.exports = { start, parseOrigins, cleanName, cleanDex, cleanKit, originOk, envInt };
 
 // ---- Ejecutado directamente: node server/index.js ----
 if (require.main === module) {

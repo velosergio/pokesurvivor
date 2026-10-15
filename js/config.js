@@ -11,7 +11,7 @@
  */
 G.Config = {
   site: 'https://poke.sergioveloza.com/',
-  turn: '',                 // Worker de claves TURN para el cooperativo ('' = sin TURN)
+  ws: 'wss://poke.sergioveloza.com/ws',   // servidor del cooperativo (server/; en localhost, ws://localhost:8787/ws)
   admins: ['MufTp04DgIR02OExhPau6TopYzo2'],   // uids con acceso a Moderación (y en firestore.rules)
   kofi: '',                 // usuario de Ko-fi ('' = sin botón "Apoyar")
   sponsors: '',             // usuario de GitHub Sponsors ('' = sin enlace)
@@ -23,9 +23,7 @@ G.Config = {
     projectId: 'pokesurvivor-662eb',
     storageBucket: 'pokesurvivor-662eb.firebasestorage.app',
     messagingSenderId: '990249623043',
-    appId: '1:990249623043:web:fda2688f2478aaac2c7836',
-    // Realtime Database: sólo para las salas del cooperativo antiguo (hasta el servidor de partidas).
-    databaseURL: 'https://pokesurvivor-662eb-default-rtdb.firebaseio.com'
+    appId: '1:990249623043:web:fda2688f2478aaac2c7836'
   }
 };
 G.FIREBASE_CONFIG = G.Config.firebase;

@@ -34,7 +34,7 @@ function fakeClock() {
 
 /** Conexión falsa. */
 function conn(uid) {
-  const c = { uid, name: 'N' + uid, dex: 25, shiny: false, sent: [], closed: null };
+  const c = { uid, name: 'N' + uid, dex: 25, shiny: false, kit: { up: { hp: 2 }, bind: [], ban: [] }, sent: [], closed: null };
   c.send = m => c.sent.push(m);
   c.close = r => { c.closed = r; };
   c.last = t => [...c.sent].reverse().find(m => !t || m.t === t);
@@ -122,7 +122,10 @@ test('start crea la partida y manda started a todos', () => {
   const g = s.fr.made[0];
   assert.deepStrictEqual(g.opts.members.map(m => m.uid), ['a', 'b']);
   assert.ok(Number.isInteger(g.opts.seed));
-  for (const c of [a, b]) assert.deepStrictEqual(c.last(), { t: 'started', seed: g.opts.seed, members: g.opts.members });
+  // La partida recibe el kit de cada uno (mejoras de la tienda); los demás no lo ven.
+  assert.deepStrictEqual(g.opts.members.map(m => m.kit), [a.kit, b.kit]);
+  const pub = g.opts.members.map(({ kit, ...m }) => m);
+  for (const c of [a, b]) assert.deepStrictEqual(c.last(), { t: 'started', seed: g.opts.seed, members: pub });
   assert.deepStrictEqual(g.calls, [['start']]);
   s.lobby.message(a, { t: 'start' });
   assert.deepStrictEqual(a.last(), { t: 'err', reason: 'started' });
@@ -328,4 +331,17 @@ test('orden real de index.js (close de la vieja y luego hello): en espera se pie
   s.lobby.close(b2);
   const b3 = s.hi('b');
   assert.deepStrictEqual(b3.sent.map(m => m.t), ['room', 'started']);
+});
+
+test('en la espera, un hello nuevo del mismo uid cambia su Pokémon y su kit (y lo ven todos)', () => {
+  const s = setup();
+  const { cs: [a, b] } = room(s, 'a', 'b');
+  const a2 = conn('a');
+  a2.dex = 6; a2.shiny = true; a2.kit = { up: { atk: 4 }, bind: [], ban: [] };
+  s.lobby.hello(a2);
+  const info = b.last('room');
+  assert.deepStrictEqual(info.members.find(m => m.uid === 'a'), { uid: 'a', name: 'Na', dex: 6, shiny: true, on: true });
+  assert.strictEqual(a.closed, 'replaced');
+  s.lobby.message(a2, { t: 'start' });
+  assert.deepStrictEqual(s.fr.made[0].opts.members[0].kit, a2.kit);
 });

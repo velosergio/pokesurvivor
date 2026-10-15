@@ -14,8 +14,12 @@
  *
  * Necesita el servidor con DEV_AUTH=1 (los tokens dev:<uid> no se comprueban).
  *
+ * Con --join CÓDIGO los bots entran en una sala que ya existe (la de un
+ * navegador, para probar el juego de verdad con compañeros) y no la empiezan:
+ * la empieza su líder.
+ *
  * Uso: node server/tools/bots.js --rooms 2 --size 4 --secs 60 [--url ws://localhost:8787/ws]
- *      [--origin http://localhost] [--prefix bot]
+ *      [--origin http://localhost] [--prefix bot] [--join ABC123 --size 2]
  * Sale con 1 si hubo errores o algún bot no recibió `started` o `snap`.
  */
 'use strict';
@@ -51,9 +55,9 @@ const OPEN_TIMEOUT = 10000;
  *   avgSnap, kbsPerPlayer, levels, picks, overs, overWhy:{why:n}, overT:[s], starts, corrections, byes:{reason:n}, errors:[],
  *   noStarted, noSnap }
  */
-function runBots({ url = 'ws://localhost:8787/ws', rooms = 1, size = 4, secs = 60, origin, prefix = 'bot', stagger = 50 } = {}) {
+function runBots({ url = 'ws://localhost:8787/ws', rooms = 1, size = 4, secs = 60, origin, prefix = 'bot', stagger = 50, join = null } = {}) {
   size = Math.max(1, Math.min(4, size | 0));
-  rooms = Math.max(1, rooms | 0);
+  rooms = join ? 1 : Math.max(1, rooms | 0);
   const st = { msgsIn: 0, bytesIn: 0, snaps: 0, snapBytes: 0, maxSnap: 0, levels: 0, picks: 0, overs: 0, overWhy: {}, overT: [],
     starts: 0, corrections: 0, byes: {}, errors: [] };
   const bots = [];
@@ -139,7 +143,7 @@ function runBots({ url = 'ws://localhost:8787/ws', rooms = 1, size = 4, secs = 6
     b.code = m.code;
     const lead = b.roomBots[0];
     // El líder, con el código: entran los demás.
-    if (b === lead && !b.joinedOthers) {
+    if (b === lead && !b.joinedOthers && !join) {
       b.joinedOthers = true;
       for (const o of b.roomBots) if (o !== b) o.connect({ t: 'join', code: m.code });
     }
@@ -242,10 +246,13 @@ function runBots({ url = 'ws://localhost:8787/ws', rooms = 1, size = 4, secs = 6
       roomsBots.push(group);
     }
     // Las salas empiezan escalonadas (como llegan jugadores de verdad); el resto entra con el código.
-    const launch = roomsBots.map((g, i) => setTimeout(() => { if (!ending) g[0].connect({ t: 'create' }); }, i * stagger));
+    const launch = join
+      ? roomsBots[0].map((b, i) => setTimeout(() => { if (!ending) b.connect({ t: 'join', code: join }); }, i * stagger))
+      : roomsBots.map((g, i) => setTimeout(() => { if (!ending) g[0].connect({ t: 'create' }); }, i * stagger));
 
     /** Si la partida de una sala se acaba antes de tiempo, el líder vuelve a empezar. */
     const restarter = setInterval(() => {
+      if (join) return;
       for (const g of roomsBots) {
         const lead = g[0];
         if (lead.started && !lead.startAsked && !g.some(o => o.inGame) && g.every(o => o.ws && o.ws.readyState === WebSocket.OPEN)) {
@@ -326,7 +333,8 @@ if (require.main === module) {
       url: typeof a.url === 'string' ? a.url : 'ws://localhost:8787/ws',
       rooms: num(a, 'rooms', 1), size: num(a, 'size', 4), secs: num(a, 'secs', 60),
       origin: typeof a.origin === 'string' ? a.origin : undefined,
-      prefix: typeof a.prefix === 'string' ? a.prefix : 'bot'
+      prefix: typeof a.prefix === 'string' ? a.prefix : 'bot',
+      join: typeof a.join === 'string' ? a.join.toUpperCase() : null
     };
     if (opts.size > 4) throw new Error('--size: como mucho 4 por sala');
     if (!/^[A-Za-z0-9]{1,30}$/.test(opts.prefix)) throw new Error('--prefix: sólo letras y cifras');

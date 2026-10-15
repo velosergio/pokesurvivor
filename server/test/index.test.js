@@ -54,12 +54,13 @@ async function boot(o = {}) {
 /** Cliente: guarda los mensajes y avisa al cerrarse. */
 function client(url, opts) {
   const ws = new WebSocket(url, opts);
-  const msgs = [];
-  ws.on('message', d => { try { msgs.push(JSON.parse(d.toString())); } catch (e) { msgs.push(d); } });
+  const msgs = [], his = [];
+  // `hi` (hello aceptado) va aparte: así las pruebas miran sólo lo que manda el lobby.
+  ws.on('message', d => { let o; try { o = JSON.parse(d.toString()); } catch (e) { msgs.push(d); return; } (o && o.t === 'hi' ? his : msgs).push(o); });
   ws.on('error', () => {});
   const opened = new Promise((res, rej) => { ws.once('open', res); ws.once('unexpected-response', (q, r) => rej(Object.assign(new Error('rechazado'), { status: r.statusCode }))); ws.once('error', rej); });
   const closed = new Promise(res => ws.once('close', (code, reason) => res({ code, reason: reason.toString() })));
-  return { ws, msgs, opened, closed, send: o => ws.send(typeof o === 'string' ? o : JSON.stringify(o)) };
+  return { ws, msgs, his, opened, closed, send: o => ws.send(typeof o === 'string' ? o : JSON.stringify(o)) };
 }
 
 const hello = (uid = 'a', extra = {}) => ({ t: 'hello', token: 'ok:' + uid, proto: 7, name: 'Ash', dex: 25, shiny: false, ...extra });
@@ -121,6 +122,7 @@ test('hello correcto llega a lobby.hello y luego los mensajes a lobby.message', 
   conn.send({ t: 'room', code: 'ABC123', members: [] });
   conn.send({ t: 'snap', bin: new Uint8Array([9, 8]) });
   await until(() => c.msgs.length === 2);
+  assert.deepStrictEqual(c.his, [{ t: 'hi', uid: 'u1' }]);
   assert.deepStrictEqual(c.msgs[0], { t: 'room', code: 'ABC123', members: [] });
   assert.deepStrictEqual([...c.msgs[1]], [9, 8]);
   // conn.close → bye y cierre; el lobby se entera.
@@ -287,7 +289,7 @@ test('uid duplicado: gana la conexión más nueva aunque su comprobación acabe 
 
 test('el envío a varios codifica el mensaje una vez', async () => {
   let n = 0;
-  const proto = { ...fakeProto, encJson: (t, o) => { n++; return fakeProto.encJson(t, o); } };
+  const proto = { ...fakeProto, encJson: (t, o) => { if (t !== 'hi') n++; return fakeProto.encJson(t, o); } };
   const lobby = fakeLobby();
   const { app, url } = await boot({ deps: { auth: fakeAuth, lobby, proto } });
   const a = client(url), b = client(url);
@@ -319,4 +321,11 @@ test('un ping sin respuesta cierra la conexión', async () => {
   assert.strictEqual(cl.code, 1006);
   await until(() => lobby.of('close').length === 1);
   await app.close();
+});
+
+test('cleanKit: sólo niveles enteros e ids con forma de movimiento', () => {
+  const { cleanKit } = require('../index');
+  assert.deepStrictEqual(cleanKit(null), { up: {}, bind: [], ban: [] });
+  assert.deepStrictEqual(cleanKit({ up: { hp: 3, atk: 1.5, spd: -1, ['__proto__']: 4, LARGO: 2, xp: 500 }, bind: ['quick-attack', 7, 'a b'], ban: ['x', 'y', 'z', 'w', 'v'] }),
+    { up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w'] });
 });

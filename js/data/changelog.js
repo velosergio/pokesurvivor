@@ -7,11 +7,17 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-14', title: ['Recupera tu cuenta con Gmail', 'Recover your account with Gmail'], new: [
+    ['Cooperativo nuevo: la partida en grupo la lleva ahora un servidor, no el navegador del anfitrión. Si alguien se va o cambia de pestaña, los demás siguen jugando; si se te corta la conexión tienes 20 segundos para volver a tu sitio.',
+     'New co-op: group games now run on a server instead of the host’s browser. If someone leaves or switches tabs, everyone else keeps playing; if your connection drops you have 20 seconds to get back to your spot.'],
+    ['Salas con código: en Amigos > Jugar en grupo creas una sala y pasas su código de 6 letras, o escribes el de un amigo para entrar. Las invitaciones siguen funcionando.',
+     'Rooms with a code: in Friends > Play in a group you create a room and share its 6-letter code, or type a friend’s code to join. Invitations still work.'],
     ['Si juegas con nombre y contraseña, puedes vincular tu Gmail: si un día olvidas la contraseña, entras con Google y es tu misma cuenta. Te lo ofrecemos al entrar.',
      'If you play with a name and password, you can link your Gmail: if you ever forget your password, sign in with Google and it is the same account. We offer it when you sign in.'],
     ['Móvil: ya puedes colocar los botones donde quieras. En Ajustes > Controles > Colocar los botones arrastras los ataques (con el objeto), la pausa y el joystick, que ahora también puede ser fijo en vez de aparecer donde pones el dedo.',
      'Mobile: you can now place the buttons wherever you want. In Settings > Controls > Place the buttons, drag the attacks (with the item), the pause button and the joystick, which can now also be fixed instead of appearing where you put your finger.']
   ], chg: [
+    ['Cooperativo: tus mejoras de la tienda (vida, fuerza, Repertorio, Veto…) cuentan también en grupo, y la marca del ranking de grupo la apunta el servidor con su propio reloj. En grupo, por ahora, no se pueden cambiar las cartas de nivel.',
+     'Co-op: your shop upgrades (HP, strength, Repertoire, Veto…) now also count in group games, and the group leaderboard record is written by the server with its own clock. In group games you can’t reroll level-up cards for now.'],
     ['Las tablas de la semana y del mes del ranking empiezan de cero, como el histórico: ahora sólo cuentan partidas con la Sentencia de Arceus y todas las tablas cuadran entre sí.',
      'The weekly and monthly leaderboards start from scratch, like the all-time one: now only runs with the Judgment of Arceus count, and all boards match each other.'],
     ['El juego es y será gratis. Si alguien te pide pagar por tickets, monedas o lo que sea, no somos nosotros. Lo verás también al entrar y en el Aviso legal.',

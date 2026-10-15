@@ -199,8 +199,40 @@ G.RunUI = (() => {
     });
   }
 
+  /**
+   * Grupo: el servidor manda las fusiones posibles ya hechas
+   * ([{ id, name: 'A + B', lv: [niveles] }]); cb recibe el índice elegido.
+   */
+  function showBondList(options, cb) {
+    bond = { list: options, cb, server: true };
+    $('bond-sub').textContent = 'Elige qué movimientos se unen: se lanzarán a la vez';
+    $('bond-back').classList.add('hidden');
+    const box = $('bond-cards');
+    box.innerHTML = '';
+    options.forEach((o, i) => {
+      const ids = String(o.id).split('+');
+      const el = document.createElement('div');
+      el.className = 'card bond';
+      el.innerHTML =
+        `<div class="ico">${ids.map(id => G.Icons.html('move:' + id, ids.length > 1 ? 22 : 32)).join('')}</div>
+         <div class="txt"><div class="nm">${o.name}</div><div class="ds">Nv. ${(o.lv || []).join(' + ')}</div></div>
+         <div class="key">${i + 1}</div>`;
+      el.dataset.sfx = 'none';
+      el.onclick = () => pickBond(i);
+      box.appendChild(el);
+    });
+    G.UI.show('scr-bond');
+  }
+
   function pickBond(i) {
     if (!bond || !bond.list[i]) return;
+    if (bond.server) {
+      const cb = bond.cb;
+      bond = null;
+      G.UI.hide('scr-bond');
+      cb(i);
+      return;
+    }
     const m = bond.list[i];
     if (bond.opt.mode === 'pair' && !bond.first) {
       bond.first = m;
@@ -233,5 +265,5 @@ G.RunUI = (() => {
     $('btn-quit').onclick = onQuit;
   }
 
-  return { showLevelUp, reroll, showItemChoice, showBond, pickBond, bondBack, pick, setWaiting, closeLevelUp, showOver, wirePause, showPause };
+  return { showLevelUp, reroll, showItemChoice, showBond, showBondList, pickBond, bondBack, pick, setWaiting, closeLevelUp, showOver, wirePause, showPause };
 })();

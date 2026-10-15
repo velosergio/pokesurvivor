@@ -17,6 +17,7 @@
  *                    minuto 30, el histórico empezó de cero; las tablas viejas
  *                    s_all y s_all_pN se quedan en el servidor sin usarse)
  *   id = tu uid (solitario) o los uid del equipo ordenados y unidos con "_".
+ *   Las de grupo (g_) sólo las escribe el servidor del cooperativo (server/rank.js).
  *
  * Ahorros:
  *   - Lo leído se guarda 30 min en el navegador (cambiar de pestaña y volver: 0).
@@ -272,22 +273,8 @@ G.Ranking = (() => {
     return better;
   }
 
-  /** La sube el anfitrión, con todo el equipo. */
-  function submitGroup(r) { return track(submitGroupNow(r)); }
-  async function submitGroupNow(r) {
-    const fb = fbx();
-    if (!fb || r.t < MIN_T || !r.members || r.members.length < 2) return [];
-    const ms = r.members.slice().sort((a, b) => (a.uid < b.uid ? -1 : 1));
-    const id = ms.map(m => m.uid).join('_');
-    const entry = { t: r.t, uids: ms.map(m => m.uid), names: ms.map(m => m.name), dex: ms.map(m => m.dex),
-                    shiny: ms.map(m => !!m.shiny), lv: r.lv, kills: r.kills };
-    const ids = boardIds();
-    const boards = PERIODS.map(([p]) => ['g_' + ids[p], p]);
-    for (const d of new Set(entry.dex)) boards.push(['g_' + ALL + '_p' + d, 'p']);
-    const better = await store(boards, id, entry);
-    announce(better);
-    return better;
-  }
+  // La marca de grupo la sube el servidor del cooperativo (server/rank.js), con
+  // su propio reloj y la cuenta de servicio: las reglas ya no dejan escribirla aquí.
 
   // ---------------- leer ----------------
 
@@ -533,6 +520,6 @@ G.Ranking = (() => {
       t1: (v.tickets || {}).t1 || 0, t10: (v.tickets || {}).t10 || 0, owned: Object.keys(v.owned || {}).length }; });
   }
 
-  return { PERIODS, periodIds, board, runStarted, submitSolo, submitGroup, top, myRank, removeMine,
+  return { PERIODS, periodIds, board, runStarted, submitSolo, top, myRank, removeMine,
            report, reported, isAdmin, reports, entryInfo, removeEntry, purgeAbove, removeEverywhere, setMarked, dismiss, markedAccounts };
 })();

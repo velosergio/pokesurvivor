@@ -7,17 +7,13 @@
  *     friendships/{uidA_uidB}      { users, from, to, status: 'pending'|'ok', names, at }
  *
  *     pres/{uid}                   { on, at, room, play } en línea (aproximado)
- *     inv/{para_de}                { to, from, room, name, at } invitaciones
+ *     inv/{para_de}                { to, from, room, name, at } invitaciones (room = código de la sala)
  *
- *   Realtime Database: SÓLO mientras estás en una sala o partida en grupo
- *     rooms/{id}          { host, open, at, m: { uid: { name, dex, shiny } }, q: ... }
- *                         la sala; q/ son los mensajes de net.js
+ *   El servidor del cooperativo (net.js): las salas viven allí, con un código
+ *   de 6 letras para unirse. Sólo se conecta mientras estás en una sala.
  *
- * Por qué así: el plan gratuito de Firebase sólo admite 100 conexiones a la
- * vez a la Realtime Database. Si todo el mundo estuviera conectado para el
- * "en línea", ése sería el máximo de jugadores. Ahora sólo cuentan los que
- * están en una sala; el "en línea" va por Firestore con un latido cada 10 min
- * y se lee sólo al abrir Amigos o la sala (lo leído vale 1 min).
+ * El "en línea" va por Firestore con un latido cada 30 min y se lee sólo al
+ * abrir Amigos o la sala (lo leído vale 1 min).
  *
  * El resto del juego escucha los cambios con G.Social.on(fn).
  */
@@ -56,14 +52,12 @@ G.Social = (() => {
   let beatT = 0, presAt = 0, unInv = null;
   const pres = new Map();           // otherUid -> { online, play, room, seen } (lo último leído)
   const sentInv = new Set();        // a quién invitaste (para retirarlo al salir)
-  let room = null;                  // { id, host, isHost, members: [{ uid, name, dex, shiny }] }
-  let roomRefs = [];
+  let room = null;                  // { id: código, host: líder, isHost, open, members: [{ uid, name, dex, shiny, on }] }
   const invites = new Map();        // fromUid -> { from, name, room, at }
   const listeners = new Set();
   let started = false;
 
   function emit(what) { listeners.forEach(fn => { try { fn(what); } catch (e) { console.warn(e); } }); }
-  const ts = () => firebase.database.ServerValue.TIMESTAMP;
   const fts = () => firebase.firestore.FieldValue.serverTimestamp();
   const msOf = v => (v && v.toMillis ? v.toMillis() : +v || 0);
   const pidOf = (a, b) => (a < b ? a + '_' + b : b + '_' + a);
@@ -124,10 +118,9 @@ G.Social = (() => {
     return { ok: true };
   }
 
-  /** Presencia (latido), amigos e invitaciones. Nada de esto usa la Realtime Database. */
+  /** Presencia (latido), amigos e invitaciones. */
   function online() {
     if (beatT) return;                        // ya estaba en marcha
-    if (fb.rtdb) fb.rtdb.goOffline();         // se conecta sólo al entrar en una sala
     writeStatus();
     clearInterval(beatT);
     beatT = setInterval(() => { if (document.visibilityState === 'visible') writeStatus(); }, BEAT);
@@ -292,120 +285,103 @@ G.Social = (() => {
     catch (e) { return { ok: false, error: 'No se pudo borrar (' + (e.code || 'error') + ').' }; }
   }
 
-  // ---------------- salas ----------------
+  // ---------------- salas (en el servidor del cooperativo) ----------------
 
-  function memberInfo() {
-    const s = G.DB.save;
-    return { name: me.name, dex: s.partner, shiny: !!s.partnerShiny && G.DB.ownsShiny(s.partner), at: ts() };
+  const ERR = {
+    nocode: 'No hay ninguna sala con ese código.', started: 'La partida de esa sala ya ha empezado.',
+    closed: 'Esa sala está cerrada.', full: 'La sala está llena (máximo ' + MAX_PLAYERS + ').',
+    ingame: 'Estás en mitad de una partida.', leader: 'Sólo el líder de la sala puede hacer eso.'
+  };
+  const DOWN = {
+    full: 'El servidor de partidas está lleno: prueba en un rato.',
+    restart: 'El servidor de partidas se está actualizando: prueba en unos minutos.',
+    update: 'Hay una versión nueva del juego: recarga la página para jugar en grupo.',
+    off: 'El juego en grupo sólo funciona con cuenta, en la web del juego.',
+    dup: 'Has entrado en el juego en grupo desde otra pestaña.'
+  };
+  const downText = r => DOWN[r] || 'No se pudo conectar con el servidor de partidas.';
+
+  let roomWait = null;              // { ok } esperando la respuesta a create/join
+
+  function settleRoom(error) {
+    const w = roomWait;
+    roomWait = null;
+    if (w) w(error ? { ok: false, error } : { ok: true });
   }
 
-  /**
-   * La Realtime Database sólo se conecta mientras estás en una sala: cada
-   * conexión abierta gasta descargas (se pagan a partir de 360 MB al día).
-   * (El 11-10-2026 hubo un contador de gente en línea que la tenía siempre
-   * conectada; se quitó por eso.)
-   */
-  function rtOn() { if (fb.rtdb) fb.rtdb.goOnline(); }
-  function rtOff() { if (fb && fb.rtdb && !room) fb.rtdb.goOffline(); }
-
-  async function createRoom() {
-    if (room) return room;
-    rtOn();
-    const id = fb.rtdb.ref('rooms').push().key;
-    await fb.rtdb.ref('rooms/' + id).set({ host: uid, open: true, at: ts(), m: { [uid]: memberInfo() } });
-    enterRoom(id, uid);
-    return room;
+  /** Pide algo al servidor (create/join) y espera a `room` o `err` (10 s). */
+  async function ask(type, obj) {
+    try { await G.Net.connect(); } catch (e) { return { ok: false, error: downText(e.message) }; }
+    settleRoom('cancel');
+    const p = new Promise(res => { roomWait = res; });
+    const t = setTimeout(() => settleRoom('El servidor de partidas no responde.'), 10000);
+    G.Net.send(type, obj);
+    const r = await p;
+    clearTimeout(t);
+    if (!r.ok && !room) G.Net.close();
+    return r;
   }
 
-  async function joinRoom(id) {
-    if (room && room.id === id) return { ok: true };
-    if (room) await leaveRoom();
-    rtOn();
-    let open = null, host = null;
-    try {
-      open = (await fb.rtdb.ref('rooms/' + id + '/open').get()).val();
-      host = (await fb.rtdb.ref('rooms/' + id + '/host').get()).val();
-    } catch (e) { /* sala borrada */ }
-    if (!host) { rtOff(); return { ok: false, error: 'Esa sala ya no existe.' }; }
-    if (open !== true) { rtOff(); return { ok: false, error: 'La partida de esa sala ya ha empezado.' }; }
-    try { await fb.rtdb.ref('rooms/' + id + '/m/' + uid).set(memberInfo()); }
-    catch (e) { rtOff(); return { ok: false, error: 'No se pudo entrar en la sala.' }; }
-    const n = (await fb.rtdb.ref('rooms/' + id + '/m').get()).numChildren();
-    if (n > MAX_PLAYERS) {
-      await fb.rtdb.ref('rooms/' + id + '/m/' + uid).remove();
-      rtOff();
-      return { ok: false, error: 'La sala está llena (máximo ' + MAX_PLAYERS + ').' };
-    }
-    enterRoom(id, host);
-    return { ok: true };
-  }
-
-  function enterRoom(id, host) {
-    room = { id, host, isHost: host === uid, members: [], open: true };
-    watchRoomDisconnect();
-    const mref = fb.rtdb.ref('rooms/' + id + '/m');
-    mref.on('value', s => {
-      if (!room || room.id !== id) return;
-      const m = s.val() || {};
-      // El anfitrión siempre primero; el resto por orden de llegada.
-      room.members = Object.keys(m).map(k => Object.assign({ uid: k }, m[k]))
-        .sort((a, b) => (a.uid === room.host ? -1 : b.uid === room.host ? 1 : (a.at || 0) - (b.at || 0)));
+  G.Net.on(m => {
+    if (m.type === 'room') {
+      const was = room;
+      room = {
+        id: m.code, host: m.leader, isHost: m.leader === uid, open: m.open !== false,
+        members: (m.members || []).map(x => ({ uid: x.uid, name: x.name, dex: x.dex, shiny: !!x.shiny, on: x.on !== false }))
+      };
+      if (!was || was.id !== room.id) writeStatus();
+      settleRoom(null);
       emit('room');
-    }, () => closedRoom());
-    const href = fb.rtdb.ref('rooms/' + id + '/host');
-    href.on('value', s => { if (room && room.id === id && !s.val()) closedRoom(); }, () => closedRoom());
-    const oref = fb.rtdb.ref('rooms/' + id + '/open');
-    oref.on('value', s => { if (room && room.id === id) { room.open = s.val() === true; emit('room'); } }, () => {});
-    roomRefs = [mref, href, oref];
-    writeStatus();
-    emit('room');
+    } else if (m.type === 'err') {
+      if (roomWait) settleRoom(ERR[m.reason] || 'No se pudo (' + m.reason + ').');
+      else if (ERR[m.reason]) G.UI.toast(ERR[m.reason], 3000);
+    } else if (m.type === 'down') {
+      settleRoom(downText(m.reason));
+      if (room) {
+        room = null;
+        retractInvites();
+        writeStatus();
+        emit('room-closed');
+        if (m.reason !== 'closed' && m.reason !== 'timeout') G.UI.toast(downText(m.reason), 4000);
+      }
+    }
+  });
+
+  /** Crea una sala (y entra). → { ok, error } */
+  async function createRoom() {
+    if (room) return { ok: true };
+    return ask('create');
   }
 
-  /** Si se cierra el navegador, la sala (anfitrión) o tu plaza (invitado) se borran solas. */
-  function watchRoomDisconnect() {
-    if (!room) return;
-    const ref = room.isHost ? fb.rtdb.ref('rooms/' + room.id) : fb.rtdb.ref('rooms/' + room.id + '/m/' + uid);
-    ref.onDisconnect().remove();
-  }
-
-  function detachRoom() {
-    for (const r of roomRefs) r.off();
-    roomRefs = [];
-  }
-
-  function closedRoom() {
-    if (!room) return;
-    detachRoom();
-    room = null;
-    retractInvites();
-    writeStatus();
-    rtOff();
-    emit('room-closed');
+  /** Entra en la sala de ese código. → { ok, error } */
+  async function joinRoom(code) {
+    code = String(code || '').trim().toUpperCase();
+    if (room && room.id === code) return { ok: true };
+    if (!/^[A-Z0-9]{6}$/.test(code)) return { ok: false, error: 'El código tiene 6 letras y números.' };
+    return ask('join', { code });
   }
 
   async function leaveRoom() {
     if (!room) return;
-    const r = room;
-    detachRoom();
     room = null;
-    const ref = r.isHost ? fb.rtdb.ref('rooms/' + r.id) : fb.rtdb.ref('rooms/' + r.id + '/m/' + uid);
-    ref.onDisconnect().cancel().catch(() => {});
-    await ref.remove().catch(() => {});
+    G.Net.send('leave');
+    G.Net.close();
     retractInvites();
     writeStatus();
-    rtOff();
     emit('room');
   }
 
-  /** El anfitrión cierra la sala a nuevos jugadores al empezar la partida. */
+  /** El líder abre (o cierra) la sala a nuevos jugadores. */
   function setOpen(open) {
-    if (room && room.isHost) fb.rtdb.ref('rooms/' + room.id + '/open').set(!!open).catch(() => {});
+    if (room && room.isHost) G.Net.send('open', { v: !!open });
   }
 
-  /** Actualiza tu Pokémon en la sala (si cambias de compañero). */
+  /**
+   * Al volver a la sala: se presenta de nuevo al servidor (sin salir de ella)
+   * para que tenga tu Pokémon y tus mejoras de ahora, por si has cambiado algo.
+   */
   function refreshMember() {
-    if (room && me) fb.rtdb.ref('rooms/' + room.id + '/m/' + uid).update(
-      { dex: G.DB.save.partner, shiny: !!G.DB.save.partnerShiny && G.DB.ownsShiny(G.DB.save.partner) }).catch(() => {});
+    if (room && G.Game.state === 'ui') G.Net.renew();
   }
 
   // ---------------- invitaciones ----------------
@@ -414,8 +390,8 @@ G.Social = (() => {
     const f = friends.get(other);
     if (!f || f.status !== 'ok') return { ok: false, error: 'Sólo puedes invitar a tus amigos.' };
     if (room && room.members.length >= MAX_PLAYERS) return { ok: false, error: 'La sala está llena.' };
-    if (room && !room.isHost) return { ok: false, error: 'Sólo el anfitrión de la sala puede invitar.' };
-    if (!room) await createRoom();
+    if (room && !room.isHost) return { ok: false, error: 'Sólo el líder de la sala puede invitar.' };
+    if (!room) { const r = await createRoom(); if (!r.ok) return r; }
     try {
       await fb.fs.collection('inv').doc(other + '_' + uid).set({ to: other, from: uid, room: room.id, name: me.name, at: fts() });
     } catch (e) { return { ok: false, error: 'No se pudo invitar (' + (e.code || 'error') + ').' }; }

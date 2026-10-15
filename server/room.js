@@ -41,10 +41,14 @@
  *   bd [id, dex] jefe vencido · sh [dex] shiny · rw [dex] Pokémon rescatado
  *   bomb [x, y] · mag · heal [jugador] · bio [bioma] · ja [x, y, anim, dir] Arceus
  *   wait [nombres] quién está eligiendo (vacía = sigue)
+ *   kit [huecos, activo, objeto, vínculos, [velocidad, imán]] tu Pokémon (sólo a ti, al cambiar)
  *
- * Pendiente para el paso 4: mejoras de tienda de cada jugador (aquí perks({})),
- * comprobar que el Pokémon y el shiny son suyos, cambiar cartas (reroll), los
- * altares/cofres/trampas para los navegadores y los premios guardados por cada uno.
+ * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda
+ * (perks() los recorta a su máximo), bind: atajos, ban: vetados }. Se cree al
+ * navegador como en solitario: el ranking de grupo no puede pasar de lo que
+ * consigue un jugador con todas las mejoras compradas.
+ *
+ * Pendiente: comprobar que el Pokémon y el shiny son suyos, cambiar cartas (reroll).
  */
 'use strict';
 const { createSim } = require('./sim');
@@ -90,7 +94,7 @@ const str = v => (v == null ? '' : String(v));
 /**
  * Crea una partida.
  * @param {object} o
- * @param {{uid:string,name:string,dex:number,shiny:boolean}[]} o.members  jugadores (1-4)
+ * @param {{uid:string,name:string,dex:number,shiny:boolean,kit?:object}[]} o.members  jugadores (1-4)
  * @param {number} o.seed
  * @param {(uid:string, msg:object) => (boolean|void)} o.send  false = no ha salido (se le reenvía todo)
  * @param {(results:object[]) => void} [o.onOver]
@@ -120,16 +124,21 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
   /** Un jugador de la sala. */
   const seats = members.map((m, i) => {
     const mon = G.DEX_BY[m.dex] && G.SPRITE_META[m.dex] ? G.DEX_BY[m.dex] : G.DEX_BY[25];
-    // TODO paso 4: mejoras de tienda del jugador (hoy, ninguna).
-    const pl = new G.Player(mon, G.Upgrades.perks({}), !!m.shiny);
+    // Mejoras de la tienda (kit.up): perks() ya recorta cada una a su máximo.
+    const kit = m.kit || {};
+    const perks = G.Upgrades.perks(kit.up || {});
+    const pl = new G.Player(mon, perks, !!m.shiny);
     pl.uid = m.uid; pl.tag = str(m.name);
+    // Atajos (huecos fijos) y Veto, como en game.js startRun.
+    (Array.isArray(kit.bind) ? kit.bind : []).forEach((id, j) => { if (id && G.Moves.BY_ID[id]) pl.bind[id] = j; });
+    pl.banned = new Set((Array.isArray(kit.ban) ? kit.ban : []).filter(id => G.Moves.BY_ID[id]).slice(0, perks.bans));
     return {
-      id: i, uid: m.uid, name: str(m.name), pl,
+      id: i, uid: m.uid, name: str(m.name), pl, perks,
       on: true, gone: false, offT: 0,
       in: null, inAt: -1, ack: 0, lastMove: -1, axis: [0, 0],
       accX: 0, accY: 0, accT: 0, tpT: -99,
       queue: [], holdOn: false, holdT: 0,
-      known: new Map(), pk: new Set(), ev: [], evCos: 0,
+      known: new Map(), pk: new Set(), ev: [], evCos: 0, kitSig: '',
       shinies: [], rescued: []
     };
   });
@@ -234,6 +243,12 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
     p.x = (i - (seats.length - 1) / 2) * 34; p.y = 0;
     G.World.collide(p);
     p.addMove(G.startMoveOf(p.dex));
+    // Mejora "Repertorio": un segundo movimiento de ataque al azar (game.js startRun).
+    if (s.perks.startMoves >= 2) {
+      const pool = G.Moves.poolFor(p.mon).filter(id => !p.hasMove(id) && !p.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
+      if (pool.length) p.addMove(G.U.pick(pool));
+      p.setActive(0);
+    }
     s.accX = p.x; s.accY = p.y;
   });
   syncLevel();
@@ -552,6 +567,18 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
     return { snap: out, dies };
   }
 
+  /**
+   * Lo que el navegador necesita de SU Pokémon y no va en el snap: huecos con
+   * sus movimientos ([id, nivel, evolucionado]), hueco activo, objeto,
+   * vínculos sin usar y [multiplicador de velocidad, radio del imán] (para
+   * moverse a la misma velocidad que aquí y no ser corregido).
+   */
+  function kitOf(s) {
+    const p = s.pl;
+    return [p.slots.map(g => g.map(m => [m.id, m.lvl, m.evolved ? 1 : 0])), p.active, str(p.item), p.bonds | 0,
+            [r2(p.spdMul), r1(p.magnet)]];
+  }
+
   /** Manda a cada conectado sus eventos y su instantánea. */
   function flush() {
     const ja = G.Judgment.active && !G.Judgment.cinematic ? G.Judgment.netState() : null;
@@ -561,6 +588,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
     const shared = evAll.length ? { t: 'ev', list: evAll } : null;
     for (const s of active()) {
       if (!s.on) { s.ev = []; s.evCos = 0; continue; }
+      const kit = kitOf(s), sig = JSON.stringify(kit);
+      if (sig !== s.kitSig) { s.kitSig = sig; s.ev.push(['kit', ...kit]); }
       const { snap, dies } = snapFor(s, pmap, shotsAll);
       if (dies.length) s.ev.push(['die', dies]);
       if (s.ev.length) send(s.uid, { t: 'ev', list: evAll.concat(s.ev) });
@@ -660,7 +689,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
       const s = byUid.get(uid);
       if (!s || s.on || s.gone || over) return;
       s.on = true; s.offT = 0;
-      s.known.clear(); s.pk.clear();
+      s.known.clear(); s.pk.clear(); s.kitSig = '';
       s.accX = s.pl.x; s.accY = s.pl.y; s.accT = clock.t;
       if (s.queue.length) send(s.uid, choiceMsg(s.queue[0]));
     },

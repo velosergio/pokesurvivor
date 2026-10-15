@@ -363,6 +363,14 @@
       <button class="btn gold" type="submit" data-sfx="confirm">Añadir amigo</button>
     </form>
     <p id="fr-msg" class="note"></p>
+    <div id="fr-group" class="fr-group">
+      <h3 style="margin:14px 0 6px">Jugar en grupo</h3>
+      <form id="fr-join" class="row" autocomplete="off">
+        <button id="fr-create" class="btn gold" type="button" data-sfx="confirm">Crear sala</button>
+        <input id="fr-code" class="field grow" maxlength="6" spellcheck="false" autocapitalize="characters" placeholder="Código de una sala">
+        <button class="btn" type="submit" data-sfx="confirm">Unirse</button>
+      </form>
+    </div>
     <div id="fr-list" class="fr-list"></div>
   </div>
 </section>
@@ -373,6 +381,7 @@
     <div class="row between"><h2>Sala</h2>
       <div class="row"><button id="lobby-menu" class="btn small ghost">Menú</button><button id="lobby-leave" class="btn small ghost">Salir de la sala</button></div></div>
     <p class="sub" id="lobby-sub"></p>
+    <p class="lob-code">Código de la sala: <b id="lobby-code" translate="no"></b> <button id="lobby-copy" class="btn small ghost" type="button">Copiar</button></p>
     <div id="lobby-members" class="lobby-members"></div>
     <h3 id="lobby-inv-title" style="margin:14px 0 6px">Invitar amigos</h3>
     <div id="lobby-invite" class="fr-list"></div>
@@ -630,8 +639,9 @@
 <script defer src="js/systems/hazards.js"></script>
 <script defer src="js/systems/step.js"></script>
 <!-- red: amigos, salas, cooperativo y ranking -->
-<script defer src="js/net/social.js"></script>
+<script defer src="js/net/proto.js"></script>
 <script defer src="js/net/net.js"></script>
+<script defer src="js/net/social.js"></script>
 <script defer src="js/net/coop.js"></script>
 <script defer src="js/net/ranking.js"></script>
 <!-- interfaz -->

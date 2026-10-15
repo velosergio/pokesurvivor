@@ -1,7 +1,17 @@
 # Copia propia + cooperativo en servidor — diseño
 
-Fecha: 14-10-2026 · Estado: pasos 1, 2 y 3 hechos (Plan 1, Plan 2 y servidor en `server/` con bots);
-pasos 4-5 pendientes.
+Fecha: 14-10-2026 · Estado: pasos 1-4 hechos; del 5, retirado el código antiguo (WebRTC,
+`database.rules.json`, sección `database` de `firebase.json`). Falta el despliegue de `game`, la
+prueba de carga contra el VPS, borrar la Realtime Database del proyecto y la prueba manual publicada.
+
+**Paso 4 (15-10-2026):** `js/net/net.js` es un WebSocket con el servidor (`hello` → `hi`; se
+reconecta solo 20 s), `js/net/coop.js` dibuja lo que manda el servidor y sólo envía `in`; salas con
+código en `social.js` (Amigos > Jugar en grupo); el kit de cada jugador (mejoras de la tienda, atajos
+y vetos) va en el `hello` y el servidor manda `kit` con sus movimientos, objeto y velocidad. Reglas:
+las tablas `g_` ya no aceptan escrituras de navegadores y `addMine` compara también nivel,
+derrotados y shiny (`tools/rules`, emulador). Probado con un navegador real y bots (`bots.js --join`).
+Pendiente: cambiar cartas en grupo, comprobar que el Pokémon y el shiny son de quien los manda, y
+que el servidor avise de altares, cofres y trampas.
 
 **Medido en el paso 3 (local, Windows, bots que sólo dan vueltas):** snap medio ~450 B (máx. ~1,3 KB),
 3,5-4,5 KB/s por jugador (~12-16 MB por jugador y hora), ~21 MB de RAM por sala, y CPU de 7-14 % de
@@ -96,7 +106,7 @@ zona a Cloudflare sin tocar el juego.
 | Servicio | Imagen | Dominio / ruta | Notas |
 |---|---|---|---|
 | `web` | `Dockerfile` actual (nginx 1.27) | `poke.sergioveloza.com` | `nginx.conf` con `server_name` del nuevo dominio |
-| `game` | `server/Dockerfile` (Node 20 alpine) | `poke.sergioveloza.com`, ruta `/ws` | puerto 8787; HTTPS lo pone Easypanel |
+| `game` | `server/Dockerfile` (Node 24 alpine) | `poke.sergioveloza.com`, ruta `/ws` | puerto 8787; HTTPS lo pone Easypanel |
 
 Separados para que publicar la web no corte partidas. `game` lee: `PORT`, `FIREBASE_SERVICE_ACCOUNT`,
 `ALLOWED_ORIGINS`, `PROTO` (versión del protocolo).

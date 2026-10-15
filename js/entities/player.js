@@ -200,7 +200,7 @@ G.Player = class Player {
    */
   cast(m) {
     // Vidasfera: cada ataque cuesta un poco de vida (nunca te deja KO).
-    if (this.hasItem('lifeorb') && m.kind !== 'orbit' && m.kind !== 'trail' && !this.remote) {
+    if (this.hasItem('lifeorb') && m.kind !== 'orbit' && m.kind !== 'trail' && !this.remote && !this.netHp) {
       this.hp = Math.max(1, this.hp - Math.max(1, this.maxHp * 0.01));
     }
     const anim = { melee: 'Attack', beam: 'Shoot', projectile: 'Shoot', nova: 'Attack',
@@ -226,7 +226,8 @@ G.Player = class Player {
    * @param pure  daño que no baja con la defensa ni el cuerpo a cuerpo (Arceus)
    */
   hurt(amount, type = null, pure = false) {
-    if (this.invuln > 0 || this.dead) return;
+    // En grupo tu vida la lleva el servidor (net/coop.js): aquí no te daña nada.
+    if (this.invuln > 0 || this.dead || this.netHp) return;
     let eff = null;
     if (type) {
       const k = G.Types.mult(type, this.mon.types);
