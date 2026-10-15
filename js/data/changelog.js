@@ -21,6 +21,8 @@ G.CHANGELOG = [
     ['Cooperativo: al volver de una grieta cada uno aparece donde estaba al entrar, no todos juntos en el mismo sitio.',
      'Co-op: coming back from a rift, everyone appears where they were when they went in, not all bunched up in one spot.']
   ], fix: [
+    ['Las monedas y la experiencia que suelta un Pokémon volador o un jefe derrotado encima de una pared, una roca o la lava ya no se quedan donde no se puede llegar: caen en el hueco libre más cercano.',
+     'Coins and experience dropped by a flying Pokémon or a boss defeated over a wall, a rock or lava no longer end up out of reach: they land in the nearest open spot.'],
     ['Al entrar o salir de una grieta, la pantalla se tapa un momento y apareces ya en el sitio: la cámara ya no recorre el mapa.',
      'Entering or leaving a rift covers the screen for a moment and you appear already there: the camera no longer travels across the map.'],
     ['Al volver de una grieta con la ventana del vínculo o de las cartas abierta, la pantalla ya no se queda morada y parada hasta que eliges.',

@@ -155,3 +155,31 @@ test('la Vidasfera nunca es el primer objeto', () => {
   for (let i = 0; i < 400 && !seen; i++) seen = G.Items.roll() === 'lifeorb';
   assert.ok(seen, 'llevando objeto también debe poder salir');
 });
+
+test('lo que cae dentro de una pared o en la lava sale a un sitio alcanzable; en el agua se queda', () => {
+  const sim = createSim({ seed: 3 });
+  soloRun(sim);
+  const { G } = sim, W = G.World, TS = W.TS;
+  const reach = (x, y) => W.isFree(x, y, 6, true) && W.walkable(Math.floor(x / TS), Math.floor(y / TS));
+  const find = pred => {
+    for (let ty = -150; ty < 150; ty++) for (let tx = -150; tx < 150; tx++) {
+      const x = tx * TS + TS / 2, y = ty * TS + TS / 2;
+      if (pred(x, y)) return [x, y];
+    }
+    assert.fail('no hay sitio para probar');
+  };
+  const around = (x, y, f) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].every(([a, b]) => f(x + a * TS, y + b * TS));
+  const dropAt = ([x, y]) => { G.Pickups.clear(); G.Pickups.drop('coin', x, y, 1); return G.Pickups.all()[0]; };
+  // Pared gruesa: antes la moneda se quedaba dentro, lejos del imán.
+  const wall = find((x, y) => around(x, y, (a, b) => around(a, b, W.isWall)));
+  let o = dropAt(wall);
+  assert.ok(reach(o.x, o.y), 'sigue dentro de la pared');
+  // El agua se pisa: no se mueve.
+  const water = find((x, y) => around(x, y, W.isLiquid));
+  o = dropAt(water);
+  assert.deepEqual([o.x, o.y], water);
+  // La lava quema: sale.
+  W.setBiome(G.Tiles.BIOMES.findIndex(b => b.liquid === 'lava'), true);
+  o = dropAt(find((x, y) => around(x, y, W.isLiquid)));
+  assert.ok(reach(o.x, o.y), 'sigue en la lava');
+});

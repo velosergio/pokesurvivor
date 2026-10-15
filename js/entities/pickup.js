@@ -34,6 +34,7 @@ G.Pickups = (() => {
   function push(o) {
     // En cooperativo sólo el anfitrión crea objetos (las copias llegan por la red).
     if (G.Coop.active && !G.Coop.isHost) return;
+    reachable(o);
     o.id = nextId++;
     list.push(o);
     if (G.Coop.isHost) G.Coop.pickupAdded(o);
@@ -48,6 +49,26 @@ G.Pickups = (() => {
       } else {
         const a = list.shift();
         if (G.Coop.isHost) G.Coop.pickupGone(a.id);
+      }
+    }
+  }
+
+  /*
+   * Los voladores y los jefes atraviesan paredes y charcos: si caen ahí, lo que
+   * sueltan quedaba donde no se puede llegar (o sólo quemándose en la lava). Se
+   * lleva al hueco libre más cercano. El agua, el pantano y el hielo se pisan: ahí se queda.
+   */
+  function canReach(x, y, r) {
+    const W = G.World;
+    return W.isFree(x, y, r, true) && W.walkable(Math.floor(x / W.TS), Math.floor(y / W.TS));
+  }
+  function reachable(o) {
+    if (canReach(o.x, o.y, 6)) return;
+    for (let d = 16; d <= 320; d += 16) {
+      const n = Math.max(8, Math.round(d / 6));
+      for (let k = 0; k < n; k++) {
+        const a = k / n * 6.2832, x = o.x + Math.cos(a) * d, y = o.y + Math.sin(a) * d;
+        if (canReach(x, y, 10)) { o.x = x; o.y = y; return; }
       }
     }
   }
