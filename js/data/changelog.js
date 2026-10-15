@@ -14,6 +14,8 @@ G.CHANGELOG = [
     ['Cooperativo: si tu última partida en grupo sigue en marcha sin ti (cerraste el juego o se cortó más de un minuto), en el menú sale «Reconectar» para volver a ella con tu Pokémon como lo dejaste.',
      'Co-op: if your last group game is still going on without you (you closed the game or lost connection for over a minute), the menu shows “Reconnect” to jump back in with your Pokémon as you left it.']
   ], fix: [
+    ['Al entrar o salir de una grieta, la pantalla se tapa un momento y apareces ya en el sitio: la cámara ya no recorre el mapa.',
+     'Entering or leaving a rift covers the screen for a moment and you appear already there: the camera no longer travels across the map.'],
     ['Cooperativo: si recargas la página o se te corta la conexión en mitad de una partida en grupo, vuelves a entrar solo a la misma partida. Tienes un minuto.',
      'Co-op: if you reload the page or your connection drops in the middle of a group game, you rejoin that same game on your own. You have one minute.'],
     ['Cooperativo: en la ventana de vincular movimientos (al derrotar a un jefe) y en la de elegir objeto vuelven a funcionar las teclas de los números.',

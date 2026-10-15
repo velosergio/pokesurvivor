@@ -162,6 +162,8 @@ G.Game = (() => {
   // Destello de pantalla completa (viaje a la grieta).
   let flashT = 0, flashDur = 1, flashCol = '#fff';
   function flash(col, dur) { flashCol = col; flashDur = dur; flashT = dur; }
+  const veil = G.Curtain.create();
+  function curtain(col) { veil.start(col); }
 
   /**
    * Los tickets recogidos se guardan en cuanto los coges (como los shinies):
@@ -608,6 +610,7 @@ G.Game = (() => {
   function update(dt) {
     const coop = G.Coop.active;
     if (flashT > 0) flashT -= dt;
+    veil.tick(dt);
     // La Sentencia de Arceus: mientras dura la animación, todo lo demás se para.
     if (G.Judgment.cinematic) {
       G.Judgment.cineTick(dt);
@@ -626,6 +629,7 @@ G.Game = (() => {
       G.EnemyMgr.update(dt * 0.3, pl);
       G.FX.update(dt);
       G.Camera.follow(pl.x, pl.y, dt);
+      veil.lock(G.Camera, pl);
       if (deathT > 1.3) { deathT = 0; endRun(true); }
       return;
     }
@@ -649,6 +653,7 @@ G.Game = (() => {
     }
     // (En grupo, la cámara sigue a tu Pokémon donde se dibuja: ver netOff en net/coop.js.)
     G.Camera.follow(pl.x + (pl.netOffX || 0), pl.y + (pl.netOffY || 0), dt);
+    veil.lock(G.Camera, pl);
     G.Step.world(dt, time, everyone(), pl, !coop, onCollect);
     G.FX.update(dt);
 
@@ -749,6 +754,13 @@ G.Game = (() => {
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
+    if (veil.on) {
+      ctx.save();
+      ctx.globalAlpha = veil.alpha;
+      ctx.fillStyle = veil.color;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
   }
 
   // ---------------- fondo de los menús ----------------
@@ -845,7 +857,7 @@ G.Game = (() => {
   })();
 
   return {
-    init, startRun, everyone, levelXp, flash, offerBond,
+    init, startRun, everyone, levelXp, flash, curtain, offerBond,
     /** Para pruebas: salta el reloj de la run. */
     debugTime(t) { tampered = true; time = t; },
     /** Para grabar vídeos: cámara lenta (0,5 = mitad de velocidad). */
