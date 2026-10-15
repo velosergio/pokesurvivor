@@ -190,6 +190,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     everyone: players,
     levelXp() { return Math.ceil((team.xpNext - team.xp + 1) / xpK()); },
     flash() {},
+    curtain() {},
     offerBond() { offerBonds(); },
     get state() { return over ? 'over' : 'playing'; }
   };

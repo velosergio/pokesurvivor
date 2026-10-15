@@ -13,7 +13,7 @@ function soloRun(sim, { dex = 4, world = 1234, god = false } = {}) {
   const mon = G.DEX_BY[dex];
   const pl = new G.Player(mon, G.Upgrades.perks({}), false);
   let time = 0, levels = 0, biome = 0;
-  G.Game = { player: pl, st: { get time() { return time; } }, everyone: () => [pl], flash() {}, levelXp: () => 20, offerBond() {} };
+  G.Game = { player: pl, st: { get time() { return time; } }, everyone: () => [pl], flash() {}, curtain() {}, levelXp: () => 20, offerBond() {} };
   for (const m of [G.Projectiles, G.EnemyMgr, G.Pickups, G.Path, G.Hazards]) m.clear();
   for (const m of [G.Spawner, G.Rift, G.Judgment, G.Events, G.Weather]) m.reset();
   G.Combat.clearFields();

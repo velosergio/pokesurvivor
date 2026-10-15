@@ -138,7 +138,7 @@ G.Rift = (() => {
     const ps = G.Game.everyone();
     ps.forEach((p, i) => { p.x = arena.x + (i - (ps.length - 1) / 2) * 34; p.y = arena.y + ts * 3; });
     G.Camera.x = pl.x; G.Camera.y = pl.y;
-    G.Game.flash('#c9a6ff', 0.9);
+    G.Game.curtain('#c9a6ff');
     G.Audio.sfx('rift');
     G.Spawner.say('Has entrado en la grieta…', 2.4, true);
   }
@@ -238,7 +238,7 @@ G.Rift = (() => {
     if (pl.dead) pl.revive(0.3);
     if (crew) for (const p of crew) if (p.dead) p.revive(0.3);
     G.Camera.x = pl.x; G.Camera.y = pl.y;
-    G.Game.flash('#c9a6ff', 0.8);
+    G.Game.curtain('#c9a6ff');
     if (pl.bonds > 0) G.Game.offerBond();
   }
 

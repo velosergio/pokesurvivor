@@ -95,3 +95,18 @@ test('sala de 4 bots hasta la Sentencia sin errores (createRoom)', () => {
   assert.ok(snaps > 0, 'no ha mandado instantáneas');
   room.stop();
 });
+
+test('la grieta avisa con curtain y no con flash', () => {
+  const sim = createSim({ seed: 5 });
+  const r = soloRun(sim, { god: true });
+  let curtains = 0, flashes = 0;
+  sim.G.Game.curtain = () => { curtains++; };
+  sim.G.Game.flash = () => { flashes++; };
+  run(r, 20);
+  sim.G.Rift.debugOpen();
+  let inside = false, back = false;
+  run(r, 240, () => { if (sim.G.Rift.inArena) inside = true; else if (inside) back = true; });
+  assert.ok(inside && back, 'no ha ido y vuelto');
+  assert.ok(curtains >= 2, 'curtain ' + curtains);
+  assert.equal(flashes, 0);
+});
