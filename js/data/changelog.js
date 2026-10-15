@@ -13,6 +13,9 @@ G.CHANGELOG = [
      'Co-op: rooms now hold up to 10 players. With more than 4, more Pokémon show up at once so there are enough for everyone.'],
     ['Cooperativo: si tu última partida en grupo sigue en marcha sin ti (cerraste el juego o se cortó más de un minuto), en el menú sale «Reconectar» para volver a ella con tu Pokémon como lo dejaste.',
      'Co-op: if your last group game is still going on without you (you closed the game or lost connection for over a minute), the menu shows “Reconnect” to jump back in with your Pokémon as you left it.']
+  ], chg: [
+    ['Cooperativo: al volver de una grieta cada uno aparece donde estaba al entrar, no todos juntos en el mismo sitio.',
+     'Co-op: coming back from a rift, everyone appears where they were when they went in, not all bunched up in one spot.']
   ], fix: [
     ['Al entrar o salir de una grieta, la pantalla se tapa un momento y apareces ya en el sitio: la cámara ya no recorre el mapa.',
      'Entering or leaving a rift covers the screen for a moment and you appear already there: the camera no longer travels across the map.'],

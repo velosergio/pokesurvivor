@@ -25,7 +25,7 @@ G.Rift = (() => {
   const CHECK = 30, CHANCE = 0.2, TTL = 45;
   const ARENA_R = 11, ARENA_TIME = 120, FROM = 75;
   let rift = null;          // { x, y, ttl, t }
-  let arena = null;         // { tx, ty, r, dex, shiny, x, y, back, biome, t, phase, endT, bossId }
+  let arena = null;         // { tx, ty, r, dex, shiny, x, y, back, backs, biome, t, phase, endT, bossId }
   let checkT = CHECK, asked = false, downT = 0, misses = 0;
   let crew = null;          // (servidor) el equipo del último update(…, team): premio y vuelta para todos
   const authority = () => !G.Coop.active || G.Coop.isHost;
@@ -122,7 +122,9 @@ G.Rift = (() => {
     const ts = TS();
     arena = Object.assign({}, cfg, {
       x: cfg.tx * ts + ts / 2, y: cfg.ty * ts + ts / 2,
-      back: { x: pl.x, y: pl.y }, biome: G.World.biome, t: 0, phase: 'fight', endT: 0, bossId: 0
+      back: { x: pl.x, y: pl.y }, biome: G.World.biome, t: 0, phase: 'fight', endT: 0, bossId: 0,
+      // Dónde estaba cada uno al entrar: al volver, cada cual a su sitio.
+      backs: new Map(G.Game.everyone().map(p => [p, { x: p.x, y: p.y }]))
     });
     rift = null; asked = false; downT = 0;
     if (authority()) G.EnemyMgr.stash(); else G.EnemyMgr.clearRemote();
@@ -233,8 +235,12 @@ G.Rift = (() => {
     G.Projectiles.clear();
     G.Combat.clearFields();
     G.Hazards.clear();
-    for (const p of G.Game.everyone()) { p.x = a.back.x; p.y = a.back.y; }
-    pl.x = a.back.x; pl.y = a.back.y;
+    // Cada uno a donde estaba al entrar; quien llegó con la arena ya empezada,
+    // al sitio de quien la abrió.
+    for (const p of new Set([...G.Game.everyone(), pl])) {
+      const at = a.backs.get(p) || a.back;
+      p.x = at.x; p.y = at.y;
+    }
     if (pl.dead) pl.revive(0.3);
     if (crew) for (const p of crew) if (p.dead) p.revive(0.3);
     G.Camera.x = pl.x; G.Camera.y = pl.y;

@@ -112,3 +112,25 @@ test('grieta en equipo: entra el grupo si la toca uno cualquiera, y vuelven todo
   assert.ok(!G.Rift.inArena, 'no han vuelto de la grieta');
   assert.ok(r.players.every(p => !p.dead), 'alguien vuelve caído');
 });
+
+test('grieta en equipo: cada uno vuelve a donde estaba al entrar, no todos juntos', () => {
+  const sim = createSim({ seed: 5 });
+  const { G } = sim;
+  const r = teamRun(sim, { god: true, gap: 300 });
+  run(r, 2);
+  // Dónde estaba cada uno justo al entrar (antes de que la arena los ponga en fila).
+  let before = null;
+  const setArena = G.World.setArena;
+  G.World.setArena = (a) => { before = before || r.players.map(p => [p.x, p.y]); return setArena(a); };
+  G.Rift.debugArena();
+  assert.ok(G.Rift.inArena, 'no ha entrado el grupo');
+  assert.ok(before, 'no se ha visto la entrada');
+  for (let i = 0; i < 200 * 30 && G.Rift.inArena; i++) r.step(DT);
+  assert.ok(!G.Rift.inArena, 'no han vuelto de la grieta');
+  // Tras la vuelta un paso puede moverlos un poco (choques, tierra).
+  r.players.forEach((p, i) => {
+    const d = Math.hypot(p.x - before[i][0], p.y - before[i][1]);
+    assert.ok(d < 40, 'el ' + i + ' vuelve a ' + Math.round(d) + ' px de donde estaba');
+  });
+  assert.ok(Math.hypot(r.players[0].x - r.players[3].x, r.players[0].y - r.players[3].y) > 300, 'vuelven juntos');
+});
