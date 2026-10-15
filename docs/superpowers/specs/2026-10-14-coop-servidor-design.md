@@ -3,7 +3,8 @@
 Fecha: 14-10-2026 · Estado: pasos 1-4 hechos; del 5, retirado el código antiguo (WebRTC,
 `database.rules.json`, sección `database` de `firebase.json`) y desplegado `game` en Easypanel
 (`wss://poke.sergioveloza.com/ws` responde; Node 24.12 como mínimo), con prueba de carga en el VPS
-y `MAX_ROOMS=20` (§5). Falta borrar la Realtime Database del proyecto y la prueba manual publicada.
+y `MAX_ROOMS=20` (§5), `FIREBASE_SERVICE_ACCOUNT` puesta (§2.3) y `firestore.rules` desplegadas
+(`firebase deploy --only firestore:rules`, 15-10-2026). Lo que falta, en §9.
 
 **Paso 4 (15-10-2026):** `js/net/net.js` es un WebSocket con el servidor (`hello` → `hi`; se
 reconecta solo 20 s), `js/net/coop.js` dibuja lo que manda el servidor y sólo envía `in`; salas con
@@ -31,7 +32,7 @@ cada lectura de `G`, `Math`... costaba ~150 ns. `server/sim.js` usa ahora
 `propAt` con clave numérica y `placeProps` sin recalcular el ruido de las vecinas (mismo mundo,
 comprobado con una huella). Medido con 4 bots: tick de ~3,9 ms → ~0,5 ms (unas 8 veces menos
 CPU), `walkable` de ~700 ns → ~50 ns, crear sala ~150 ms → ~45 ms. Falta repetir la medida con
-bots por WebSocket en la prueba de carga.
+bots por WebSocket en la prueba de carga. *(Hecho el 15-10-2026: §5.)*
 
 ## 1. Objetivo
 
@@ -91,13 +92,14 @@ la sala en Realtime Database de `social.js`.
 - Registrar la app web y copiar su configuración a `js/config.js`.
 - Crear Firestore (ubicación `eur3` o la más cercana a los jugadores) y desplegar
   `firestore.rules` + `firestore.indexes.json`.
-- Crear una Realtime Database (sólo hasta el paso 5, para las salas del cooperativo antiguo) y
-  desplegar `database.rules.json`.
+- ~~Crear una Realtime Database~~ (sólo hasta el paso 5; el código ya no la usa: falta borrarla).
 - Authentication: activar usuario/contraseña (email interno) y Google, en modo **normal**.
   **Nunca** Identity Platform ni funciones de bloqueo (cobran por usuario).
 - Dominios autorizados: añadir `poke.sergioveloza.com`.
-- Cuenta de servicio para el servidor (sólo para escribir el ranking de grupo): su JSON va como
-  variable secreta `FIREBASE_SERVICE_ACCOUNT` en Easypanel, nunca al repositorio.
+- Cuenta de servicio para el servidor: `game-ranking@pokesurvivor-662eb.iam.gserviceaccount.com`,
+  sólo con el rol **Cloud Datastore User**. Escribe el ranking de grupo y lee `saves/{uid}` al
+  empezar cada partida (§3.6). Su JSON, en una línea, va como variable secreta
+  `FIREBASE_SERVICE_ACCOUNT` en Easypanel; nunca al repositorio.
 
 ### 2.4 DNS (hecho)
 
@@ -113,8 +115,10 @@ zona a Cloudflare sin tocar el juego.
 | `web` | `Dockerfile` actual (nginx 1.27) | `poke.sergioveloza.com` | `nginx.conf` con `server_name` del nuevo dominio |
 | `game` | `server/Dockerfile` (Node 24 alpine) | `poke.sergioveloza.com`, ruta `/ws` | puerto 8787; HTTPS lo pone Easypanel |
 
-Separados para que publicar la web no corte partidas. `game` lee: `PORT`, `FIREBASE_SERVICE_ACCOUNT`,
-`ALLOWED_ORIGINS`, `PROTO` (versión del protocolo).
+Separados para que publicar la web no corte partidas. `game` lee: `PORT` (8787),
+`ALLOWED_ORIGINS` (`https://poke.sergioveloza.com`), `MAX_ROOMS` (20), `FIREBASE_SERVICE_ACCOUNT`
+y `PROTO` (opcional: sólo avisa si no coincide). `DEV_AUTH` nunca en Easypanel. `game` no se
+redespliega solo (`autoDeploy` apagado): sólo cuando cambie `server/` o la lógica compartida.
 
 ## 3. Arquitectura del cooperativo
 
@@ -163,13 +167,15 @@ sus órdenes en vez de por el teclado.
 ### 3.4 Protocolo
 
 Conexión: `wss://poke.sergioveloza.com/ws`. Primer mensaje del navegador:
-`hello { token, proto, name, dex, shiny }`. Si `proto` no coincide → `bye { reason: 'update' }`
-y el juego pide recargar (lo hace `updater.js` en el menú).
+`hello { token, proto, name, dex, shiny, kit }` (`kit`: `{ up, bind, ban }`, mejoras de la tienda,
+atajos y vetos de su Pokémon). Si `proto` no coincide → `bye { reason: 'update' }` y el juego pide
+recargar (lo hace `updater.js` en el menú). Con el hello aceptado llega `hi { uid }`.
 
 Navegador → servidor (texto JSON salvo `in`):
 - `create`, `join { code }`, `leave`, `open { v }`, `start` (sólo el líder)
 - `in` (binario, ~15/s): secuencia, posición propia, dirección, movimiento activo
-- `pick { choice }` (mejora/fusión), `hold { on }` (pausa para elegir fusión)
+- `pick { choice }` (carta, objeto o fusión). `hold { on }` existe en el servidor, pero el
+  navegador no lo usa: las elecciones las propone el servidor (`level`).
 
 Servidor → navegador:
 - `room { code, leader, members, open }`, `started { seed, members }`
@@ -177,11 +183,15 @@ Servidor → navegador:
   animación), **enemigos cercanos** (radio ~950 px, sólo los cambios desde la última
   instantánea confirmada), proyectiles enemigos, objetos del suelo, y la última secuencia de
   `in` aplicada (para corregir la posición propia sin saltos)
-- `ev [...]` eventos sueltos (números de daño, efectos, frases, shiny, cofres…)
-- `level { options }`, `over { results }`, `bye { reason }`
+- `ev [...]` eventos sueltos (ataques de todos, números grandes, frases, shiny, grietas,
+  Sentencia, clima, `wait` con quién elige, `die`, y sólo para ti `kit`: tus huecos con sus
+  movimientos, hueco activo, objeto, vínculos, velocidad e imán)
+- `level { kind: level|item|bond, options }`, `over { results }`, `err { reason }`, `bye { reason }`
 
-El navegador interpola enemigos y compañeros entre instantáneas (100 ms de retraso) y dibuja
-su propio Pokémon al momento; cuando llega la posición validada, corrige suavemente.
+El navegador lleva enemigos y compañeros hacia la última posición recibida (con la velocidad
+estimada entre instantáneas) y dibuja su propio Pokémon al momento; si el servidor le ha
+corregido, lo desplaza lo corregido. Los ataques de todos, también los suyos, se repiten como
+fantasma (sin daño). Su vida es la del servidor.
 
 ### 3.5 Salas y amigos
 
@@ -197,8 +207,11 @@ su propio Pokémon al momento; cuando llega la posición validada, corrige suave
 
 - El servidor mide el tiempo con su propio reloj de simulación y conoce los uids reales.
 - Al acabar, `rank.js` escribe la marca (mismo formato que hoy) con la cuenta de servicio, que
-  salta las reglas. Antes comprueba que ningún miembro tenga `saves/{uid}.sus == true` (si lo
-  tiene, esa partida no sube).
+  salta las reglas. Antes comprueba que ningún miembro tenga `saves/{uid}.ban` (ni la marca vieja
+  `sus`): si lo tiene, esa partida no sube.
+- Al empezar (`rank.checkKits`), cada mejora es lo menos entre lo que dice el navegador y lo
+  guardado, y la partida sólo cuenta para el ranking si el Pokémon y el shiny de todos son suyos
+  (ver el paso 4 arriba).
 - `firestore.rules`: las tablas de grupo (`board` que no empieza por `s_`) dejan de aceptar
   escrituras de navegadores. Las de solitario siguen igual. Se corrige además `addMine` para
   comprobar también `shiny`, `lv` y `kills`.
@@ -277,3 +290,26 @@ Cada paso deja el juego funcionando:
 `poke.sergioveloza.com`, publicación en Easypanel (servicios `web` y `game`), sin Worker ni TURN.
 Se mantienen: editar `dev.html` y no `index.html`, `version.json` + `updater.js`, changelog en
 español e inglés, nunca Identity Platform, commits sin firma de IA.
+
+## 9. Lo que falta (15-10-2026)
+
+**Para cerrar el paso 5**
+- Redesplegar `game` si no se ha hecho tras poner `MAX_ROOMS` y `FIREBASE_SERVICE_ACCOUNT`, y
+  mirar en su registro que no sale `FIREBASE_SERVICE_ACCOUNT no es JSON válido`.
+- Prueba manual en `poke.sergioveloza.com` con dos cuentas: sala con código, partida de más de
+  2 min, ver enemigos y ataques del otro, cartas que esperan a los dos, una pestaña que se va y
+  el otro sigue, y la marca en Ranking > Grupo (prueba también la cuenta de servicio).
+- Probar a mano la reconexión (cortar la red unos segundos en partida y volver).
+- Borrar la Realtime Database del proyecto en la consola de Firebase (borrado permanente: lo hace
+  el dueño). Ya no la usa nadie.
+- Confirmar en Easypanel el tiempo de parada de `game` (45 min, §3.7): no sale en la
+  configuración que devuelve el MCP.
+
+**Seguridad (secretos que han pasado por el chat)**
+- Rotar la clave de `game-ranking` (nueva clave JSON en Google Cloud, cambiarla en Easypanel y
+  borrar la vieja) y el token del MCP de Easypanel.
+
+**Juego (pendiente del paso 4)**
+- Cambiar cartas (reroll) en grupo: hoy no se puede.
+- Que el servidor avise a los navegadores de altares, cofres y trampas (hoy sólo se ven si se
+  activan cerca y el efecto lo pone el servidor).
