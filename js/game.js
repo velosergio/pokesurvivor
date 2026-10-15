@@ -642,7 +642,8 @@ G.Game = (() => {
       for (const p of [pl, ...G.Coop.puppets()]) { if (p !== pl) p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
       if (pl.dead) reviveTick(dt);
     }
-    G.Camera.follow(pl.x, pl.y, dt);
+    // (En grupo, la cámara sigue a tu Pokémon donde se dibuja: ver netOff en net/coop.js.)
+    G.Camera.follow(pl.x + (pl.netOffX || 0), pl.y + (pl.netOffY || 0), dt);
     G.Step.world(dt, time, everyone(), pl, !coop, onCollect);
     G.FX.update(dt);
 
@@ -696,11 +697,17 @@ G.Game = (() => {
     ctx.save();
     ctx.scale(G.Camera.scale, G.Camera.scale);
     G.Camera.apply(ctx);
-    drawScene(G.Camera, G.Coop.active ? [pl, ...G.Coop.puppets()] : [pl]);
-    G.Projectiles.draw(ctx);
-    G.Combat.drawAirFields(ctx);
-    G.FX.draw(ctx);
-    G.Judgment.drawAir(ctx);
+    // Grupo: tras una corrección del servidor, tu Pokémon se dibuja desde donde
+    // estaba y llega en ~100 ms (sólo al dibujar; la posición de verdad es pl.x).
+    const ox = pl.netOffX || 0, oy = pl.netOffY || 0;
+    pl.x += ox; pl.y += oy;
+    try {
+      drawScene(G.Camera, G.Coop.active ? [pl, ...G.Coop.puppets()] : [pl]);
+      G.Projectiles.draw(ctx);
+      G.Combat.drawAirFields(ctx);
+      G.FX.draw(ctx);
+      G.Judgment.drawAir(ctx);
+    } finally { pl.x -= ox; pl.y -= oy; }
     ctx.restore();
 
     G.Weather.draw(ctx, w, h, frameDt);

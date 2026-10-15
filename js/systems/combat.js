@@ -305,6 +305,14 @@ G.Combat = (() => {
     // Estela: varias copias del golpe a lo largo del recorrido.
     for (let d = 0; d <= len; d += 22) G.FX.sp(vis.proj || 'streak', vis.pal, sx + ca * d, sy + sa * d - G.LIFT * 0.6, { life: 0.22, angle: pl.aim });
     G.FX.slash(sx + ca * len, sy + sa * len - G.LIFT * 0.5, pl.aim, 34, 2.2, col, vis);
+    // En grupo, tu propia embestida llega del servidor como fantasma: también te
+    // mueve aquí (sin dañar), o el servidor te corregiría de golpe (salto de cámara).
+    if (ghost && pl.netHp) {
+      pl.x = sx + ca * len; pl.y = sy + sa * len;
+      G.World.collide(pl);
+      G.Coop.selfMoved(pl.x - sx, pl.y - sy);
+      return;
+    }
     if (ghost) return;
     pl.x = sx + ca * len; pl.y = sy + sa * len;
     G.World.collide(pl);

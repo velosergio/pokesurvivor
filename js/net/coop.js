@@ -28,6 +28,8 @@ G.Coop = (() => {
   const IN_EVERY = 1 / 15;              // s entre envíos de tu posición
   const FIX_MIN = 6;                    // px: por debajo, la corrección del servidor se ignora
   const SNAP_DT = 0.1;                  // s entre snaps (para estimar velocidades)
+  const FIX_FAR = 300;                  // px: más que esto es un viaje (grieta, Sentencia): sin suavizar
+  const FIX_EASE = 12;                  // rapidez con que se ve la corrección (~100 ms)
 
   let active = false, me = null, mySeat = -1;
   let local = null;                     // tu Player
@@ -106,6 +108,12 @@ G.Coop = (() => {
   /** Manda tu posición (~15/s) mientras la partida corre. */
   function tick(dt) {
     if (!active || !local) return;
+    // La corrección del servidor se ve poco a poco (ver mine).
+    if (local.netOffX || local.netOffY) {
+      const k = Math.exp(-FIX_EASE * dt);
+      local.netOffX *= k; local.netOffY *= k;
+      if (Math.abs(local.netOffX) + Math.abs(local.netOffY) < 0.3) local.netOffX = local.netOffY = 0;
+    }
     inT -= dt;
     if (inT > 0) return;
     inT = IN_EVERY;
@@ -193,8 +201,21 @@ G.Coop = (() => {
     for (const k of [...sent.keys()]) if (k < ack) sent.delete(k);
     const dx = p.x - at[0], dy = p.y - at[1];
     if (dx * dx + dy * dy < FIX_MIN * FIX_MIN) return;
-    // El servidor te tiene en otro sitio: se mueve lo corregido (también lo mandado después).
+    // El servidor te tiene en otro sitio: se mueve lo corregido (también lo mandado
+    // después). Tu posición salta, pero se DIBUJA desde donde estabas y llega en
+    // ~100 ms (netOff, game.js): así una pared o una trampa no dan tirones de cámara.
     pl.x += dx; pl.y += dy;
+    for (const v of sent.values()) { v[0] += dx; v[1] += dy; }
+    if (dx * dx + dy * dy < FIX_FAR * FIX_FAR) { pl.netOffX = (pl.netOffX || 0) - dx; pl.netOffY = (pl.netOffY || 0) - dy; }
+    else pl.netOffX = pl.netOffY = 0;
+  }
+
+  /**
+   * Te has movido por algo que también ha hecho el servidor (tu embestida, combat.js):
+   * lo ya mandado se cuenta desde la posición nueva, para que no te corrija otra vez.
+   */
+  function selfMoved(dx, dy) {
+    if (!active) return;
     for (const v of sent.values()) { v[0] += dx; v[1] += dy; }
   }
 
@@ -290,7 +311,7 @@ G.Coop = (() => {
 
   const noop = () => {};
   return {
-    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll,
+    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll, selfMoved,
     // En el navegador ya no se reparte nada: lo hace el servidor.
     xpFactor: () => 1,
     cast: noop, hit: noop, status: noop, hurtShown: noop, enemyAdded: noop, enemyGone: noop, enemyShot: noop,
