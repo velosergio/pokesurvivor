@@ -12,6 +12,7 @@
  *          puede. Sin `in` en 0,5 s, o desconectado, el Pokémon se queda quieto.
  *          `move` (hueco activo) se aplica cuando el navegador lo cambia.
  *   pick   {choice}  elige carta de nivel, objeto o fusión (índice).
+ *   reroll           cambia las cartas de nivel (1 por partida + Mejoras → Cambio de cartas).
  *   hold   {on}      pausa mientras el navegador elige algo por su cuenta.
  *
  * Experiencia y nivel son del equipo (como en js/net/coop.js). Al subir, cada
@@ -30,7 +31,7 @@
  * sólo esta sala, con `over` de lo conseguido.
  *
  * Mensajes de `level` (todos con `options` = [{id, name, ...}]):
- *   kind 'level'  cartas de nivel: {id, type, name, tag, desc, icon, color}; lv = nivel
+ *   kind 'level'  cartas de nivel: {id, type, name, tag, desc, icon, color}; lv = nivel; rr = cambios que quedan
  *   kind 'item'   objeto: [0] seguir con el tuyo, [1] ponerte el nuevo
  *   kind 'bond'   fusión: cada opción, los movimientos que se unen
  *
@@ -48,7 +49,8 @@
  * lo menos entre eso y la partida guardada (rank.js checkKits); perks() además
  * recorta cada una a su máximo.
  *
- * Pendiente: cambiar cartas (reroll).
+ * Altares, cofres y trampas los decide el servidor (interact.js); a los navegadores les llegan
+ * `alt` (quién se lleva el poder), `chs` (cómo va la apertura de un cofre) y `pb` (roto/abierto/saltó).
  */
 'use strict';
 const { createSim } = require('./sim');
@@ -139,7 +141,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       in: null, inAt: -1, ack: 0, lastMove: -1, axis: [0, 0],
       accX: 0, accY: 0, accT: 0, tpT: -99,
       queue: [], holdOn: false, holdT: 0,
-      known: new Map(), pk: new Set(), ev: [], evCos: 0, kitSig: '',
+      known: new Map(), pk: new Set(), ev: [], evCos: 0, kitSig: '', rr: 0,
       shinies: [], rescued: []
     };
   });
@@ -287,9 +289,12 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   const itemOut = id => ({ id: str(id), name: str((G.Items.BY[id] || {}).name) });
   const groupOut = ms => ({ id: ms.map(m => m.id).join('+'), name: ms.map(m => m.name).join(' + '), lv: ms.map(m => m.lvl) });
 
-  /** Mensaje de la elección que tiene delante. */
-  function choiceMsg(c) {
-    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, options: c.options.map(cardOut) };
+  /** Cambios de cartas que le quedan: 1 gratis por partida + los comprados (Mejoras → Cambio de cartas). */
+  const rerollsLeft = s => Math.max(0, 1 + (s.perks.rerolls || 0) - s.rr);
+
+  /** Mensaje de la elección que tiene delante (rr: cambios de cartas que le quedan). */
+  function choiceMsg(c, s) {
+    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, rr: rerollsLeft(s), options: c.options.map(cardOut) };
     if (c.kind === 'item') return { t: 'level', kind: 'item', options: [itemOut(c.cur), itemOut(c.next)] };
     return { t: 'level', kind: 'bond', options: c.options.map(groupOut) };
   }
@@ -299,7 +304,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     c.wait = 0;
     s.queue.push(c);
     if (!s.on) { resolveAll(s); return; }
-    if (s.queue.length === 1) send(s.uid, choiceMsg(c));
+    if (s.queue.length === 1) send(s.uid, choiceMsg(c, s));
   }
 
   /** Resuelve la elección de delante con la opción i. */
@@ -315,7 +320,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       const ms = c.options[i] || c.options[0];
       if (opt && ms && ms.every(m => opt.loose.includes(m)) && p.bonds > 0) p.fuse(ms, opt.group);
     }
-    if (s.on && s.queue.length) send(s.uid, choiceMsg(s.queue[0]));
+    if (s.on && s.queue.length) send(s.uid, choiceMsg(s.queue[0], s));
   }
   function resolveAll(s) { while (s.queue.length) resolve(s, 0); }
 
@@ -670,6 +675,16 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       if (i >= n) return;
       resolve(s, i);
     },
+    /** Cambia las cartas de nivel que tiene delante (si le quedan cambios): le llega otro `level`. */
+    reroll(uid) {
+      const s = byUid.get(uid);
+      if (!s || !s.queue.length || over) return;
+      const c = s.queue[0];
+      if (c.kind !== 'level' || rerollsLeft(s) <= 0) return;
+      s.rr++;
+      c.options = G.LevelUp.offer(s.pl);
+      send(s.uid, choiceMsg(c, s));
+    },
     /** Pausa (o no) mientras elige algo por su cuenta. */
     hold(uid, on) {
       const s = byUid.get(uid);
@@ -692,7 +707,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       s.on = true; s.offT = 0;
       s.known.clear(); s.pk.clear(); s.kitSig = '';
       s.accX = s.pl.x; s.accY = s.pl.y; s.accT = clock.t;
-      if (s.queue.length) send(s.uid, choiceMsg(s.queue[0]));
+      if (s.queue.length) send(s.uid, choiceMsg(s.queue[0], s));
     },
     /** Bucle propio a 20 Hz (recupera como mucho 3 pasos si se atrasa). */
     start() {

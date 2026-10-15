@@ -270,6 +270,8 @@ G.Coop = (() => {
       }
       case 'kit': if (api.kit) api.kit(ev); break;
       case 'pb': G.World.breakAt(ev[1], ev[2]); break;
+      case 'alt': G.Interact.netAltar(ev[1], ev[2], ev[3], ev[4], me, local); break;
+      case 'chs': G.Interact.netChest(ev[1], ev[2], ev[3]); break;
       case 'say': G.Spawner.say(ev[1], ev[2]); break;
       case 'rift': case 'riftx': case 'arena': case 'aw': case 'al': G.Rift.onEvent(ev); break;
       case 'jd': case 'jk': G.Judgment.onEvent(ev); break;
@@ -283,10 +285,12 @@ G.Coop = (() => {
 
   /** Eliges la opción i de lo que tienes delante (carta, objeto o fusión). */
   function pick(i) { G.Net.send('pick', { choice: i | 0 }); }
+  /** Pides otras cartas de nivel (el servidor decide si te quedan cambios). */
+  function reroll() { G.Net.send('reroll'); }
 
   const noop = () => {};
   return {
-    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick,
+    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll,
     // En el navegador ya no se reparte nada: lo hace el servidor.
     xpFactor: () => 1,
     cast: noop, hit: noop, status: noop, hurtShown: noop, enemyAdded: noop, enemyGone: noop, enemyShot: noop,

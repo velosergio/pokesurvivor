@@ -17,7 +17,7 @@ Al empezar, el servidor lee `saves/{uid}` de cada miembro con la cuenta de servi
 menos entre lo que dice el navegador y lo guardado, y si el Pokémon o el shiny no son suyos, la
 cuenta está baneada o no se puede leer en 5 s, la partida se juega pero no sube al ranking de grupo.
 El navegador sube lo pendiente antes de entrar en una sala, para que cuenten sus últimas compras.
-Pendiente: cambiar cartas en grupo y que el servidor avise de altares, cofres y trampas.
+Cambiar cartas, altares, cofres y trampas en grupo: hechos el 15-10-2026 (§9).
 
 **Medido en el paso 3 (local, Windows, bots que sólo dan vueltas):** snap medio ~450 B (máx. ~1,3 KB),
 3,5-4,5 KB/s por jugador (~12-16 MB por jugador y hora), ~21 MB de RAM por sala, y CPU de 7-14 % de
@@ -307,7 +307,10 @@ español e inglés, nunca Identity Platform, commits sin firma de IA.
 - Rotar la clave de `game-ranking` (nueva clave JSON en Google Cloud, cambiarla en Easypanel y
   borrar la vieja) y el token del MCP de Easypanel.
 
-**Juego (pendiente del paso 4)**
-- Cambiar cartas (reroll) en grupo: hoy no se puede.
-- Que el servidor avise a los navegadores de altares, cofres y trampas (hoy sólo se ven si se
-  activan cerca y el efecto lo pone el servidor).
+**Juego (hecho el 15-10-2026)**
+- Cambiar cartas en grupo: `reroll` (navegador → servidor); `level` lleva `rr`, los cambios que
+  quedan (1 + Mejoras → Cambio de cartas, ya comprobadas con la partida guardada).
+- Altares, cofres y trampas sólo en el servidor: manda `alt [tx, ty, uid, poder]` (el navegador
+  apaga el altar y, si es suyo, enseña el poder sin aplicarlo: los efectos llegan en el `kit`),
+  `chs [tx, ty, décimas]` con la apertura de un cofre, y `pb` al abrirse o saltar. Los manantiales
+  siguen viéndose en cada navegador. Compatible con el protocolo 1 (sólo mensajes nuevos).

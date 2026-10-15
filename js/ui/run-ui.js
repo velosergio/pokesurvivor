@@ -1,11 +1,14 @@
 /* ============ run-ui.js — cartas de nivel, pausa y fin de run ============ */
 G.RunUI = (() => {
   const $ = G.UI.$;
-  let offers = null, offerCb = null, coopMode = false;
+  let offers = null, offerCb = null, coopMode = false, rerollCb = null;
 
-  /** @param coop  en grupo: tras elegir, se queda esperando a los demás */
-  function showLevelUp(level, list, cb, coop = false) {
-    offerCb = cb; coopMode = coop;
+  /**
+   * @param coop      en grupo: tras elegir, se queda esperando a los demás
+   * @param onReroll  en grupo: las cartas nuevas las saca el servidor (llega otro showLevelUp)
+   */
+  function showLevelUp(level, list, cb, coop = false, onReroll = null) {
+    offerCb = cb; coopMode = coop; rerollCb = onReroll;
     $('lvl-num').textContent = level;
     $('lvl-wait').textContent = '';
     $('lvl-wait').classList.toggle('hidden', !coop);
@@ -30,6 +33,7 @@ G.RunUI = (() => {
     const p = G.Game.player;
     p.rerolls = (p.rerolls || 0) + 1;
     G.Audio.sfx('select');
+    if (rerollCb) { offers = null; $('lvl-reroll').classList.add('hidden'); rerollCb(); return; }
     renderCards(G.LevelUp.offer(p));
   }
 

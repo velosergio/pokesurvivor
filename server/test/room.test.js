@@ -369,3 +369,69 @@ test('ranked: false (algo no cuadra con la partida guardada): no sube la marca a
   assert.ok(r.over || of(r.sent, 'u0', 'over').length, 'no ha llegado over');
   assert.strictEqual(got, null);
 });
+
+test('reroll: cambia las cartas de nivel tantas veces como 1 + Cambio de cartas, y no más', () => {
+  const members = [{ uid: 'a', name: 'A', dex: 25, shiny: false, kit: { up: { reroll: 1 } } }, { uid: 'b', name: 'B', dex: 4, shiny: false }];
+  const sent = [];
+  const room = createRoom({ members, seed: 5, logger: quiet, send: (uid, m) => sent.push({ uid, m }) });
+  calm(room.debug.G);
+  room.tick();
+  room.debug.levelUp();
+  room.tick();
+  const lv = uid => of(sent, uid, 'level');
+  assert.strictEqual(lv('a').length, 1);
+  assert.strictEqual(lv('a')[0].rr, 2, '1 gratis + 1 comprado');
+  assert.strictEqual(lv('b')[0].rr, 1);
+  room.reroll('a'); room.reroll('a'); room.reroll('a');
+  assert.strictEqual(lv('a').length, 3, 'dos cambios y el tercero no');
+  assert.deepStrictEqual(lv('a').map(m => m.rr), [2, 1, 0]);
+  room.reroll('b');
+  assert.strictEqual(lv('b').length, 2);
+  // Con un objeto delante no se cambia nada; y elegir sigue funcionando.
+  room.pick('a', 0); room.pick('b', 0);
+  room.tick(); room.tick();
+  assert.ok(!room.debug.paused);
+});
+
+/** Un objeto especial de ese tipo cerca del origen (los pone world.js con la semilla). */
+function findSpecial(G, type) {
+  for (let r = 0; r < 40; r++) {
+    for (let i = -r; i <= r; i++) for (const [x, y] of [[i, -r], [i, r], [-r, i], [r, i]]) {
+      const p = G.World.specialsNear(x * 1200, y * 1200, 720).find(q => q.type === type && !q.used);
+      if (p) return p;
+    }
+  }
+  return null;
+}
+
+test('altar: el servidor dice quién se lleva el poder (alt con su uid)', () => {
+  const r = makeRoom({ n: 2 });
+  const { G } = r;
+  r.room.tick();
+  const p = findSpecial(G, 'altar');
+  assert.ok(p, 'no hay altar cerca');
+  calm(G);
+  r.room.debug.place('u1', p.x, p.y + 4);
+  for (let i = 0; i < 4; i++) r.room.tick();
+  const alt = of(r.sent, 'u0', 'ev').flatMap(m => m.list).filter(ev => ev[0] === 'alt');
+  assert.strictEqual(alt.length, 1);
+  assert.deepStrictEqual([...alt[0].slice(1, 4)], [p.tx, p.ty, 'u1']);
+  assert.ok(r.pl('u1').power, 'u1 tiene el poder');
+  assert.ok(!r.pl('u0').power);
+});
+
+test('cofre con candado: avance en décimas (chs) y, al abrirse, pb', () => {
+  const r = makeRoom({ n: 1 });
+  const { G } = r;
+  r.room.tick();
+  const p = findSpecial(G, 'bigchest');
+  assert.ok(p, 'no hay cofre cerca');
+  calm(G);
+  r.room.debug.place('u0', p.x, p.y + 30);
+  for (let i = 0; i < 100; i++) { r.room.debug.player('u0').hp = 1e6; r.room.debug.place('u0', p.x, p.y + 30); r.room.tick(); }
+  const evs = of(r.sent, 'u0', 'ev').flatMap(m => m.list);
+  const chs = evs.filter(ev => ev[0] === 'chs').map(ev => ev[3]);
+  assert.ok(chs.length >= 5, 'pocos avances: ' + chs.length);
+  assert.ok(chs.some(q => q >= 9));
+  assert.ok(evs.some(ev => ev[0] === 'pb' && ev[1] === p.tx && ev[2] === p.ty), 'no se ha abierto');
+});

@@ -384,12 +384,17 @@ G.World = (() => {
     return false;
   }
 
+  /** El objeto de esa casilla si su chunk ya está cargado (o null). */
+  function propOn(tx, ty) {
+    const c = data.get(Math.floor(tx / N) + ',' + Math.floor(ty / N));
+    return (c && c.props.find(o => o.tx === tx && o.ty === ty)) || null;
+  }
+
   /** Rompe el objeto de esa casilla (llega por la red en cooperativo). */
   function breakAt(tx, ty) {
     const k = tx + ',' + ty;
     if (broken.has(k)) return;
-    const c = data.get(Math.floor(tx / N) + ',' + Math.floor(ty / N));
-    const p = c && c.props.find(o => o.tx === tx && o.ty === ty);
+    const p = propOn(tx, ty);
     if (p) destroyProp(p, true); else broken.add(k);
   }
 
@@ -623,7 +628,7 @@ G.World = (() => {
   return {
     TS, CW, reset, setBiome, biomeName, liquidKind, liquidEffect, walkable,
     kindAt, isWall, isLiquid, isFree, collide, projectileBlock, propsInCircle, nearestBreakable,
-    damageProp, breakAt, specialsNear, update,
+    damageProp, breakAt, propOn, specialsNear, update,
     breakProp(p) { if (!broken.has(p.tx + ',' + p.ty)) destroyProp(p); },
     /** Arena de la grieta: { tx, ty, r } (en tiles) o null. */
     setArena(a) {

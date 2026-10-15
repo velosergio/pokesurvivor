@@ -129,8 +129,6 @@ G.Game = (() => {
     }
 
     if (coop) {
-      // Las cartas no se cambian en grupo (las reparte el servidor).
-      pl.rerolls = Infinity;
       G.Coop.begin(coop, pl, coopApi);
       G.Social.setPlaying(true);
     }
@@ -193,15 +191,19 @@ G.Game = (() => {
     choice(m) {
       const opts = m.options || [];
       G.UI.hide('scr-pause');
+      // (Cartas nuevas tras cambiarlas: sin el sonido de subir de nivel.)
+      if (!(m.kind === 'level' && G.UI.isOpen('scr-levelup'))) G.Audio.sfx('levelup');
       state = 'levelup';
-      G.Audio.sfx('levelup');
       if (m.kind === 'item' && opts.length === 2 && G.Items.BY[opts[0].id] && G.Items.BY[opts[1].id]) {
         G.RunUI.showItemChoice(opts[0].id, opts[1].id, got => G.Coop.pick(got === opts[1].id ? 1 : 0));
       } else if (m.kind === 'bond') {
         G.RunUI.showBondList(opts, i => { G.Audio.sfx('legend'); G.Coop.pick(i); });
       } else {
         const cards = opts.map(o => ({ key: o.id, type: o.type, title: o.name, tag: o.tag, desc: o.desc, icon: o.icon, color: o.color }));
-        G.RunUI.showLevelUp(m.lv || pl.level, cards, card => { G.Audio.sfx('confirm'); G.Coop.pick(cards.indexOf(card)); }, true);
+        // Cambios de cartas que te quedan según el servidor (rr): el botón los cuenta con rerollBonus.
+        pl.rerolls = 0; pl.rerollBonus = (m.rr | 0) - 1;
+        G.RunUI.showLevelUp(m.lv || pl.level, cards, card => { G.Audio.sfx('confirm'); G.Coop.pick(cards.indexOf(card)); }, true,
+          () => G.Coop.reroll());
       }
       G.RunUI.setWaiting(waitBy);
     },

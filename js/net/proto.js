@@ -5,7 +5,7 @@
  *
  * Mensajes de texto (JSON con el tipo en el campo `t`):
  *   navegador -> servidor: hello{token,proto,name,dex,shiny} create join{code} leave
- *                          open{v} start pick{choice} hold{on}
+ *                          open{v} start pick{choice} reroll hold{on}
  *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open}
  *                          started{seed,members} ev{list:[...]} level{options}
  *                          over{results} bye{reason} err{reason}
@@ -34,7 +34,7 @@
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
-  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'start', 'pick', 'hold',
+  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'start', 'pick', 'reroll', 'hold',
     'hi', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
   const IN_LEN = 16;
   const LIMIT_U16 = 0xFFFF;

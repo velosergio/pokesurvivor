@@ -242,6 +242,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
 
     in(conn, msg, r) { if (r && r.game) r.game.input(conn.uid, msg); },
     pick(conn, msg, r) { if (r && r.game) r.game.pick(conn.uid, msg.choice); },
+    reroll(conn, msg, r) { if (r && r.game && r.game.reroll) r.game.reroll(conn.uid); },
     hold(conn, msg, r) { if (r && r.game) r.game.hold(conn.uid, !!msg.on); },
   };
 

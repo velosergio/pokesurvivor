@@ -6,6 +6,14 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-15', title: ['Cambia tus cartas en grupo', 'Reroll your cards in co-op'], fix: [
+    ['Cooperativo: ya puedes cambiar las cartas de nivel también en grupo (1 vez gratis por partida más las que tengas en Mejoras).',
+     'Co-op: you can reroll level-up cards in group games too (once for free per run plus the ones from Upgrades).'],
+    ['Cooperativo: un altar que coge un compañero se apaga también en tu pantalla, y ya no te sale un poder que no es tuyo. Con el poder Rayo ya no te mueves a tirones.',
+     'Co-op: an altar taken by a teammate now goes dark on your screen too, and you no longer see a power that isn’t yours. With the Bolt power you no longer move in jerks.'],
+    ['Cooperativo: ves cómo se abre un cofre con candado aunque lo esté abriendo un compañero, y las trampas saltan igual para todos.',
+     'Co-op: you can see a locked chest opening even when a teammate is opening it, and traps go off the same way for everyone.']
+  ] },
   { d: '2026-10-14', title: ['Recupera tu cuenta con Gmail', 'Recover your account with Gmail'], new: [
     ['Cooperativo nuevo: la partida en grupo la lleva ahora un servidor, no el navegador del anfitrión. Si alguien se va o cambia de pestaña, los demás siguen jugando; si se te corta la conexión tienes 20 segundos para volver a tu sitio.',
      'New co-op: group games now run on a server instead of the host’s browser. If someone leaves or switches tabs, everyone else keeps playing; if your connection drops you have 20 seconds to get back to your spot.'],

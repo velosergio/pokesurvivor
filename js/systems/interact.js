@@ -9,9 +9,12 @@
  *   trap      salta al pisarla (tú o un enemigo) y afecta a todo lo cercano:
  *             veneno, pegajosa (ralentiza) o explosiva
  *
- * Cooperativo: altares y manantiales son de cada uno (en cada ordenador); el
- * cofre y las trampas se rompen como cualquier objeto y el anfitrión reparte
- * el botín y el daño a los enemigos (ver world.destroyProp y coop.propBroken).
+ * Cooperativo: todo lo decide el servidor (con `team`). El navegador no
+ * activa altares, cofres ni trampas por su cuenta: el servidor manda
+ *   alt [tx, ty, uid, poder]   quién se ha llevado el poder del altar (net/coop.js)
+ *   chs [tx, ty, décimas]      cómo va la apertura de un cofre
+ *   pb  [tx, ty]               cofre abierto / trampa que salta (world.breakAt)
+ * Los manantiales se siguen viendo en cada navegador (la vida es la del servidor).
  */
 G.Interact = (() => {
   const CHEST_TIME = 3.5;
@@ -63,6 +66,7 @@ G.Interact = (() => {
         for (const q of who) spring(dt, q, p, d2(q));
         break;
       case 'altar':
+        if (!authority()) break;                 // en grupo, lo dice el servidor (alt)
         // Contando el tamaño de tu Pokémon: uno grande (Reshiram, Zekrom...) choca
         // con el altar antes de llegar a 30 y no lo podía activar.
         for (const q of who) {
@@ -70,13 +74,20 @@ G.Interact = (() => {
         }
         break;
       case 'bigchest':
+        if (!authority()) break;                 // en grupo, la apertura llega del servidor (chs)
         if (who.some(q => !q.dead && d2(q) < Math.max(46, p.r + q.r + 24) ** 2)) {
           if (p.open === 0) G.Audio.sfx('select');
           p.open += dt;
           if (p.open >= CHEST_TIME) { p.open = 0; G.World.breakProp(p); }
         } else if (p.open > 0) p.open = Math.max(0, p.open - dt * 1.5);
+        // Servidor: cómo va, en décimas (sólo cuando cambia).
+        if (G.Coop.isHost && p.open >= 0) {
+          const q = Math.round(p.open / CHEST_TIME * 10);
+          if (q !== (p.netQ | 0)) { p.netQ = q; G.Coop.broadcast(['chs', p.tx, p.ty, q]); }
+        }
         break;
       case 'trap':
+        if (!authority()) break;                 // en grupo, salta en el servidor (pb)
         if (who.some(q => !q.dead && d2(q) < 13 * 13)) G.World.breakProp(p);
         else if (authority() && G.EnemyMgr.queryCircle(p.x, p.y - 8, 3).some(e => !e.flying && !e.remote)) G.World.breakProp(p);
         break;
@@ -105,6 +116,7 @@ G.Interact = (() => {
     p.used = true;
     const pw = POWERS[p.kind];
     pl.addPower(pw, POWER_TIME);
+    if (G.Coop.isHost) G.Coop.broadcast(['alt', p.tx, p.ty, String(pl.uid || ''), p.kind]);
     G.FX.ring(p.x, p.y - 20, 8, 90, pw.color, 0.6, 5);
     G.FX.burst(pl.x, pl.y - pl.bodyH * 0.5, pw.color, 24, 200);
     G.Audio.sfx('legend');
@@ -150,5 +162,29 @@ G.Interact = (() => {
     }
   }
 
-  return { update, setTeam, trapEffect, POWERS, CHEST_TIME };
+  /**
+   * Grupo: el servidor dice quién se ha llevado el poder de un altar. El altar se
+   * apaga para todos; si eres tú, el aviso y la cuenta atrás (los efectos ya
+   * vienen del servidor en tu `kit`: aquí no se aplican otra vez).
+   */
+  function netAltar(tx, ty, uid, kind, me, pl) {
+    const p = G.World.propOn(tx, ty);
+    if (p) { p.used = true; G.FX.ring(p.x, p.y - 20, 8, 90, (POWERS[kind] || POWERS[0]).color, 0.6, 5); }
+    const pw = POWERS[kind];
+    if (!pw || uid !== me || !pl) return;
+    pl.power = { def: { name: pw.name, color: pw.color, on() {}, off() {} }, t: POWER_TIME, dur: POWER_TIME };
+    G.FX.burst(pl.x, pl.y - pl.bodyH * 0.5, pw.color, 24, 200);
+    G.Audio.sfx('legend');
+    G.Spawner.say('¡Poder ' + pw.name + '! ' + pw.desc + ' durante ' + POWER_TIME + ' s', 3, true);
+  }
+
+  /** Grupo: cómo va la apertura de un cofre (q en décimas). */
+  function netChest(tx, ty, q) {
+    const p = G.World.propOn(tx, ty);
+    if (!p) return;
+    if (q > 0 && !(p.open > 0)) G.Audio.sfx('select');
+    p.open = q / 10 * CHEST_TIME;
+  }
+
+  return { update, setTeam, trapEffect, netAltar, netChest, POWERS, CHEST_TIME };
 })();
