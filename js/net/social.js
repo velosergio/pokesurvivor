@@ -56,12 +56,31 @@ G.Social = (() => {
   // Partida en curso: sobrevive a recargar esta pestaña (no a cerrarla). El
   // servidor guarda el sitio 60 s; al volver, el hello recupera la partida.
   const RUN_KEY = 'ps.coop.run';
+  // Última partida en grupo de este navegador (aunque se cierre la pestaña):
+  // si no acabó, el menú pregunta al servidor si sigue para ofrecer «Reconectar».
+  const LAST_KEY = 'ps.coop.last';
+  const LAST_MAX = 3600 * 1000;     // una partida dura 1 h como mucho (MAX_TIME en server/room.js)
+  let away = null;                  // { code, n }: tu partida sigue sin ti (`away` del servidor)
   function pinRun() {
     if (!room || !uid) return;
     try { sessionStorage.setItem(RUN_KEY, JSON.stringify({ uid, code: room.id })); } catch (e) { /* privado */ }
+    try { localStorage.setItem(LAST_KEY, JSON.stringify({ uid, code: room.id, at: Date.now() })); } catch (e) { /* privado */ }
   }
   function clearRun() {
     try { sessionStorage.removeItem(RUN_KEY); } catch (e) { /* nada */ }
+  }
+  /** La partida acabó o la dejaste a propósito: ya no hay a qué reconectar. */
+  function forgetLast() {
+    clearRun();
+    try { localStorage.removeItem(LAST_KEY); } catch (e) { /* nada */ }
+    if (away) { away = null; emit('away'); }
+  }
+  function peekLast() {
+    try {
+      const v = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+      if (!v || v.uid !== uid || !(Date.now() - v.at < LAST_MAX)) return null;
+      return v;
+    } catch (e) { return null; }
   }
   function peekRun() {
     try {
@@ -308,7 +327,8 @@ G.Social = (() => {
   const ERR = {
     nocode: 'No hay ninguna sala con ese código.', started: 'La partida de esa sala ya ha empezado.',
     closed: 'Esa sala está cerrada.', full: 'La sala está llena (máximo ' + MAX_PLAYERS + ').',
-    ingame: 'Estás en mitad de una partida.', leader: 'Sólo el líder de la sala puede hacer eso.'
+    ingame: 'Estás en mitad de una partida.', leader: 'Sólo el líder de la sala puede hacer eso.',
+    noback: 'Esa partida ya ha terminado.'
   };
   const DOWN = {
     full: 'El servidor de partidas está lleno: prueba en un rato.',
@@ -352,7 +372,11 @@ G.Social = (() => {
   }
 
   G.Net.on(m => {
-    if (m.type === 'room') {
+    if (m.type === 'away') {
+      away = { code: String(m.code || ''), n: m.n | 0 };
+      emit('away');
+    } else if (m.type === 'room') {
+      if (away) away = null;
       const was = room;
       room = {
         id: m.code, host: m.leader, isHost: m.leader === uid, open: m.open !== false,
@@ -364,11 +388,14 @@ G.Social = (() => {
     } else if (m.type === 'started' && room) {
       pinRun();
     } else if (m.type === 'over') {
-      clearRun();
+      forgetLast();
     } else if (m.type === 'err') {
+      if (m.reason === 'noback') forgetLast();
       if (roomWait) settleRoom(ERR[m.reason] || 'No se pudo (' + m.reason + ').');
       else if (ERR[m.reason]) G.UI.toast(ERR[m.reason], 3000);
     } else if (m.type === 'down') {
+      // Sin conexión no hay botón (el menú vuelve a preguntar); el recuerdo sigue.
+      if (away) { away = null; emit('away'); }
       clearRun();
       settleRoom(downText(m.reason));
       if (room) {
@@ -396,7 +423,7 @@ G.Social = (() => {
   }
 
   async function leaveRoom() {
-    clearRun();
+    forgetLast();
     if (!room) return;
     room = null;
     G.Net.send('leave');
@@ -430,6 +457,7 @@ G.Social = (() => {
       if (done) return;
       if (m.type === 'started') done = 'started';
       else if (m.type === 'down') done = 'down';
+      else if (m.type === 'away') done = 'away';
     };
     G.Net.on(on);
     let failed = null;
@@ -446,23 +474,61 @@ G.Social = (() => {
       function on2(m) {
         on(m);
         if (done === 'started') finish(!!G.Coop.active);
-        else if (done === 'down') finish(false);
+        else if (done === 'down' || done === 'away') finish(false);
       }
       G.Net.off(on);
       G.Net.on(on2);
       if (done === 'started') finish(!!G.Coop.active);
-      else if (done === 'down') finish(false);
+      else if (done === 'down' || done === 'away') finish(false);
     });
     if (!back) {
       clearRun();
+      // Tardaste más de un minuto: la partida sigue y el menú ofrece «Reconectar».
+      if (done === 'away') return false;
       // `down` ya avisó. Sin `room`: el servidor ya no te guardaba el sitio.
       if (done !== 'down' && !room) {
+        forgetLast();
         G.Net.close();
         G.UI.toast('La partida ha seguido sin ti.', 4000);
       }
       return false;
     }
     return true;
+  }
+
+  /**
+   * En el menú: si la última partida en grupo de este navegador no acabó, se
+   * conecta y el servidor dice si sigue sin ti (`away` → botón «Reconectar»).
+   * Si no queda nada, se olvida y se cierra la conexión. (En el primer minuto
+   * el servidor aún te guarda el sitio y vuelves directamente.)
+   */
+  let checking = false;
+  async function checkAway() {
+    if (checking || away || room || G.Coop.active || !G.DB.online) return;
+    if ((await start()) !== 'ok') return;
+    if (!peekLast()) { forgetLast(); return; }
+    checking = true;
+    let got = false, failed = false;
+    const on = m => { if (m.type === 'away' || m.type === 'room') got = true; };
+    G.Net.on(on);
+    try {
+      await G.Net.connect();
+      // `hi` llega antes que `away`: un momento para que llegue.
+      if (!got) await new Promise(r => setTimeout(r, 1500));
+    } catch (e) { failed = true; /* sin servidor: se mirará la próxima vez */ }
+    G.Net.off(on);
+    checking = false;
+    if (!failed && !got && !room && !G.Coop.active) {
+      forgetLast();
+      G.Net.close();
+    }
+  }
+
+  /** «Reconectar»: vuelve a la partida que sigue sin ti (llegan `room` y `started`). */
+  async function rejoin() {
+    if (!away) return;
+    await syncFirst();
+    G.Net.send('back');
   }
 
   /**
@@ -588,10 +654,12 @@ G.Social = (() => {
 
   return {
     start, stop, claimNick, request, accept, remove, publishProfile, getProfile, profileData,
-    createRoom, joinRoom, leaveRoom, setOpen, refreshMember, resumeRun, peekRun, hasRun, setPlaying, refreshPresence,
+    createRoom, joinRoom, leaveRoom, setOpen, refreshMember, resumeRun, peekRun, hasRun, checkAway, rejoin, setPlaying, refreshPresence,
     invite, acceptInvite, declineInvite,
     on(fn) { listeners.add(fn); }, off(fn) { listeners.delete(fn); },
     get me() { return me; },
+    /** { code, n } si tu última partida en grupo sigue sin ti (o null). */
+    get away() { return away; },
     get started() { return started; },
     get friends() { return [...friends.values()]; },
     get invites() { return [...invites.values()]; },

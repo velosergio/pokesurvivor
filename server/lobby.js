@@ -8,9 +8,13 @@
  * Desconexiones:
  *  - en espera: el jugador sale de la sala al momento;
  *  - en partida: room.drop(uid) y tiene 60 s para volver con el mismo uid
- *    (hello → room.back(uid) y se le repiten `room` y `started`); pasado, sale.
+ *    (hello → room.back(uid) y se le repiten `room` y `started`).
  *    Aunque no quede nadie conectado, la partida sigue ese minuto: así quien
  *    recarga la página (o se queda solo) puede volver. Si sale a propósito, no.
+ *    Pasado el minuto, si la partida sigue con otros, queda «fuera» (away): sigue
+ *    en la sala hasta que acabe, el hello ya no lo mete solo sino que le cuenta
+ *    `away {code, n}`, y con `back` vuelve (el botón «Reconectar» del menú).
+ *    Si crea otra sala o entra en otra, deja esa partida.
  * Si pasado ese tiempo no queda nadie, se para la partida y se borra.
  *
  * Al empezar, si hay checkKits (rank.js, con la cuenta de servicio), se leen
@@ -134,10 +138,28 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     return { uid: conn.uid, name: conn.name, dex: conn.dex, shiny: conn.shiny, kit: conn.kit, on: true };
   }
 
+  /** Vuelve a la partida en marcha de r (tras un corte o desde «Reconectar»). */
+  function resume(r, m, conn) {
+    const t = r.timers.get(conn.uid);
+    if (t !== undefined) { clearTimer(t); r.timers.delete(conn.uid); }
+    m.on = true;
+    m.away = false;
+    r.game.back(conn.uid);
+    each(r, info(r));
+    conn.send(started(r));
+  }
+
   /** Sala actual de uid (o null). */
   const roomOf = uid => rooms.get(byUid.get(uid)) || null;
 
-  /** Antes de crear o unirse: sale de la sala (en espera) en la que esté. */
+  /** Está en mitad de una partida (conectado a ella): no puede irse a otra sala. */
+  function playing(conn) {
+    const r = roomOf(conn.uid);
+    const m = r && r.game && r.members.find(x => x.uid === conn.uid);
+    return !!(m && m.on);
+  }
+
+  /** Antes de crear o unirse: sale de la sala en la que esté (en espera, o la partida que dejó). */
   function free(conn) {
     const r = roomOf(conn.uid);
     if (r) remove(r, conn.uid);
@@ -183,7 +205,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
   const handlers = {
     create(conn) {
       const cur = roomOf(conn.uid);
-      if (cur && cur.game) return err(conn, 'ingame');
+      if (playing(conn)) return err(conn, 'ingame');
       if (draining) return kick(conn, 'restart');
       // Si está solo en su sala, al salir deja hueco; si no, no.
       const freed = cur && cur.members.length === 1 ? 1 : 0;
@@ -198,9 +220,9 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     join(conn, msg) {
       const code = String(msg.code || '').trim().toUpperCase();
       const cur = roomOf(conn.uid);
-      if (cur && cur.game) return err(conn, 'ingame');
+      if (playing(conn)) return err(conn, 'ingame');
       if (draining) return kick(conn, 'restart');
-      if (cur && cur.code === code) return conn.send(info(cur));
+      if (cur && cur.code === code && !cur.game) return conn.send(info(cur));
       const r = rooms.get(code);
       if (!r) return err(conn, 'nocode');
       if (r.game) return err(conn, 'started');
@@ -251,6 +273,13 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     pick(conn, msg, r) { if (r && r.game) r.game.pick(conn.uid, msg.choice); },
     reroll(conn, msg, r) { if (r && r.game && r.game.reroll) r.game.reroll(conn.uid); },
     hold(conn, msg, r) { if (r && r.game) r.game.hold(conn.uid, !!msg.on); },
+
+    /** «Reconectar»: vuelve a la partida que sigue sin él (si ya acabó, no hay nada). */
+    back(conn, msg, r) {
+      const m = r && r.game && r.members.find(x => x.uid === conn.uid);
+      if (!m || m.on) return err(conn, 'noback');
+      resume(r, m, conn);
+    },
   };
 
   return {
@@ -265,15 +294,12 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       if (!m) return;
       // En la espera, el hello nuevo trae su Pokémon y sus mejoras de ahora.
       if (!r.game) Object.assign(m, { name: conn.name, dex: conn.dex, shiny: conn.shiny, kit: conn.kit });
-      if (!m.on) {
-        const t = r.timers.get(conn.uid);
-        if (t !== undefined) { clearTimer(t); r.timers.delete(conn.uid); }
-        m.on = true;
-        if (r.game) r.game.back(conn.uid);
-        each(r, info(r));
-      } else if (!r.game) each(r, info(r));
-      else conn.send(info(r));
-      if (r.game) conn.send(started(r));
+      if (!r.game) { each(r, info(r)); return; }
+      // Lleva más de un minuto fuera: se le cuenta y él decide si vuelve (`back`).
+      if (m.away) { conn.send({ t: 'away', code: r.code, n: r.members.filter(x => x.on).length }); return; }
+      if (!m.on) { resume(r, m, conn); return; }
+      conn.send(info(r));
+      conn.send(started(r));
     },
 
     /** Mensaje ya decodificado de una conexión. Los desconocidos se ignoran. */
@@ -299,7 +325,10 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       r.timers.set(conn.uid, setTimer(() => {
         r.timers.delete(conn.uid);
         const mm = r.members.find(x => x.uid === conn.uid);
-        if (rooms.get(r.code) === r && mm && !mm.on) remove(r, conn.uid);
+        if (rooms.get(r.code) !== r || !mm || mm.on) return;
+        // La partida sigue con otros (o alguien aún puede volver): queda fuera, no sale.
+        if (r.members.some(x => x.on) || r.timers.size > 0) { mm.away = true; return; }
+        remove(r, conn.uid);
       }, BACK_MS));
       each(r, info(r));
     },

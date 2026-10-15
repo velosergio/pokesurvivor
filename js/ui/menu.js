@@ -5,13 +5,14 @@ G.MenuUI = (() => {
   let dexFilter = 'all', dexGen = 1, dexSel = null;
 
   function init() {
-    const ICON = { play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', debug: 'flag' };
+    const ICON = { rejoin: 'friends', play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', debug: 'flag' };
     document.querySelectorAll('#scr-menu [data-go]').forEach(b => {
       b.insertAdjacentHTML('afterbegin', `<span class="mi-ico">${G.Icons.html(ICON[b.dataset.go], 26)}</span>`);
-      b.dataset.sfx = b.dataset.go === 'play' ? 'confirm' : 'click';
+      b.dataset.sfx = b.dataset.go === 'play' || b.dataset.go === 'rejoin' ? 'confirm' : 'click';
       b.onclick = () => {
         const go = b.dataset.go;
         if (go === 'play') { if (G.Social.room) G.LobbyUI.open(); else G.Flow.play(); }
+        else if (go === 'rejoin') G.Social.rejoin();
         else if (go === 'dex') openDex();
         else if (go === 'upgrades') openUpgrades();
         else if (go === 'gacha') G.GachaUI.open();
@@ -81,8 +82,9 @@ G.MenuUI = (() => {
       G.Social.start().then(r => {
         if (r === 'need-nick' && !G.NickUI.skipped && G.UI.isOpen('scr-menu')) G.NickUI.open();
         socialLine();
+        G.Social.checkAway();
       });
-    }
+    } else G.Social.checkAway();
     G.InvitePop.refresh();
   }
 
@@ -91,6 +93,10 @@ G.MenuUI = (() => {
     const room = G.Social.room;
     const play = document.querySelector('#scr-menu [data-go=play] small');
     if (play) play.textContent = room ? 'Volver a tu sala (' + room.members.length + '/' + G.Social.MAX_PLAYERS + ')' : 'Entra en la mazmorra';
+    // Tu última partida en grupo sigue sin ti: «Reconectar».
+    const away = !room && G.Social.away;
+    $('menu-rejoin').classList.toggle('hidden', !away);
+    if (away) $('menu-rejoin-sub').textContent = 'Tu partida en grupo sigue (' + away.n + ' jugando)';
     const fr = G.Social.friends;
     const on = fr.filter(f => f.status === 'ok' && f.online).length;
     const req = fr.filter(f => f.status === 'in').length;

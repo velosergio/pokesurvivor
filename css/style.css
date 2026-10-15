@@ -130,6 +130,7 @@ input { font: inherit; }
 .menu-item:hover, .menu-item:focus-visible { background: rgba(255,255,255,.08); outline: none; }
 .menu-item:hover::before, .menu-item:focus-visible::before { opacity: 1; transform: none; }
 .menu-item.play { font-size: 30px; color: var(--gold); }
+.menu-item.rejoin { color: #5fe08a; }
 .menu-item { display: grid; grid-template-columns: 34px 1fr; column-gap: 8px; align-items: center; }
 .menu-item small { grid-column: 2; }
 .mi-ico { grid-row: span 2; display: flex; }

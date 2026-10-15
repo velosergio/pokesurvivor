@@ -8,7 +8,9 @@
 G.CHANGELOG = [
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
     ['Cooperativo: ahora caben hasta 10 jugadores en cada sala. Con más de 4 salen más Pokémon a la vez para que haya para todos.',
-     'Co-op: rooms now hold up to 10 players. With more than 4, more Pokémon show up at once so there are enough for everyone.']
+     'Co-op: rooms now hold up to 10 players. With more than 4, more Pokémon show up at once so there are enough for everyone.'],
+    ['Cooperativo: si tu última partida en grupo sigue en marcha sin ti (cerraste el juego o se cortó más de un minuto), en el menú sale «Reconectar» para volver a ella con tu Pokémon como lo dejaste.',
+     'Co-op: if your last group game is still going on without you (you closed the game or lost connection for over a minute), the menu shows “Reconnect” to jump back in with your Pokémon as you left it.']
   ], fix: [
     ['Cooperativo: si recargas la página o se te corta la conexión en mitad de una partida en grupo, vuelves a entrar solo a la misma partida. Tienes un minuto.',
      'Co-op: if you reload the page or your connection drops in the middle of a group game, you rejoin that same game on your own. You have one minute.'],

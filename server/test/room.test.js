@@ -337,6 +337,27 @@ test('al volver tras un corte se le manda todo de nuevo', () => {
   assert.ok(s.enemies.add.length >= Math.min(alive, 100), 'no se le vuelven a mandar los enemigos');
 });
 
+test('quien sale de la partida (más de 20 s fuera) puede volver con «Reconectar», junto a un compañero', () => {
+  const r = makeRoom({ n: 2 });
+  const step = bots(r);
+  steps(step, 10);
+  r.room.drop('u1');
+  for (let i = 0; i < 20 / 0.05 + 5; i++) { r.pl('u0').invuln = 99; r.room.tick(); }
+  assert.ok(!r.room.debug.over, 'sigue con el otro');
+  assert.strictEqual(lastSnap(r.sent, 'u0').players.find(p => p.id === 1).dead, true, 'ha salido del campo');
+  const lv = r.pl('u1').level;
+  r.room.debug.place('u0', 900, 700);
+  r.sent.length = 0;
+  r.room.back('u1');
+  assert.strictEqual(r.pl('u1').x, r.pl('u0').x);
+  assert.strictEqual(r.pl('u1').y, r.pl('u0').y);
+  assert.ok(r.pl('u1').level >= lv, 'conserva lo que tenía');
+  r.room.tick(); r.room.tick();
+  const s = lastSnap(r.sent, 'u1');
+  assert.ok(s, 'no le llega snap');
+  assert.strictEqual(!!s.players.find(p => p.id === 1).dead, !!r.pl('u1').dead, 'vuelve a estar en el campo');
+});
+
 test('mejoras de la tienda, Repertorio y veto del kit; `kit` a cada uno al empezar y al cambiar', () => {
   const kit = { up: { hp: 3, spd: 2, moves: 1, ban: 1, xx: 9 }, bind: [], ban: ['tackle', 'growl'] };
   const members = [{ uid: 'a', name: 'A', dex: 25, shiny: false, kit }, { uid: 'b', name: 'B', dex: 4, shiny: false }];

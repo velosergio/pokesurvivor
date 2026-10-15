@@ -1,15 +1,5 @@
 # Ideas
 
-## En desarrollo
-
-### El servidor lleva la partida
-
-La sala cooperativa deja de depender del navegador del anfitrión: el VPS simula la partida y los jugadores solo envían órdenes. Si alguien se corta, puede volver a la misma sala sin que la run se pare para los demás. Hoy la vuelta está limitada a unos segundos; la idea es que reconectarse sea parte normal de la partida.
-
-### Salas de hasta 10 jugadores
-
-Subir el tope de la sala de 4 a 10. Hay que revisar la lista de la sala, cómo se reparte la experiencia y si el ritmo de enemigos y de grietas aguanta a un grupo grande sin volverse imposible o trivial.
-
 ## Poco trabajo
 
 ### Habilidad «Olvidar»

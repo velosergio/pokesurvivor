@@ -171,19 +171,51 @@ test('corte en partida: vuelve antes de 1 min y recupera su sitio', () => {
   assert.strictEqual(s.clk.pending, 0);
 });
 
-test('corte en partida: pasado 1 min queda fuera', () => {
+test('corte en partida: pasado 1 min queda fuera; el hello se lo cuenta y con back vuelve', () => {
+  const s = setup();
+  const { cs: [a, b], code } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  const g = s.fr.made[0];
+  s.lobby.close(a);
+  s.clk.tick(BACK_MS);
+  assert.deepStrictEqual(b.last('room').members.map(m => [m.uid, m.on]), [['a', false], ['b', true]]);
+  assert.strictEqual(g.calls.filter(c => c[0] === 'drop').length, 1);
+  const a2 = s.hi('a');
+  assert.deepStrictEqual(a2.sent, [{ t: 'away', code, n: 1 }]);
+  assert.ok(!g.calls.some(c => c[0] === 'back'), 'no vuelve solo');
+  s.lobby.message(a2, { t: 'back' });
+  assert.deepStrictEqual(g.calls.at(-1), ['back', 'a']);
+  assert.deepStrictEqual(a2.sent.slice(1).map(m => m.t), ['room', 'started']);
+  assert.strictEqual(b.last('room').members.find(m => m.uid === 'a').on, true);
+  s.lobby.message(a2, { t: 'back' }); // ya está dentro
+  assert.deepStrictEqual(a2.last(), { t: 'err', reason: 'noback' });
+});
+
+test('fuera de una partida: puede crear o unirse a otra sala (deja la partida)', () => {
+  const s = setup();
+  const { cs: [a, b], code } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  s.lobby.close(a);
+  s.clk.tick(BACK_MS);
+  const a2 = s.hi('a');
+  s.lobby.message(a2, { t: 'create' });
+  assert.notStrictEqual(a2.last('room').code, code);
+  assert.deepStrictEqual(b.last('room').members.map(m => m.uid), ['b']);
+  s.lobby.message(a2, { t: 'back' });
+  assert.deepStrictEqual(a2.last(), { t: 'err', reason: 'noback' });
+});
+
+test('al acabar la partida, quien estaba fuera sale y ya no hay a qué volver', () => {
   const s = setup();
   const { cs: [a, b] } = room(s, 'a', 'b');
   s.lobby.message(a, { t: 'start' });
   const g = s.fr.made[0];
   s.lobby.close(a);
   s.clk.tick(BACK_MS);
+  g.opts.onOver([]);
   assert.deepStrictEqual(b.last('room').members.map(m => m.uid), ['b']);
-  assert.strictEqual(b.last('room').leader, 'b');
-  assert.strictEqual(g.calls.filter(c => c[0] === 'drop').length, 1);
   const a2 = s.hi('a');
   assert.strictEqual(a2.sent.length, 0);
-  assert.ok(!g.calls.some(c => c[0] === 'back'));
 });
 
 test('corte en espera: sale al momento', () => {
@@ -246,7 +278,7 @@ test('si se corta el último, quien se cortó antes y aún está a tiempo puede 
   const b2 = s.hi('b');
   assert.strictEqual(b2.sent[1].t, 'started');
   const a2 = s.hi('a');
-  assert.strictEqual(a2.sent.length, 0);
+  assert.deepStrictEqual(a2.sent.map(m => m.t), ['away']);
 });
 
 test('al acabar la partida vuelve a la espera sin los desconectados', () => {

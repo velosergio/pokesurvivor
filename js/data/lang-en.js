@@ -204,6 +204,9 @@ G.I18n.add({
   'Se ha perdido la conexión con el servidor.': 'Lost connection to the server.',
   'Reconectando…': 'Reconnecting…', 'Volviendo a la partida…': 'Rejoining the game…',
   'La partida ha seguido sin ti.': 'The game went on without you.',
+  'Reconectar': 'Reconnect', 'Tu partida en grupo sigue en marcha': 'Your group game is still on',
+  'Tu partida en grupo sigue ({x} jugando)': 'Your group game is still on ({x} playing)',
+  'Esa partida ya ha terminado.': 'That game has already ended.',
 
   // ---------------- pausa y fin ----------------
   'Pausa': 'Pause', 'Continuar': 'Continue', 'Abandonar run': 'Quit run', 'moverse ·': 'move ·', 'movimiento ·': 'move ·', 'ciclar ·': 'cycle ·', 'pausa': 'pause',

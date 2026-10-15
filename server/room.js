@@ -700,10 +700,20 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       s.on = false; s.offT = 0; s.holdOn = false; s.in = null;
       resolveAll(s);
     },
-    /** Ha vuelto: se le repite lo que tenga delante y se le manda todo de nuevo. */
+    /**
+     * Ha vuelto: se le repite lo que tenga delante y se le manda todo de nuevo.
+     * Si ya había salido de la partida (más de BACK_MAX fuera: «Reconectar» del
+     * menú), entra otra vez con lo que tenía, junto a un compañero.
+     */
     back(uid) {
       const s = byUid.get(uid);
-      if (!s || s.on || s.gone || over) return;
+      if (!s || s.on || over) return;
+      if (s.gone) {
+        const a = anchor();
+        s.gone = false;
+        s.pl.x = a.x; s.pl.y = a.y;
+        s.tpT = clock.t;
+      }
       s.on = true; s.offT = 0;
       s.known.clear(); s.pk.clear(); s.kitSig = '';
       s.accX = s.pl.x; s.accY = s.pl.y; s.accT = clock.t;

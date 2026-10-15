@@ -6,9 +6,12 @@
  * Mensajes de texto (JSON con el tipo en el campo `t`):
  *   navegador -> servidor: hello{token,proto,name,dex,shiny} create join{code} leave
  *                          open{v} start pick{choice} reroll hold{on}
+ *                          back (volver a la partida de la que te fuiste: ver `away`)
  *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open}
  *                          started{seed,members} ev{list:[...]} level{options}
  *                          over{results} bye{reason} err{reason}
+ *                          away{code,n} (tras el hello: tu partida en grupo sigue sin ti,
+ *                          con n conectados; con `back` vuelves a ella)
  *   (encJson('ev', [...]) mete la lista en `list`.)
  *
  * Mensajes binarios (primer byte = tipo; números en little endian):
@@ -30,12 +33,12 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 2;
+  const VERSION = 3;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
-  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'start', 'pick', 'reroll', 'hold',
-    'hi', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
+  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'start', 'pick', 'reroll', 'hold', 'back',
+    'hi', 'away', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
   const IN_LEN = 16;
   const LIMIT_U16 = 0xFFFF;
 
