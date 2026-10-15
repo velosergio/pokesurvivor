@@ -1,5 +1,5 @@
-# Servicio `game` de Easypanel: el servidor del cooperativo (Node 24 LTS; hace
-# falta 22.8+ para el contexto rápido de server/sim.js, vm.constants.DONT_CONTEXTIFY).
+# Servicio `game` de Easypanel: el servidor del cooperativo (Node 24 LTS,
+# mínimo 24.12). server/sim.js usa vm.constants.DONT_CONTEXTIFY.
 #
 # Se construye desde la RAÍZ del repositorio (necesita dev.html y js/, que es
 # lo que carga server/sim.js con path.join(__dirname, '..')):

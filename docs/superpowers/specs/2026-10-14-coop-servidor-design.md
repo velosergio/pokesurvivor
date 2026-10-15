@@ -1,8 +1,9 @@
 # Copia propia + cooperativo en servidor — diseño
 
 Fecha: 14-10-2026 · Estado: pasos 1-4 hechos; del 5, retirado el código antiguo (WebRTC,
-`database.rules.json`, sección `database` de `firebase.json`). Falta el despliegue de `game`, la
-prueba de carga contra el VPS, borrar la Realtime Database del proyecto y la prueba manual publicada.
+`database.rules.json`, sección `database` de `firebase.json`) y desplegado `game` en Easypanel
+(`wss://poke.sergioveloza.com/ws` responde; Node 24.12 como mínimo), con prueba de carga en el VPS
+y `MAX_ROOMS=20` (§5). Falta borrar la Realtime Database del proyecto y la prueba manual publicada.
 
 **Paso 4 (15-10-2026):** `js/net/net.js` es un WebSocket con el servidor (`hello` → `hi`; se
 reconecta solo 20 s), `js/net/coop.js` dibuja lo que manda el servidor y sólo envía `in`; salas con
