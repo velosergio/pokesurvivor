@@ -340,7 +340,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   function offerItem(s, id) {
     const p = s.pl;
     if (!G.Items.BY[id]) return;
-    if (!p.item) { p.equip(id); return; }
+    if (!p.item) { p.equip(G.Items.first(id)); return; }
     if (p.item === id) return;
     if (!s.on) return;                       // desconectado: sigue con el suyo
     enqueue(s, { kind: 'item', cur: p.item, next: id });

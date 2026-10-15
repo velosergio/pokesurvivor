@@ -141,3 +141,17 @@ test('la grieta avisa con curtain y no con flash', () => {
   assert.ok(curtains >= 2, 'curtain ' + curtains);
   assert.equal(flashes, 0);
 });
+
+test('la Vidasfera nunca es el primer objeto', () => {
+  const sim = createSim({ seed: 3 });
+  const r = soloRun(sim);
+  const { G } = sim;
+  assert.equal(r.pl.item, null);
+  for (let i = 0; i < 400; i++) assert.notEqual(G.Items.roll(), 'lifeorb');
+  for (let i = 0; i < 50; i++) assert.notEqual(G.Items.first('lifeorb'), 'lifeorb');
+  assert.equal(G.Items.first('leftovers'), 'leftovers');
+  r.pl.equip('leftovers');
+  let seen = false;
+  for (let i = 0; i < 400 && !seen; i++) seen = G.Items.roll() === 'lifeorb';
+  assert.ok(seen, 'llevando objeto también debe poder salir');
+});

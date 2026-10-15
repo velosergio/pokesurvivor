@@ -25,7 +25,8 @@ G.Items = (() => {
       on: p => { p.coinMul *= 1.5; }, off: p => { p.coinMul /= 1.5; } },
     { id: 'luckyegg', name: 'Huevo Suerte', desc: '+30% de experiencia.',
       on: p => { p.xpMul *= 1.3; }, off: p => { p.xpMul /= 1.3; } },
-    { id: 'lifeorb', name: 'Vidasfera', desc: '+30% de daño, pero cada ataque te quita un poco de vida.',
+    // notFirst: nunca es el primer objeto (te quita vida: sólo como cambio).
+    { id: 'lifeorb', name: 'Vidasfera', desc: '+30% de daño, pero cada ataque te quita un poco de vida.', notFirst: true,
       on: p => { p.atkMul *= 1.3; }, off: p => { p.atkMul /= 1.3; } },
     { id: 'choicescarf', name: 'Pañuelo Elección', desc: '+35% de velocidad.',
       on: p => { p.spdMul *= 1.35; }, off: p => { p.spdMul /= 1.35; } },
@@ -37,11 +38,19 @@ G.Items = (() => {
   const BY = {};
   for (const it of LIST) BY[it.id] = it;
 
-  /** Uno al azar, distinto del que ya llevas. */
+  /**
+   * Uno al azar, distinto del que ya llevas. Mientras alguien no lleve objeto
+   * no salen los `notFirst`: lo cogería sin elegir.
+   */
   function roll(except) {
-    const pool = LIST.filter(i => i.id !== except);
+    const ps = (G.Game && typeof G.Game.everyone === 'function' && G.Game.everyone()) || [];
+    const bare = ps.some(p => p && !p.item);
+    const pool = LIST.filter(i => i.id !== except && !(bare && i.notFirst));
     return G.U.pick(pool).id;
   }
 
-  return { LIST, BY, roll };
+  /** El que te pones sin llevar ninguno: si no puede ser el primero, otro. */
+  function first(id) { return BY[id] && BY[id].notFirst ? roll(id) : id; }
+
+  return { LIST, BY, roll, first };
 })();

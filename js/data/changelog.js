@@ -14,6 +14,8 @@ G.CHANGELOG = [
     ['Cooperativo: si tu última partida en grupo sigue en marcha sin ti (cerraste el juego o se cortó más de un minuto), en el menú sale «Reconectar» para volver a ella con tu Pokémon como lo dejaste.',
      'Co-op: if your last group game is still going on without you (you closed the game or lost connection for over a minute), the menu shows “Reconnect” to jump back in with your Pokémon as you left it.']
   ], chg: [
+    ['La Vidasfera ya no puede ser tu primer objeto: como te quita vida, sólo sale cuando ya llevas otro y puedes elegir con cuál quedarte.',
+     'The Life Orb can no longer be your first item: since it drains your HP, it only shows up once you already carry another one and can choose which to keep.'],
     ['Cooperativo: al volver de una grieta cada uno aparece donde estaba al entrar, no todos juntos en el mismo sitio.',
      'Co-op: coming back from a rift, everyone appears where they were when they went in, not all bunched up in one spot.']
   ], fix: [

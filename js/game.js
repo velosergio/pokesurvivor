@@ -448,7 +448,7 @@ G.Game = (() => {
       if (state === 'choice') state = 'playing';
       afterLevelUp();
     };
-    if (!pl.item) { take(id); return; }
+    if (!pl.item) { take(G.Items.first(id)); return; }
     if (pl.item === id) { G.Spawner.say('Ya llevas ' + G.Items.BY[id].name, 2, true); return; }
     // Se para el juego mientras eliges.
     if (state === 'playing') {
