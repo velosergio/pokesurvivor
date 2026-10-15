@@ -345,3 +345,47 @@ test('en la espera, un hello nuevo del mismo uid cambia su Pokémon y su kit (y 
   s.lobby.message(a2, { t: 'start' });
   assert.deepStrictEqual(s.fr.made[0].opts.members[0].kit, a2.kit);
 });
+
+test('con checkKits: espera a la partida guardada, usa sus mejoras y ranked según ok', async () => {
+  const asked = [];
+  const s = setup({ checkKits: async ps => { asked.push(ps); return new Map([['a', { up: { hp: 1 }, ok: true }], ['b', { up: {}, ok: true }]]); } });
+  const { cs: [a] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  assert.strictEqual(s.fr.made.length, 0, 'todavía leyendo');
+  s.lobby.message(a, { t: 'start' });
+  assert.deepStrictEqual(a.last(), { t: 'err', reason: 'started' });
+  await new Promise(r => setImmediate(r));
+  assert.deepStrictEqual(asked[0].map(p => [p.uid, p.dex, p.up]), [['a', 25, { hp: 2 }], ['b', 25, { hp: 2 }]]);
+  const g = s.fr.made[0];
+  assert.ok(g, 'no se ha creado la partida');
+  assert.deepStrictEqual(g.opts.members.map(m => m.kit.up), [{ hp: 1 }, {}]);
+  assert.strictEqual(g.opts.ranked, true);
+  assert.strictEqual(a.last().t, 'started');
+  assert.strictEqual(s.clk.pending, 0);
+});
+
+test('con checkKits: si algo no cuadra o falla la lectura, se juega sin ranking', async () => {
+  const s = setup({ checkKits: async () => new Map([['a', { up: {}, ok: true }], ['b', { up: {}, ok: false }]]) });
+  const { cs: [a] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  await new Promise(r => setImmediate(r));
+  assert.strictEqual(s.fr.made[0].opts.ranked, false);
+
+  const s2 = setup({ checkKits: async () => { throw new Error('sin red'); } });
+  const { cs: [a2] } = room(s2, 'a', 'b');
+  s2.lobby.message(a2, { t: 'start' });
+  await new Promise(r => setImmediate(r));
+  const g = s2.fr.made[0];
+  assert.strictEqual(g.opts.ranked, false);
+  assert.deepStrictEqual(g.opts.members.map(m => m.kit.up), [{ hp: 2 }, { hp: 2 }], 'sin lectura, las del navegador (perks las recorta)');
+});
+
+test('con checkKits: si tarda más de 5 s, empieza sin ranking', () => {
+  const s = setup({ checkKits: () => new Promise(() => {}) });
+  const { cs: [a] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  s.clk.tick(4999);
+  assert.strictEqual(s.fr.made.length, 0);
+  s.clk.tick(1);
+  assert.strictEqual(s.fr.made[0].opts.ranked, false);
+});

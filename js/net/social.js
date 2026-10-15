@@ -309,8 +309,19 @@ G.Social = (() => {
     if (w) w(error ? { ok: false, error } : { ok: true });
   }
 
+  /**
+   * Al empezar, el servidor mira tus mejoras y tus Pokémon en tu partida de la
+   * nube (no se cree lo que dice el navegador): antes de entrar en una sala se
+   * sube lo que tengas pendiente, para que cuenten tus últimas compras (4 s como mucho).
+   */
+  function syncFirst() {
+    if (G.DB.syncState === 'ok') return Promise.resolve();
+    return Promise.race([Promise.resolve(G.DB.flush({ force: true })).catch(() => {}), new Promise(r => setTimeout(r, 4000))]);
+  }
+
   /** Pide algo al servidor (create/join) y espera a `room` o `err` (10 s). */
   async function ask(type, obj) {
+    await syncFirst();
     try { await G.Net.connect(); } catch (e) { return { ok: false, error: downText(e.message) }; }
     settleRoom('cancel');
     const p = new Promise(res => { roomWait = res; });
@@ -377,10 +388,12 @@ G.Social = (() => {
   }
 
   /**
-   * Al volver a la sala: se presenta de nuevo al servidor (sin salir de ella)
-   * para que tenga tu Pokémon y tus mejoras de ahora, por si has cambiado algo.
+   * Al volver a la sala: sube lo pendiente y se presenta de nuevo al servidor
+   * (sin salir de ella) para que tenga tu Pokémon y tus mejoras de ahora.
    */
-  function refreshMember() {
+  async function refreshMember() {
+    if (!room || G.Game.state !== 'ui') return;
+    await syncFirst();
     if (room && G.Game.state === 'ui') G.Net.renew();
   }
 

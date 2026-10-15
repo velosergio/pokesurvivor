@@ -11,6 +11,12 @@
  *    (hello → room.back(uid) y se le repiten `room` y `started`); pasado, sale.
  * Si en una sala no queda nadie conectado, se para la partida y se borra.
  *
+ * Al empezar, si hay checkKits (rank.js, con la cuenta de servicio), se leen
+ * antes las partidas guardadas de los miembros (5 s como mucho): las mejoras de
+ * cada uno son lo menos entre lo que dice su navegador y lo guardado, y si algo
+ * no cuadra (Pokémon o shiny que no es suyo, cuenta baneada) o no se puede
+ * leer, la partida se juega pero no sube al ranking de grupo (ranked: false).
+ *
  * drain() (SIGTERM): ya no se crean salas ni se entra en ellas
  * (conn.close('restart')); las salas en espera se cierran y las partidas en
  * marcha siguen hasta acabar. `size` dice cuántas quedan (index.js sale en 0).
@@ -31,13 +37,17 @@ const BACK_MS = 20000;
 /**
  * Crea el lobby.
  * @param {object} o
- * @param {Function} o.createRoom  ({members, seed, send, onOver}) → partida
+ * @param {Function} o.createRoom  ({members, seed, send, onOver, ranked}) → partida
+ * @param {Function} [o.checkKits]  (jugadores) → Promise<Map uid → {up, ok}> (ver arriba)
  * @param {number} [o.maxRooms=30] salas a la vez como mucho
  * @param {Function} [o.setTimer]  (fn, ms) → id   (por defecto setTimeout)
  * @param {Function} [o.clearTimer] (id)           (por defecto clearTimeout)
  * @param {Function} [o.rand]      aleatorio en [0, 1) para códigos y semillas (por defecto crypto)
  */
-function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTimer = clearTimeout, rand } = {}) {
+/** Tiempo máximo para leer las partidas guardadas al empezar (ms). */
+const CHECK_MS = 5000;
+
+function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = setTimeout, clearTimer = clearTimeout, rand } = {}) {
   if (typeof createRoom !== 'function') throw new Error('createLobby necesita createRoom');
   const random = rand || (() => crypto.randomInt(0x100000000) / 0x100000000);
   /** código → sala { code, leader, members:[{uid,name,dex,shiny,on}], open, game, seed, timers:Map } */
@@ -132,6 +142,37 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
     conn.close(reason);
   }
 
+  /**
+   * Crea la partida. res: lo leído de las partidas guardadas (Map uid → {up, ok})
+   * o null (sin comprobación configurada, o no se pudo leer).
+   */
+  function launch(r, res) {
+    r.seed = Math.floor(random() * 0x100000000) >>> 0;
+    const members = r.members.map(m => {
+      const v = res && res.get(m.uid);
+      const kit = Object.assign({}, m.kit || {});
+      if (res) kit.up = v ? v.up : {};
+      return { uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, kit };
+    });
+    // Sin comprobación configurada (local) sube como siempre; con ella, sólo si todo cuadra.
+    const ranked = !checkKits || (!!res && r.members.every(m => { const v = res.get(m.uid); return v && v.ok; }));
+    let game = null;
+    game = createRoom({
+      members, seed: r.seed, ranked,
+      send(uid, m) {
+        if (rooms.get(r.code) !== r || r.game !== game) return;
+        const mm = r.members.find(x => x.uid === uid);
+        if (!mm || !mm.on) return;
+        const c = conns.get(uid);
+        if (c) return c.send(m);          // false: no ha salido (la sala lo necesita para los snap)
+      },
+      onOver() { over(r, game); },
+    });
+    r.game = game;
+    each(r, started(r));
+    game.start();
+  }
+
   const handlers = {
     create(conn) {
       const cur = roomOf(conn.uid);
@@ -179,24 +220,24 @@ function createLobby({ createRoom, maxRooms = 30, setTimer = setTimeout, clearTi
     start(conn, msg, r) {
       if (!r) return;
       if (r.leader !== conn.uid) return err(conn, 'leader');
-      if (r.game) return err(conn, 'started');
-      r.seed = Math.floor(random() * 0x100000000) >>> 0;
-      let game = null;
-      game = createRoom({
-        members: r.members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, kit: m.kit })),
-        seed: r.seed,
-        send(uid, m) {
-          if (rooms.get(r.code) !== r || r.game !== game) return;
-          const mm = r.members.find(x => x.uid === uid);
-          if (!mm || !mm.on) return;
-          const c = conns.get(uid);
-          if (c) return c.send(m);          // false: no ha salido (la sala lo necesita para los snap)
-        },
-        onOver() { over(r, game); },
-      });
-      r.game = game;
-      each(r, started(r));
-      game.start();
+      if (r.game || r.starting) return err(conn, 'started');
+      if (!checkKits) { launch(r, null); return; }
+      // Antes, lo que tiene cada uno de verdad en su partida guardada.
+      r.starting = true;
+      const players = r.members.map(m => ({ uid: m.uid, dex: m.dex, shiny: !!m.shiny, up: (m.kit && m.kit.up) || {} }));
+      let done = false;
+      const go = res => {
+        if (done) return;
+        done = true;
+        clearTimer(t);
+        r.starting = false;
+        if (rooms.get(r.code) !== r || r.game) return;
+        launch(r, res);
+      };
+      const t = setTimer(() => go(null), CHECK_MS);
+      let p;
+      try { p = Promise.resolve(checkKits(players)); } catch (e) { p = Promise.reject(e); }
+      p.then(go, e => { console.warn('[lobby] no se pudieron leer las partidas guardadas:', e && e.message); go(null); });
     },
 
     in(conn, msg, r) { if (r && r.game) r.game.input(conn.uid, msg); },

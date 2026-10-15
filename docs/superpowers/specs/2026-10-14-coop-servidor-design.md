@@ -10,8 +10,12 @@ código en `social.js` (Amigos > Jugar en grupo); el kit de cada jugador (mejora
 y vetos) va en el `hello` y el servidor manda `kit` con sus movimientos, objeto y velocidad. Reglas:
 las tablas `g_` ya no aceptan escrituras de navegadores y `addMine` compara también nivel,
 derrotados y shiny (`tools/rules`, emulador). Probado con un navegador real y bots (`bots.js --join`).
-Pendiente: cambiar cartas en grupo, comprobar que el Pokémon y el shiny son de quien los manda, y
-que el servidor avise de altares, cofres y trampas.
+Al empezar, el servidor lee `saves/{uid}` de cada miembro con la cuenta de servicio
+(`rank.checkKits`, sólo `save.pupg`, `save.owned`, `save.shiny`, `ban` y `sus`): cada mejora es lo
+menos entre lo que dice el navegador y lo guardado, y si el Pokémon o el shiny no son suyos, la
+cuenta está baneada o no se puede leer en 5 s, la partida se juega pero no sube al ranking de grupo.
+El navegador sube lo pendiente antes de entrar en una sala, para que cuenten sus últimas compras.
+Pendiente: cambiar cartas en grupo y que el servidor avise de altares, cofres y trampas.
 
 **Medido en el paso 3 (local, Windows, bots que sólo dan vueltas):** snap medio ~450 B (máx. ~1,3 KB),
 3,5-4,5 KB/s por jugador (~12-16 MB por jugador y hora), ~21 MB de RAM por sala, y CPU de 7-14 % de

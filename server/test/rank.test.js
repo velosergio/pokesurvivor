@@ -50,7 +50,22 @@ function fakeFirestore({ abortOnce = false } = {}) {
         const d = docs.get(n.slice(ROOT.length + 1));
         if (!d) return { missing: n };
         let fields = d;
-        if (body.mask) { fields = {}; for (const k of body.mask.fieldPaths) if (k in d) fields[k] = d[k]; }
+        // Máscara con rutas "a.b": sólo esas ramas de los mapas (como Firestore).
+        if (body.mask) {
+          fields = {};
+          for (const k of body.mask.fieldPaths) {
+            const [top, ...rest] = k.split('.');
+            if (!(top in d)) continue;
+            if (!rest.length) { fields[top] = d[top]; continue; }
+            let src = d[top], dst = fields[top] = fields[top] || { mapValue: { fields: {} } };
+            for (let i = 0; i < rest.length && src && src.mapValue; i++) {
+              const f = (src.mapValue.fields || {})[rest[i]];
+              if (!f) break;
+              if (i === rest.length - 1) dst.mapValue.fields[rest[i]] = f;
+              else { dst = dst.mapValue.fields[rest[i]] = dst.mapValue.fields[rest[i]] || { mapValue: { fields: {} } }; src = f; }
+            }
+          }
+        }
         return { found: { name: n, fields } };
       }));
     }
@@ -295,4 +310,30 @@ test('periodos en hora de Madrid, iguales que en el navegador', () => {
   for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2027, 0, 8); t += 3 * 3600 * 1000) {
     assert.deepStrictEqual(boardIds(new Date(t)), Browser.boardIds(new Date(t)));
   }
+});
+
+test('checkKits: mejoras = lo menos entre navegador y partida guardada; ok si el Pokémon y el shiny son suyos', async () => {
+  const fs = fakeFirestore();
+  fs.set('saves/aa', { save: { pupg: { 25: { hp: 3, spd: 1 } }, owned: { 25: { at: 1 } }, shiny: {}, coins: 99, name: 'Ana' } });
+  fs.set('saves/bb', { save: { pupg: {}, owned: { 4: { at: 1 } }, shiny: { 4: { at: 1 } } } });
+  fs.set('saves/cc', { save: { pupg: { 7: { atk: 5 } }, owned: { 7: { at: 1 } } }, ban: true });
+  const res = await rankOf(fs).checkKits([
+    { uid: 'aa', dex: 25, shiny: false, up: { hp: 10, spd: 1, atk: 4 } },
+    { uid: 'bb', dex: 4, shiny: true, up: { hp: 2 } },
+    { uid: 'cc', dex: 7, shiny: false, up: { atk: 5 } },
+    { uid: 'dd', dex: 1, shiny: false, up: { hp: 1 } },
+    { uid: 'aa2', dex: 25, shiny: true, up: {} }
+  ]);
+  assert.deepStrictEqual(res.get('aa'), { up: { hp: 3, spd: 1 }, ok: true });
+  assert.deepStrictEqual(res.get('bb'), { up: {}, ok: true });
+  assert.deepStrictEqual(res.get('cc'), { up: { atk: 5 }, ok: false }, 'baneada');
+  assert.deepStrictEqual(res.get('dd'), { up: {}, ok: false }, 'sin partida guardada');
+  assert.strictEqual(res.get('aa2').ok, false);
+  // Sólo se piden esas ramas (no la partida entera).
+  const body = fs.calls.filter(u => u.endsWith(':batchGet')).length;
+  assert.strictEqual(body, 1);
+});
+
+test('sin cuenta de servicio no hay checkKits', () => {
+  assert.strictEqual(createRank({ serviceAccount: null }).checkKits, null);
 });

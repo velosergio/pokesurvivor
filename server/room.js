@@ -43,12 +43,12 @@
  *   wait [nombres] quién está eligiendo (vacía = sigue)
  *   kit [huecos, activo, objeto, vínculos, [velocidad, imán]] tu Pokémon (sólo a ti, al cambiar)
  *
- * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda
- * (perks() los recorta a su máximo), bind: atajos, ban: vetados }. Se cree al
- * navegador como en solitario: el ranking de grupo no puede pasar de lo que
- * consigue un jugador con todas las mejoras compradas.
+ * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda,
+ * bind: atajos, ban: vetados }. Con la cuenta de servicio, lobby.js deja en `up`
+ * lo menos entre eso y la partida guardada (rank.js checkKits); perks() además
+ * recorta cada una a su máximo.
  *
- * Pendiente: comprobar que el Pokémon y el shiny son suyos, cambiar cartas (reroll).
+ * Pendiente: cambiar cartas (reroll).
  */
 'use strict';
 const { createSim } = require('./sim');
@@ -99,10 +99,11 @@ const str = v => (v == null ? '' : String(v));
  * @param {(uid:string, msg:object) => (boolean|void)} o.send  false = no ha salido (se le reenvía todo)
  * @param {(results:object[]) => void} [o.onOver]
  * @param {{submitGroup: Function}} [o.rank]
+ * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada)
  * @param {{error: Function, warn: Function}} [o.logger=console]
  * @returns {{ input, pick, hold, drop, back, start, stop, tick, debug }}
  */
-function createRoom({ members, seed = 1, send, onOver, rank, logger = console } = {}) {
+function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logger = console } = {}) {
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
   const sim = createSim({ seed: seed >>> 0 });
   const { G, clock } = sim;
@@ -622,7 +623,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, logger = console } 
       if (!s.on || s.gone) continue;
       try { send(s.uid, { t: 'over', results: results[s.id] }); } catch (e) { logger.error('[room] over:', e && e.message); }
     }
-    if (rank && why !== 'error' && time >= 120) {
+    if (rank && ranked && why !== 'error' && time >= 120) {
       const kills = results.reduce((a, r) => a + r.ki, 0);
       try {
         Promise.resolve(rank.submitGroup({ t: Math.floor(time), members: members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: !!m.shiny })), lv: team.level, kills }))

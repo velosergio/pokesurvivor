@@ -114,7 +114,7 @@ function objOf(fields) {
  * @param {Function} [o.now]              → milisegundos (por defecto Date.now)
  */
 function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = Date.now } = {}) {
-  if (!serviceAccount) return { submitGroup: async () => [] };
+  if (!serviceAccount) return { submitGroup: async () => [], checkKits: null };
   const sa = serviceAccount;
   const ROOT = 'projects/' + sa.project_id + '/databases/(default)/documents';
   const API = 'https://firestore.googleapis.com/v1/' + ROOT;
@@ -278,7 +278,41 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
     }
   }
 
-  return { submitGroup };
+  /**
+   * Lo que cada jugador tiene de verdad en su partida guardada (saves/{uid}.save),
+   * para no creerse lo que cuenta su navegador al empezar una partida en grupo:
+   *   up    de cada mejora, lo MENOS entre lo que dice el navegador y lo guardado
+   *         (si la nube va atrasada, como mucho juegas sin la última compra)
+   *   ok    el Pokémon (y el shiny, si lo lleva) es suyo y la cuenta no está
+   *         baneada ni marcada; si no, la partida no sube al ranking de grupo
+   * Si no se puede leer, lanza (lobby.js: la partida se juega, sin ranking).
+   * @param {{uid:string, dex:number, shiny:boolean, up:object}[]} players
+   * @returns {Promise<Map<string, {up:object, ok:boolean}>>}
+   */
+  async function checkKits(players) {
+    const ps = players.filter(p => p && typeof p.uid === 'string' && p.uid && !p.uid.includes('/'));
+    const saves = await getAll(ps.map(p => 'saves/' + p.uid),
+      { mask: { fieldPaths: ['save.pupg', 'save.owned', 'save.shiny', 'ban', 'sus'] } });
+    const out = new Map();
+    for (const p of ps) {
+      const f = saves.get('saves/' + p.uid);
+      const sv = f && f.save ? fromFs(f.save) || {} : {};
+      const has = (o, k) => !!(o && typeof o === 'object' && o[k]);
+      const saved = (sv.pupg && sv.pupg[p.dex]) || {};
+      const up = {};
+      for (const [k, n] of Object.entries(p.up || {})) {
+        const lim = Number.isInteger(saved[k]) ? saved[k] : 0;
+        const v = Math.min(n | 0, lim);
+        if (v > 0) up[k] = v;
+      }
+      const ok = !!f && has(sv.owned, p.dex) && (!p.shiny || has(sv.shiny, p.dex))
+        && fromFs(f.ban) !== true && fromFs(f.sus) !== true;
+      out.set(p.uid, { up, ok });
+    }
+    return out;
+  }
+
+  return { submitGroup, checkKits };
 }
 
 module.exports = { createRank, boardIds, toFs, fromFs };

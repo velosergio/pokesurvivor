@@ -11,11 +11,11 @@ const DEX = [4, 7, 1, 25];
 const quiet = { error() {}, warn() {}, log() {} };
 
 /** Sala de n jugadores con un `send` falso que guarda todo. */
-function makeRoom({ n = 4, seed = 7, rank, logger = quiet } = {}) {
+function makeRoom({ n = 4, seed = 7, rank, ranked, logger = quiet } = {}) {
   const members = DEX.slice(0, n).map((dex, i) => ({ uid: 'u' + i, name: 'P' + i, dex, shiny: false }));
   const sent = [];
   const overs = [];
-  const room = createRoom({ members, seed, rank, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
+  const room = createRoom({ members, seed, rank, ranked, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
   return { room, members, sent, overs, G: room.debug.G, pl: uid => room.debug.player(uid) };
 }
 
@@ -357,4 +357,15 @@ test('mejoras de la tienda, Repertorio y veto del kit; `kit` a cada uno al empez
   room.pick('a', 0); room.pick('b', 0);
   room.tick(); room.tick();
   assert.ok(kitOf('a').length >= 1 || kitOf('b').length >= 1, 'tras la carta llega el kit nuevo');
+});
+
+test('ranked: false (algo no cuadra con la partida guardada): no sube la marca aunque el tiempo cuente', () => {
+  let got = null;
+  const r = makeRoom({ n: 2, ranked: false, rank: { submitGroup: r_ => { got = r_; return Promise.resolve([]); } } });
+  const step = bots(r);
+  steps(step, 121);
+  for (const m of r.members) { const p = r.pl(m.uid); p.invuln = 0; p.hurt(1e9); }
+  for (let i = 0; i < 40; i++) r.room.tick();
+  assert.ok(r.over || of(r.sent, 'u0', 'over').length, 'no ha llegado over');
+  assert.strictEqual(got, null);
 });

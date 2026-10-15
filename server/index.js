@@ -86,7 +86,8 @@ function realDeps({ devAuth, maxRooms, serviceAccount, logger = console }) {
   const auth = authMod.createAuth({ projectId: authMod.projectIdFromConfig(), devAuth });
   const rank = require('./rank').createRank({ serviceAccount });
   // room.js (y con él la simulación) se carga al crear la primera partida.
-  const lobby = require('./lobby').createLobby({ createRoom: o => require('./room').createRoom({ ...o, rank }), maxRooms });
+  // Con la cuenta de servicio, al empezar se comprueban las mejoras y el Pokémon con la partida guardada.
+  const lobby = require('./lobby').createLobby({ createRoom: o => require('./room').createRoom({ ...o, rank }), checkKits: rank.checkKits, maxRooms });
   return { auth, lobby, proto: require('./proto') };
 }
 
