@@ -29,3 +29,7 @@ Se empieza con Pokémon comunes: al arrancar se elige uno de tres al azar. Cada 
 ### Modo Arena
 
 Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio mundo; cada 2 minutos los mundos se cruzan y hay un combate. Gana quien aguante más rondas o quien deje al rival fuera.
+
+## Nuevas
+- Zoom ou / zoom in
+- Barra de vida sobre el personaje
