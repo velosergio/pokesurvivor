@@ -33,3 +33,5 @@ Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio m
 ## Nuevas
 - Zoom ou / zoom in
 - Barra de vida sobre el personaje
+- Reclamar x20 Tcikets
+- Saltar animación gacha
