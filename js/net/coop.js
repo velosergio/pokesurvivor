@@ -7,7 +7,7 @@
  *                segundo se manda la posición (`in`, binario). El servidor la
  *                valida: si te corrige (pared, velocidad, viaje a la grieta),
  *                se desplaza tu Pokémon lo que haya corregido.
- *   lo demás     llega en `snap` (~10/s): compañeros, enemigos cercanos,
+ *   lo demás     llega en `snap` (~15/s): compañeros, enemigos cercanos,
  *                disparos enemigos y objetos del suelo; y en `ev` lo que pasa
  *                (ataques de todos, números grandes, grietas, Sentencia, clima…).
  *                Los ataques, también los tuyos, se repiten como "fantasma"
@@ -27,7 +27,7 @@ G.Coop = (() => {
   const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item'];
   const IN_EVERY = 1 / 15;              // s entre envíos de tu posición
   const FIX_MIN = 6;                    // px: por debajo, la corrección del servidor se ignora
-  const SNAP_DT = 0.1;                  // s entre snaps (para estimar velocidades)
+  const SNAP_DT = 0.066;                // s entre snaps (2 pasos de 33 ms): los disparos dibujados duran ~3
   const FIX_FAR = 300;                  // px: más que esto es un viaje (grieta, Sentencia): sin suavizar
   const FIX_EASE = 12;                  // rapidez con que se ve la corrección (~100 ms)
 

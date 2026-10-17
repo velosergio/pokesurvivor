@@ -1,8 +1,8 @@
 /* ============ room.js — una partida del cooperativo en el servidor (Node) ============
  *
  * Una sala = una simulación propia (sim.js, con su semilla) con TODOS los
- * jugadores dentro, avanzada con G.Step.team a 20 pasos por segundo (paso fijo
- * de 50 ms). El servidor manda en todo salvo en el movimiento propio, que lo
+ * jugadores dentro, avanzada con G.Step.team a 30 pasos por segundo (paso fijo
+ * de 33 ms). El servidor manda en todo salvo en el movimiento propio, que lo
  * decide cada navegador y aquí sólo se VALIDA:
  *
  *   in     {seq,x,y,dx,dy,move}  posición pedida. Se acepta si desde la última
@@ -56,12 +56,12 @@
 const { createSim } = require('./sim');
 const proto = require('./proto');
 
-/** Paso fijo (s) y pasos por segundo. */
-const DT = 0.05;
-const STEP_MS = 50;
-/** Como mucho estos pasos de golpe si el bucle se atrasa. */
-const MAX_CATCHUP = 3;
-/** Un snap cada tantos pasos (~10/s). */
+/** Paso fijo. setInterval sólo acepta milisegundos enteros: 33 ms son ~30,3 Hz. */
+const STEP_MS = Math.round(1000 / 30);
+const DT = STEP_MS / 1000;
+/** Como mucho estos pasos de golpe si el bucle se atrasa (~165 ms, como los 150 de antes). */
+const MAX_CATCHUP = 5;
+/** Un snap cada tantos pasos (~15/s). */
 const SNAP_EVERY = 2;
 /** Radio de lo que se manda a cada uno (y el de salida, con margen para que no parpadee). */
 const NEAR = 950, NEAR_OUT = 1000;
@@ -367,6 +367,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     const alive = active().filter(s => !s.pl.dead);
     if (!alive.length) return;
     pendingLevels--;
+    // 2 s sin daño al volver a la partida (mientras se elige, la simulación está parada).
+    for (const s of alive) s.pl.invuln = Math.max(s.pl.invuln, 2);
     for (const s of alive) enqueue(s, { kind: 'level', lv: team.level, options: G.LevelUp.offer(s.pl) });
   }
 
@@ -751,7 +753,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
       s.accX = s.pl.x; s.accY = s.pl.y; s.accT = clock.t;
       if (s.queue.length) send(s.uid, choiceMsg(s.queue[0], s));
     },
-    /** Bucle propio a 20 Hz (recupera como mucho 3 pasos si se atrasa). */
+    /** Bucle propio a ~30 Hz (recupera como mucho 5 pasos si se atrasa). */
     start() {
       if (timer || over || stopped) return;
       lastReal = Date.now(); acc = 0;
@@ -780,4 +782,4 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   };
 }
 
-module.exports = { createRoom };
+module.exports = { createRoom, DT, STEP_MS };

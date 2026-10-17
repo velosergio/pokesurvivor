@@ -89,7 +89,7 @@ test('la Sentencia de Arceus, de la animación a la pelea', () => {
 });
 
 test('sala de 4 bots hasta la Sentencia sin errores (createRoom)', () => {
-  const { createRoom } = require('../room.js');
+  const { createRoom, DT: ROOM_DT } = require('../room.js');
   const proto = require('../proto.js');
   const members = [4, 7, 1, 25].map((dex, i) => ({ uid: 'b' + i, name: 'Bot' + i, dex, shiny: false }));
   const sent = [];
@@ -103,8 +103,8 @@ test('sala de 4 bots hasta la Sentencia sin errores (createRoom)', () => {
   const step = k => {
     members.forEach((m, i) => {
       const p = room.debug.player(m.uid);
-      const a = k * 0.05 * 0.3 + i * 1.7, dx = Math.cos(a), dy = Math.sin(a);
-      room.input(m.uid, { seq: ++seq, x: p.x + dx * p.spd * 0.05, y: p.y + dy * p.spd * 0.05, dx, dy, move: 0 });
+      const a = k * ROOM_DT * 0.3 + i * 1.7, dx = Math.cos(a), dy = Math.sin(a);
+      room.input(m.uid, { seq: ++seq, x: p.x + dx * p.spd * ROOM_DT, y: p.y + dy * p.spd * ROOM_DT, dx, dy, move: 0 });
       if (p.dead) p.revive(1);
       p.hp = p.maxHp;
     });
@@ -115,12 +115,12 @@ test('sala de 4 bots hasta la Sentencia sin errores (createRoom)', () => {
     }
   };
   let k = 0;
-  for (; k < 20 * 6; k++) step(k);
+  for (; k < Math.round(6 / ROOM_DT); k++) step(k);
   G.Judgment.debugStart();
   let fight = false;
-  for (let i = 0; i < 20 * 40 && !fight; i++, k++) { step(k); fight = G.Judgment.active && !G.Judgment.cinematic; }
+  for (let i = 0; i < Math.round(40 / ROOM_DT) && !fight; i++, k++) { step(k); fight = G.Judgment.active && !G.Judgment.cinematic; }
   assert.ok(fight, 'no ha llegado a la pelea');
-  for (let i = 0; i < 20 * 5; i++, k++) step(k);
+  for (let i = 0; i < Math.round(5 / ROOM_DT); i++, k++) step(k);
   assert.deepStrictEqual(errors, [], 'errores en la sala');
   assert.strictEqual(over, null, 'la partida ha terminado antes de tiempo');
   assert.ok(snaps > 0, 'no ha mandado instantáneas');

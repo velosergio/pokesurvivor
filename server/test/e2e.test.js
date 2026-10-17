@@ -24,7 +24,7 @@ test('una sala de 2 bots juega 15 s: started, snaps legibles y sin errores', { t
     assert.deepStrictEqual(s.noStarted, [], 'todos reciben started');
     assert.deepStrictEqual(s.noSnap, [], 'todos reciben snaps');
     assert.strictEqual(s.players, 2);
-    assert.ok(s.snaps > 2 * 15 * 5, `snaps a ~10/s por jugador (llegaron ${s.snaps})`);
+    assert.ok(s.snaps > 2 * 15 * 7, `snaps a ~15/s por jugador (llegaron ${s.snaps})`);
     assert.ok(s.maxSnap <= 3500, `snap dentro del presupuesto (máximo ${s.maxSnap} B)`);
     assert.strictEqual(s.picks <= s.levels, true);
     assert.deepStrictEqual(s.byes, {});

@@ -3,10 +3,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { createRoom } = require('../room.js');
+const { createRoom, DT } = require('../room.js');
 const proto = require('../proto.js');
-
-const DT = 0.05;
 const DEX = [4, 7, 1, 25, 133, 39, 52, 54, 60, 63];
 const quiet = { error() {}, warn() {}, log() {} };
 
@@ -63,7 +61,7 @@ test('4 bots llegan a la Sentencia de Arceus sin errores', () => {
   steps(step, 6);
   r.G.Judgment.debugStart();
   let fight = false;
-  for (let i = 0; i < 20 * 40 && !fight; i++) { step(); if (r.G.Judgment.active && !r.G.Judgment.cinematic) fight = true; }
+  for (let i = 0; i < Math.round(40 / DT) && !fight; i++) { step(); if (r.G.Judgment.active && !r.G.Judgment.cinematic) fight = true; }
   assert.ok(fight, 'no ha llegado a la pelea');
   steps(step, 8);
   assert.ok(!r.over, 'la partida ha terminado: ' + JSON.stringify(r.over));
@@ -229,9 +227,9 @@ test('quien no elige en 20 s se queda con la primera', () => {
   r.room.tick();
   r.room.pick('u0', 0);
   const t0 = r.room.debug.time;
-  for (let i = 0; i < 19 * 20; i++) r.room.tick();
+  for (let i = 0; i < Math.round(19 / DT); i++) r.room.tick();
   assert.strictEqual(r.room.debug.time, t0, 'no ha esperado');
-  for (let i = 0; i < 2 * 20; i++) r.room.tick();
+  for (let i = 0; i < Math.round(2 / DT); i++) r.room.tick();
   assert.ok(r.room.debug.time > t0, 'sigue esperando pasados 20 s');
 });
 
@@ -248,7 +246,7 @@ test('quien no elige no se lleva «Olvidar» aunque salga primera', () => {
   G.LevelUp.offer = offer;
   assert.strictEqual(of(r.sent, 'u0', 'level')[0].options[0].type, 'forget');
   r.room.pick('u1', 0);
-  for (let i = 0; i < 21 * 20; i++) r.room.tick();
+  for (let i = 0; i < Math.round(21 / DT); i++) r.room.tick();
   assert.strictEqual(of(r.sent, 'u0', 'level').length, 1, 'no le llega la elección de qué olvidar');
   assert.strictEqual(a.slots.length, 4);
   assert.ok(!r.room.debug.paused, 'la partida sigue');
@@ -408,7 +406,7 @@ test('quien sale de la partida (más de 20 s fuera) puede volver con «Reconecta
   const step = bots(r);
   steps(step, 10);
   r.room.drop('u1');
-  for (let i = 0; i < 20 / 0.05 + 5; i++) { r.pl('u0').invuln = 99; r.room.tick(); }
+  for (let i = 0; i < Math.round(20 / DT) + 5; i++) { r.pl('u0').invuln = 99; r.room.tick(); }
   assert.ok(!r.room.debug.over, 'sigue con el otro');
   assert.strictEqual(lastSnap(r.sent, 'u0').players.find(p => p.id === 1).dead, true, 'ha salido del campo');
   const lv = r.pl('u1').level;

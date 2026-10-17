@@ -197,6 +197,8 @@ G.Game = (() => {
       // (Cartas nuevas tras cambiarlas: sin el sonido de subir de nivel.)
       if (!(m.kind === 'level' && G.UI.isOpen('scr-levelup'))) G.Audio.sfx('levelup');
       state = 'levelup';
+      // El parpadeo de los 2 s sin daño (el daño de verdad lo quita el servidor).
+      if (m.kind === 'level') pl.invuln = Math.max(pl.invuln, 2);
       if (m.kind === 'item' && opts.length === 2 && G.Items.BY[opts[0].id] && G.Items.BY[opts[1].id]) {
         G.RunUI.showItemChoice(opts[0].id, opts[1].id, got => G.Coop.pick(got === opts[1].id ? 1 : 0));
       } else if (m.kind === 'bond') {
@@ -374,6 +376,8 @@ G.Game = (() => {
     if (pl.dead) return;
     pendingLevels--;
     state = 'levelup';
+    // 2 s sin daño al volver a la partida (el reloj no corre mientras eliges).
+    pl.invuln = Math.max(pl.invuln, 2);
     G.Audio.sfx('levelup');
     const take = card => {
       G.Audio.sfx('confirm');
