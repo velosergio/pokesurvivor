@@ -422,6 +422,34 @@ test('quien sale de la partida (más de 20 s fuera) puede volver con «Reconecta
   assert.strictEqual(!!s.players.find(p => p.id === 1).dead, !!r.pl('u1').dead, 'vuelve a estar en el campo');
 });
 
+test('sin nadie conectado, la partida espera parada (el minuto del lobby) y quien vuelve sigue', () => {
+  const r = makeRoom({ n: 2 });
+  const step = bots(r);
+  steps(step, 10);
+  const t0 = r.room.debug.time;
+  r.room.drop('u0'); r.room.drop('u1');
+  for (let i = 0; i < Math.round(40 / DT); i++) r.room.tick();
+  assert.ok(!r.room.debug.over, 'se ha acabado sin esperar el minuto');
+  assert.strictEqual(r.room.debug.time, t0, 'el reloj ha corrido sin nadie');
+  assert.ok(!r.pl('u0').dead && !r.pl('u1').dead, 'les han tumbado sin estar');
+  r.sent.length = 0;
+  r.room.back('u0');
+  r.room.tick(); r.room.tick();
+  assert.ok(r.room.debug.time > t0, 'no sigue al volver');
+  assert.ok(lastSnap(r.sent, 'u0'), 'no le llega snap');
+});
+
+test('sin nadie conectado más de un minuto: se acaba (empty)', () => {
+  const r = makeRoom({ n: 2 });
+  const step = bots(r);
+  steps(step, 10);
+  r.room.drop('u0'); r.room.drop('u1');
+  for (let i = 0; i < Math.round(61 / DT); i++) r.room.tick();
+  assert.ok(r.room.debug.over, 'no se ha acabado');
+  assert.strictEqual(r.overs.length, 1);
+  assert.strictEqual(r.overs[0][0].why, 'empty');
+});
+
 test('mejoras de la tienda, Repertorio y veto del kit; `kit` a cada uno al empezar y al cambiar', () => {
   const kit = { up: { hp: 3, spd: 2, moves: 1, ban: 1, xx: 9 }, bind: [], ban: ['tackle', 'growl'] };
   const members = [{ uid: 'a', name: 'A', dex: 25, shiny: false, kit }, { uid: 'b', name: 'B', dex: 4, shiny: false }];

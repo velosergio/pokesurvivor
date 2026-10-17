@@ -330,6 +330,7 @@ label { display: block; font-size: 14px; color: var(--muted); margin: 8px 0 4px;
 }
 /* Centrado vertical que no corta por arriba cuando no cabe. */
 #pull-fx::before, #pull-fx::after { content: ''; margin: auto; }
+#pull-skip { position: absolute; top: 12px; right: 12px; z-index: 3; }
 #pull-close { position: sticky; bottom: 8px; z-index: 2; flex-shrink: 0; box-shadow: 0 4px 18px rgba(0,0,0,.6); }
 @media (max-height: 520px) {
   #pull-fx { gap: 10px; }
@@ -680,13 +681,15 @@ body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callo
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 /* Con táctil no tienen sentido las pistas de teclas. */
 body.touch kbd, body.touch .card .key, body.touch .kbd-hint { display: none !important; }
-#rotate {
+#rotate, #onetab {
   position: fixed; inset: 0; z-index: 200;
   display: flex; align-items: center; justify-content: center;
   background: rgba(5, 10, 30, .94);
 }
-#rotate.hidden { display: none; }
+#rotate.hidden, #onetab.hidden { display: none; }
 #rotate .box { max-width: 320px; }
+#onetab .box { max-width: 420px; padding: 0 16px; }
+#onetab .btn { margin-top: 14px; }
 #rotate-ico { animation: rot-hint 1.6s steps(4) infinite; display: inline-block; }
 @keyframes rot-hint { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(90deg); } }
 

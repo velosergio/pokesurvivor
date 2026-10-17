@@ -84,7 +84,7 @@ G.Coop = (() => {
   }
 
   function end() {
-    active = false; local = null;
+    active = false; local = null; wasRetry = false; clearTimeout(backT);
     mates.clear(); bySeat.length = 0; sent.clear(); dying.clear(); shots = [];
   }
 
@@ -127,10 +127,28 @@ G.Coop = (() => {
 
   // ---------------- lo que llega del servidor ----------------
 
+  /*
+   * Tras un corte, al reconectar el servidor manda `hi` y, si la partida sigue,
+   * `room` y `started` justo detrás (o `away` si llevas más de un minuto fuera:
+   * se pide volver con `back`). Si no llega `started`, la partida acabó
+   * mientras no estabas y se cierra aquí: antes se quedaba congelada para
+   * siempre, sin `over`.
+   */
+  let wasRetry = false, backT = 0;
+  function gone() {
+    clearTimeout(backT);
+    if (!active) return;
+    const cb = api.lost;
+    leave();
+    if (cb) cb('La partida en grupo terminó mientras estabas desconectado.');
+  }
+
   G.Net.on(m => {
+    if (m.type === 'hi' && active && wasRetry) { wasRetry = false; clearTimeout(backT); backT = setTimeout(gone, 3000); return; }
+    if (m.type === 'away' && active) { clearTimeout(backT); G.Net.send('back'); backT = setTimeout(gone, 3000); return; }
     if (m.type === 'started') {
       // Tras reconectar llega otra vez: lo que se tenía se tira y llega de nuevo.
-      if (active) { G.EnemyMgr.clearRemote(); G.Pickups.clear(); return; }
+      if (active) { clearTimeout(backT); G.EnemyMgr.clearRemote(); G.Pickups.clear(); return; }
       if (G.Flow.startCoop) G.Flow.startCoop(m);
       return;
     }
@@ -146,6 +164,7 @@ G.Coop = (() => {
 
   G.Net.onState(s => {
     if (!active || !api.away) return;
+    if (s === 'retry') wasRetry = true;
     api.away(s === 'retry' ? 'Reconectando…' : null);
   });
 

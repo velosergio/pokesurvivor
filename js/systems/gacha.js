@@ -4,7 +4,7 @@
  * 9 banners (Kanto ... Paldea). Cada uno con su propio pity.
  * Probabilidades por tirada:  1★ 45% · 2★ 30% · 3★ 17% · 4★ 6.5% · 5★ 1.5%
  * Garantías:
- *   - la tirada ×10 trae al menos un 4★ o superior
+ *   - la tirada ×10 trae al menos un 4★ o superior (la ×20, uno por cada 10)
  *   - a las 70 tiradas sin 5★ en ese banner, el siguiente es 5★ seguro
  * Shiny: 1 de cada 100 tiradas sale en su versión shiny.
  * Repetidos: se convierten en Pokémonedas (los shiny repetidos, el triple).
@@ -12,6 +12,7 @@
  * Se tira con TICKETS (se consiguen jugando):
  *   ×1   1 ticket
  *   ×10  10 tickets normales, o 1 ticket ×10 (eliges con qué)
+ *   ×20  20 tickets normales (dos ×10 seguidas: cada bloque de 10 trae su Épica)
  */
 G.Gacha = (() => {
   /** ¿Qué gasta una tirada de n? → { t1, t10 } o null si no te llega. */
@@ -91,7 +92,7 @@ G.Gacha = (() => {
       save.pity[gen]++;
       let want;
       if (save.pity[gen] >= PITY_5) want = 5;
-      else if (n === 10 && i === n - 1 && !out.some(r => r.rarity >= 4)) want = rollRarity(4);
+      else if (n >= 10 && i % 10 === 9 && !out.slice(i - 9).some(r => r.rarity >= 4)) want = rollRarity(4);
       else want = rollRarity();
 
       const { rarity, list } = poolNear(want, gen);

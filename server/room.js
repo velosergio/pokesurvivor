@@ -25,6 +25,10 @@
  * snap (se lleva lo que sabe cada uno) y como mucho ~3 KB: si no cabe todo, van
  * los más cercanos y el resto en el siguiente.
  *
+ * Desconectados: quien no vuelve en 20 s sale del campo (puede volver con
+ * «Reconectar»). Si no queda nadie conectado, la partida se para y espera el
+ * minuto del lobby (BACK_MS); pasado, se acaba ('empty').
+ *
  * Fin: caídos todos 1,6 s (fuera de la arena de la grieta), o 1 h de partida.
  * A cada uno `over {results}` con su resumen; onOver(todos) y, si el tiempo
  * cuenta, la marca de grupo (rank.submitGroup). Un error en el paso cierra
@@ -55,6 +59,7 @@
 'use strict';
 const { createSim } = require('./sim');
 const proto = require('./proto');
+const { BACK_MS } = require('./lobby');
 
 /** Paso fijo. setInterval sólo acepta milisegundos enteros: 33 ms son ~30,3 Hz. */
 const STEP_MS = Math.round(1000 / 30);
@@ -73,6 +78,8 @@ const IN_STALE = 0.5;
 const SPEED_K = 1.25, SLACK = 8;
 /** Tiempo máximo para elegir (s de pausa) y para volver tras un corte (s). */
 const CHOICE_MAX = 20, BACK_MAX = 20;
+/** Sin nadie conectado, la partida espera parada lo mismo que el lobby guarda el sitio (s). */
+const EMPTY_MAX = BACK_MS / 1000;
 /** Caídos todos este tiempo → fin. */
 const DOWN_END = 1.6;
 /** Tope de partida (los límites del ranking). */
@@ -461,11 +468,20 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     }
   }
 
-  /** Los desconectados que no vuelven a tiempo salen de la partida. */
+  /** ¿Queda alguien conectado en la partida? */
+  const anyoneOn = () => seats.some(s => s.on && !s.gone);
+
+  /**
+   * Los desconectados que no vuelven a tiempo salen de la partida: a los 20 s
+   * si los demás siguen jugando; si no queda nadie (móvil bloqueado, recarga),
+   * al minuto, como el lobby. Antes se acababa a los 20 s y quien volvía antes
+   * del minuto se encontraba la partida perdida, sin `over` ni premios.
+   */
   function awayClock(dt) {
+    const max = anyoneOn() ? BACK_MAX : EMPTY_MAX;
     for (const s of seats) {
       if (s.on || s.gone) continue;
-      if ((s.offT += dt) < BACK_MAX) continue;
+      if ((s.offT += dt) < max) continue;
       s.gone = true;
       G.Projectiles.clearOrbs(s.pl);
       G.Combat.clearFields(s.pl);
@@ -512,6 +528,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     try {
       awayClock(DT);
       if (over) return;
+      // Nadie conectado: todo quieto hasta que vuelva alguien (si no, los tumban sin estar).
+      if (!anyoneOn()) return;
       if (waiting().length) choiceClock(DT);
       noteWaiting();
       if (!waiting().length) simStep();

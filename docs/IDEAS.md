@@ -35,9 +35,6 @@ Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio m
 ## Nuevas
 - Poder que aleje un 10% Zoom out la camara
 - Barra de vida sobre el personaje
-- Reclamar x20 Tcikets
-- Botón "Saltar" animación gacha
 - Shader CTR
-- Invulnerabilidad de 2s cuando se sube de nivel
 - investigar bugs de desconexion
 - Subir veto de 3 a 5 poderes

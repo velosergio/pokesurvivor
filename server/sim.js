@@ -16,7 +16,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 /** Lo que no se carga: pantalla, sonido, entrada, red, interfaz y guardado. */
-const SKIP = /^js\/(ui|net)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
+const SKIP = /^js\/(ui|net)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|onetab|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
 
 /** Scripts de dev.html que forman la simulación, en su orden (la misma lista que tools/build.js). */
 function scripts() {

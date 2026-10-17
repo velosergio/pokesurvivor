@@ -6,9 +6,9 @@
  *   rareza que ha salido (Poké, Super, Ultra, Lujo y Master Ball, como en
  *   G.Icons.rarity; la estrella roja es el shiny). Si es Épica, Legendaria o shiny, el
  *   último rodillo se hace esperar y las luces se vuelven locas.
- *   La ×10 son 10 tiradas rápidas; cada premio cae como una bola a la bandeja.
+ *   La ×10 (y la ×20) son tiradas rápidas; cada premio cae como una bola a la bandeja.
  *
- * Un clic acelera la animación.
+ * Un clic acelera la animación; skip() la termina de golpe.
  */
 G.Slots = (() => {
   const W = 176, H = 170, CELL = 30;
@@ -21,7 +21,7 @@ G.Slots = (() => {
     led: '#2a0f14', bulbOn: '#ffe9a0', bulbOff: '#6b4a20'
   };
 
-  let cv = null, ctx = null, st = null, raf = 0, last = 0, fast = false;
+  let cv = null, ctx = null, st = null, raf = 0, last = 0, fast = false, skipped = false;
 
   const symOf = r => (r.shiny ? 'shiny' : SYM[r.rarity]);
   const colOf = r => (r.shiny ? '#9ae6ff' : G.Gacha.RARITY_COLOR[r.rarity]);
@@ -29,7 +29,7 @@ G.Slots = (() => {
   function wait(s) {
     return new Promise(res => {
       const end = performance.now() + s * 1000 * (fast ? 0.25 : 1);
-      (function chk() { if (performance.now() >= end || !st) res(); else setTimeout(chk, 16); })();
+      (function chk() { if (performance.now() >= end || !st || skipped) res(); else setTimeout(chk, 16); })();
     });
   }
 
@@ -37,19 +37,20 @@ G.Slots = (() => {
   async function play(canvas, results) {
     cv = canvas; ctx = cv.getContext('2d');
     fast = false;
+    skipped = false;
     cv.onclick = () => { fast = true; };
+    const n = results.length, ten = n > 1;
     st = {
       t: 0, lever: 0, reels: REEL_X.map(() => ({ off: Math.random() * 400, spin: false, sym: 'ball', bounce: 0, speed: 0 })),
-      ten: results.length === 10, tray: [], led: results.length === 10 ? 'TIRADA ×10' : '¡SUERTE!', ledCol: C.bulbOn, win: null, frenzy: 0, sparks: []
+      n, tray: [], led: ten ? 'TIRADA ×' + n : '¡SUERTE!', ledCol: C.bulbOn, win: null, frenzy: 0, sparks: []
     };
     last = performance.now();
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(frame);
 
-    const ten = results.length === 10;
-    for (let i = 0; i < results.length; i++) {
+    for (let i = 0; i < n && !skipped; i++) {
       const r = results[i];
-      if (ten) st.led = 'TIRADA ' + (i + 1) + '/10';
+      if (ten) st.led = 'TIRADA ' + (i + 1) + '/' + n;
       // Palanca.
       G.Audio.sfx('ball');
       await tween(v => { st.lever = v; }, 0, 1, ten ? 0.12 : 0.22);
@@ -79,12 +80,16 @@ G.Slots = (() => {
       if (r.rarity === 5) G.Audio.sfx('legend');
       if (r.shiny) G.Audio.sfx('shiny');
       if (big) burst(colOf(r), r.rarity === 5 || r.shiny ? 60 : 30);
-      st.tray.push({ sym: symOf(r), y: 104, vy: 0, done: false });
+      // En la ×20 las bolas van en dos filas de 10.
+      st.tray.push({ sym: symOf(r), y: 104, vy: 0, done: false, floor: n > 10 ? 126 + Math.floor(i / 10) * 10 : 132 });
       await wait(ten ? (big ? 0.7 : 0.28) : 1.0);
     }
     await wait(0.4);
     stopAll();
   }
+
+  /** Termina la animación ya: play() se resuelve en seguida. */
+  function skip() { skipped = true; }
 
   function stopAll() { cancelAnimationFrame(raf); st = null; if (cv) cv.onclick = null; }
 
@@ -94,7 +99,7 @@ G.Slots = (() => {
       (function step() {
         const k = Math.min(1, (performance.now() - t0) / d);
         set(a + (b - a) * k);
-        if (k < 1 && st) requestAnimationFrame(step); else res();
+        if (k < 1 && st && !skipped) requestAnimationFrame(step); else res();
       })();
     });
   }
@@ -123,7 +128,7 @@ G.Slots = (() => {
     }
     if (tick && Math.random() < 0.5) G.Audio.sfx('hover');
     if (st.win) st.win.t += dt;
-    for (const b of st.tray) if (!b.done) { b.vy += 400 * dt; b.y += b.vy * dt; if (b.y >= 132) { b.y = 132; b.vy *= -0.35; if (Math.abs(b.vy) < 20) b.done = true; } }
+    for (const b of st.tray) if (!b.done) { b.vy += 400 * dt; b.y += b.vy * dt; if (b.y >= b.floor) { b.y = b.floor; b.vy *= -0.35; if (Math.abs(b.vy) < 20) b.done = true; } }
     for (const p of st.sparks) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; }
     st.sparks = st.sparks.filter(p => p.t < p.life);
     draw();
@@ -188,9 +193,9 @@ G.Slots = (() => {
     R(28, 124, 106, 22, '#0a0712');
     R(28, 144, 106, 2, C.chromeD);
     st.tray.forEach((b, j) => {
-      const n = st.ten ? 10 : 1;
-      const x = n === 1 ? 81 - 12 : 30 + j * 10;
-      const size = n === 1 ? 24 : 12;
+      const n = st.n;
+      const x = n === 1 ? 81 - 12 : 30 + (j % 10) * 10;
+      const size = n === 1 ? 24 : n > 10 ? 10 : 12;
       G.Icons.draw(ctx, b.sym, x, Math.round(b.y - (n === 1 ? 10 : 0)), size);
     });
 
@@ -252,5 +257,5 @@ G.Slots = (() => {
     R(x - 1, REEL_Y, 1, REEL_H, C.dark); R(x + REEL_W, REEL_Y, 1, REEL_H, C.dark);
   }
 
-  return { play, stop: stopAll };
+  return { play, skip, stop: stopAll };
 })();

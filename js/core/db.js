@@ -39,6 +39,7 @@ G.DB = (() => {
   let guest = false;
   let save = null;
   let storageOk = true;
+  let frozen = false;       // otra pestaña tiene el juego (onetab.js): aquí ya no se guarda nada
 
   // ---------------- almacenamiento local seguro ----------------
 
@@ -490,12 +491,12 @@ G.DB = (() => {
   let lastPull = 0, pullT = 0;
   function pullSoon() {
     clearTimeout(pullT);
-    if (mode !== 'cloud' || guest || !save || !uid || Date.now() - lastPull < PULL_GAP) return;
+    if (frozen || mode !== 'cloud' || guest || !save || !uid || Date.now() - lastPull < PULL_GAP) return;
     if (pushing || (G.Game && G.Game.state && G.Game.state !== 'ui')) { pullT = setTimeout(pullSoon, 20000); return; }
     lastPull = Date.now();
     const u = uid;
     docRef().get().then(snap => {
-      if (!snap.exists || !save || uid !== u) return;
+      if (frozen || !snap.exists || !save || uid !== u) return;
       applyInPlace(merge(plain(fold(save)), migrate(snap.data().save)));
       write(K_CLOUD + uid, save);
       if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
@@ -574,7 +575,7 @@ G.DB = (() => {
   /** Sube la partida fusionándola con lo que haya en la nube (transacción). */
   function pushNow(opts) {
     const force = !!(opts && opts.force);
-    if (mode !== 'cloud' || guest || !save || !uid) return Promise.resolve();
+    if (frozen || mode !== 'cloud' || guest || !save || !uid) return Promise.resolve();
     // Si ya hay una subida en marcha, se hace otra justo después (para lo que haya cambiado mientras).
     if (pushing) { pending = true; return pushing.then(() => (pending ? pushNow(opts) : undefined)); }
     clearTimeout(pushT); pushT = 0; pushDue = 0;
@@ -613,7 +614,7 @@ G.DB = (() => {
       write(K_OK + uid, Date.now());
       // Se FUSIONA con lo de ahora (no se sobrescribe): si has cambiado algo
       // mientras se subía (elegir compañero, una compra...), no se pierde.
-      if (merged && save) {
+      if (merged && save && !frozen) {
         applyInPlace(merge(plain(fold(save)), merged));
         // Por si merge() deja fuera un regalo que sólo aplicó la transacción: es idempotente.
         G.Grant.applyGrant(save, grantSnap);
@@ -689,6 +690,8 @@ G.DB = (() => {
   function ready() {
     if (readyP) return readyP;
     readyP = (async () => {
+      // Antes de leer nada: el juego sólo en una pestaña (ver onetab.js).
+      if (G.OneTab) await G.OneTab.claim();
       try { if (await initCloud()) mode = 'cloud'; }
       catch (e) { console.warn('[DB] sin nube:', e.message); localReason = 'error'; mode = 'local'; }
       if (mode === 'local') { setSync('local'); return restoreLocal(); }
@@ -755,7 +758,7 @@ G.DB = (() => {
    *                'run': al acabar una partida (como mucho cada 30 min) · false: cada 2 h
    */
   function commit(urgent = false) {
-    if (guest || !key || !save) return false;
+    if (frozen || guest || !key || !save) return false;
     save.updated = Date.now();
     fold(save);
     if (mode === 'local') return write(K_SAVE + key, save);
@@ -877,6 +880,8 @@ G.DB = (() => {
   return {
     ready, register, login, loginWithGoogle, playAsGuest, logout, commit, deleteAccount, flush: pushNow,
     owns, grant, ownsShiny, grantShiny, merge, setName, upgradesOf,
+    /** Otra pestaña se ha quedado el juego (onetab.js): no se guarda ni se sube nada más. */
+    freeze() { frozen = true; clearTimeout(pushT); clearTimeout(retryT); clearTimeout(pullT); pending = false; },
     onSync(fn) { listeners.add(fn); },
     onLeave(fn) { leaveHooks.push(fn); },
     /** Acceso de bajo nivel para los módulos de red (sólo en modo nube). */

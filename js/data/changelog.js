@@ -6,14 +6,21 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
-  { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], chg: [
+  { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
+    ['Gacha: nueva tirada ×20 por 20 tickets (trae al menos dos Épicas, una por cada 10) y botón «Saltar» para ver los resultados sin esperar a la animación.',
+     'Gacha: new ×20 pull for 20 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.']
+  ], chg: [
     ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
      'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.'],
     ['Al subir de nivel tienes 2 s de invulnerabilidad al volver a la partida tras elegir carta, también en cooperativo.',
      'When you level up you get 2 s of invulnerability on returning to the run after picking a card, in co-op too.']
   ], fix: [
     ['Jugar en dos aparatos (PC y móvil) ya no hace perder monedas ni tickets: antes, si uno tenía la partida abierta con datos viejos y guardaba, borraba lo ganado en el otro. Ahora se suma lo de los dos. Y al volver al juego tras un rato fuera, se trae lo conseguido en el otro aparato (Pokémon, shinies...) sin recargar.',
-     'Playing on two devices (PC and phone) no longer loses coins or tickets: before, if one had the game open with old data and saved, it erased what you earned on the other. Now both are added up. And when you come back to the game after a while away, it brings in what you got on the other device (Pokémon, shinies...) without reloading.']
+     'Playing on two devices (PC and phone) no longer loses coins or tickets: before, if one had the game open with old data and saved, it erased what you earned on the other. Now both are added up. And when you come back to the game after a while away, it brings in what you got on the other device (Pokémon, shinies...) without reloading.'],
+    ['El juego se abre en una sola pestaña a la vez: con dos pestañas del mismo navegador, lo ganado o gastado en una tapaba lo de la otra. Si lo abres en otra, te pregunta y con «Jugar aquí» la otra se para.',
+     'The game now runs in one tab at a time: with two tabs in the same browser, what you earned or spent in one overwrote the other. If you open it in another tab, it asks you, and “Play here” stops the other one.'],
+    ['Cooperativo: si todos os desconectáis (móvil bloqueado, recarga), la partida espera parada un minuto en vez de terminarse a los 20 s, y nadie cae mientras tanto. Si al volver ya había terminado, se cierra con aviso en vez de quedarse congelada.',
+     'Co-op: if everyone disconnects (phone locked, reload), the run waits paused for a minute instead of ending after 20 s, and nobody gets knocked out meanwhile. If it had already ended when you come back, it closes with a notice instead of freezing.']
   ] },
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
     ['Al acabar la run ves lo que hizo tu Pokémon: daño hecho, daño recibido y cofres abiertos. En cooperativo se compara al grupo: quién hizo más daño, quién recibió más, quién abrió más cofres, quién levantó más veces a los compañeros y el MVP de la partida.',

@@ -4,12 +4,15 @@
 G.GachaUI = (() => {
   const $ = G.UI.$;
   let busy = false;
+  let skipped = false;
   let gen = 1;
 
   function init() {
     $('pull-1').onclick = () => pull(1);
     $('pull-10').onclick = () => pull(10, 't1');
     $('pull-10b').onclick = () => pull(10, 't10');
+    $('pull-20').onclick = () => pull(20);
+    $('pull-skip').onclick = skip;
     $('pull-close').onclick = close;
 
     const tabs = $('gacha-gens');
@@ -59,7 +62,7 @@ G.GachaUI = (() => {
       <div><span style="color:${G.Gacha.RARITY_COLOR[r]}">${G.UI.stars(r, 10)} ${G.Gacha.RARITY_NAME[r]}</span>
       <span>${w}% · ${G.Gacha.pool(r, gen).length}</span></div>`).join('') +
       `<div><span>${G.Icons.html('shiny', 12)} Shiny</span><span>1%</span></div>
-       <p class="note">· La tirada ×10 garantiza al menos una Épica.<br>
+       <p class="note">· La tirada ×10 garantiza al menos una Épica (la ×20, dos).<br>
        · A las ${G.Gacha.PITY_5} tiradas sin Legendaria en un banner, la siguiente lo es.<br>
        · Los repetidos dan Pokémonedas. Los shiny no se repiten.<br>
        · Los tickets se consiguen jugando: algunos Pokémon los sueltan al caer, y
@@ -69,10 +72,12 @@ G.GachaUI = (() => {
     $('cost-1').innerHTML = `${G.Icons.html('ticket', 18)} 1`;
     $('cost-10').innerHTML = `${G.Icons.html('ticket', 18)} 10`;
     $('cost-10b').innerHTML = `${G.Icons.html('ticket10', 18)} 1`;
+    $('cost-20').innerHTML = `${G.Icons.html('ticket', 18)} 20`;
     $('gacha-tickets').innerHTML = `Tienes ${G.Icons.html('ticket', 18)} <b>${t.t1}</b> tickets y ${G.Icons.html('ticket10', 18)} <b>${t.t10}</b> tickets ×10`;
     $('pull-1').disabled = !G.Gacha.costOf(s, 1);
     $('pull-10').disabled = !G.Gacha.costOf(s, 10, 't1');
     $('pull-10b').disabled = !G.Gacha.costOf(s, 10, 't10');
+    $('pull-20').disabled = !G.Gacha.costOf(s, 20);
     G.UI.refreshCoins();
   }
 
@@ -85,11 +90,13 @@ G.GachaUI = (() => {
     G.Progress.checkAch();
     G.DB.commit(true);
     busy = true;
+    skipped = false;
 
     const best = Math.max(...res.map(r => r.rarity));
     const fx = $('pull-fx'), slot = $('slot'), out = $('pull-results');
     out.innerHTML = '';
     $('pull-close').classList.add('hidden');
+    $('pull-skip').classList.remove('hidden');
     slot.style.display = '';
     fx.classList.remove('hidden');
 
@@ -110,11 +117,20 @@ G.GachaUI = (() => {
         : `Repetido · <span class="coin"></span> +${r.refund}`;
       c.insertAdjacentHTML('beforeend', `<b>${r.shiny ? G.Icons.html('shiny', 12) + ' ' : ''}${mon.name}</b><div class="tag">${tag}</div>`);
       out.appendChild(c);
+      if (skipped) continue;           // saltada: todas las cartas de golpe, sin un sonido por carta
       G.Audio.sfx('reveal', { rarity: r.rarity });
-      await wait(n === 10 ? 150 : 0);
+      await wait(n > 1 ? 150 : 0);
     }
+    $('pull-skip').classList.add('hidden');
     $('pull-close').classList.remove('hidden');
     busy = false;
+  }
+
+  /** "Saltar": corta la tragaperras y enseña las cartas de una vez. */
+  function skip() {
+    skipped = true;
+    G.Slots.skip();
+    $('pull-skip').classList.add('hidden');
   }
 
   function close() {

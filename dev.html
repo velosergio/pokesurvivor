@@ -85,6 +85,8 @@
 <canvas id="game"></canvas>
 <!-- En móvil se juega en horizontal -->
 <div id="rotate" class="hidden"><div class="box center"><div id="rotate-ico"></div><h2>Gira el móvil</h2><p class="sub">PokéSurvivor se juega en horizontal.</p></div></div>
+<!-- El juego ya está abierto en otra pestaña (js/core/onetab.js) -->
+<div id="onetab" class="hidden"><div class="box center"><h2>El juego ya está abierto</h2><p class="sub">PokéSurvivor está abierto en otra pestaña o ventana de este navegador. Sólo se puede jugar en una a la vez, para no perder monedas ni tickets.</p><p class="sub">Si juegas aquí, la otra se para (si tenía una partida en marcha, lo de esa partida se pierde).</p><button id="onetab-go" class="btn gold" type="button">Jugar aquí</button></div></div>
 
 <!-- ====== Inicio: login / registro / invitado ====== -->
 <section id="scr-login" class="scr hidden">
@@ -527,6 +529,7 @@
           <button id="pull-1" class="btn grow" data-sfx="none">Tirar ×1 · <span id="cost-1"></span></button>
           <button id="pull-10" class="btn gold grow" data-sfx="none">Tirar ×10 · <span id="cost-10"></span></button>
           <button id="pull-10b" class="btn gold grow" data-sfx="none">Tirar ×10 · <span id="cost-10b"></span></button>
+          <button id="pull-20" class="btn gold grow" data-sfx="none">Tirar ×20 · <span id="cost-20"></span></button>
         </div>
         <p class="note tickets-line" id="gacha-tickets"></p>
         <p class="note" id="gacha-pity"></p>
@@ -539,6 +542,7 @@
 <div id="pull-fx" class="hidden">
   <canvas id="slot" width="176" height="170" title="Clic para acelerar"></canvas>
   <div class="pull-results" id="pull-results"></div>
+  <button id="pull-skip" class="btn small ghost hidden" data-sfx="none">Saltar</button>
   <button id="pull-close" class="btn gold hidden">Continuar</button>
 </div>
 
@@ -607,6 +611,7 @@
 <script defer src="js/config.js"></script>
 <script defer src="js/core/grant.js"></script>
 <script defer src="js/core/db.js"></script>
+<script defer src="js/core/onetab.js"></script>
 <script defer src="js/core/audio.js"></script>
 <script defer src="js/core/input.js"></script>
 <script defer src="js/core/touch.js"></script>
