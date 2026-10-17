@@ -77,5 +77,7 @@ fs.writeFileSync(OUT, html);
 // actualiza solo (en el menú, o al acabar la partida). Ver js/core/updater.js.
 // proto: versión del protocolo del cooperativo (js/net/proto.js); el cliente la manda en hello.
 const proto = require(path.join(ROOT, 'js', 'net', 'proto.js')).VERSION;
-fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ v: hash, at: new Date().toISOString(), proto }) + '\n');
-console.log(`${SIN_SEO ? '[sin SEO] ' : ''}${EXPOSE ? '[SIN PROTEGER, sólo pruebas] ' : ''}ok: ${files.length} scripts · ${(joined.length / 1024).toFixed(0)} KB -> ${(min.length / 1024).toFixed(0)} KB (app.min.js?v=${hash})`);
+// --forzar: versión obligatoria, también corta las partidas en curso (guardándolas).
+const FORZAR = process.argv.includes('--forzar');
+fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify(Object.assign({ v: hash, at: new Date().toISOString(), proto }, FORZAR ? { force: true } : {})) + '\n');
+console.log(`${FORZAR ? '[OBLIGATORIA] ' : ''}${SIN_SEO ? '[sin SEO] ' : ''}${EXPOSE ? '[SIN PROTEGER, sólo pruebas] ' : ''}ok: ${files.length} scripts · ${(joined.length / 1024).toFixed(0)} KB -> ${(min.length / 1024).toFixed(0)} KB (app.min.js?v=${hash})`);

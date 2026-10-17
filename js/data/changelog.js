@@ -6,6 +6,13 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], chg: [
+    ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
+     'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.']
+  ], fix: [
+    ['Jugar en dos aparatos (PC y móvil) ya no hace perder monedas ni tickets: antes, si uno tenía la partida abierta con datos viejos y guardaba, borraba lo ganado en el otro. Ahora se suma lo de los dos. Y al volver al juego tras un rato fuera, se trae lo conseguido en el otro aparato (Pokémon, shinies...) sin recargar.',
+     'Playing on two devices (PC and phone) no longer loses coins or tickets: before, if one had the game open with old data and saved, it erased what you earned on the other. Now both are added up. And when you come back to the game after a while away, it brings in what you got on the other device (Pokémon, shinies...) without reloading.']
+  ] },
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
     ['Al acabar la run ves lo que hizo tu Pokémon: daño hecho, daño recibido y cofres abiertos. En cooperativo se compara al grupo: quién hizo más daño, quién recibió más, quién abrió más cofres, quién levantó más veces a los compañeros y el MVP de la partida.',
      'At the end of a run you see what your Pokémon did: damage dealt, damage taken and chests opened. In co-op the group is compared: who dealt the most damage, who took the most, who opened the most chests, who revived teammates the most and the match MVP.'],

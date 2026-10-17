@@ -130,6 +130,16 @@ G.DB = (() => {
     s.tickets.t10 = n(s.tickets.t10);
     s.grantedCoins = n(s.grantedCoins);
     s.grantedT10 = n(s.grantedT10);
+    if (isObj(s.led)) {
+      for (const dev of Object.keys(s.led)) {
+        const e = s.led[dev];
+        if (!isObj(e)) { delete s.led[dev]; continue; }
+        for (const k of Object.keys(e)) {
+          if (!CUR[k] || !Array.isArray(e[k])) { delete e[k]; continue; }
+          e[k] = [n(e[k][0]), n(e[k][1])];
+        }
+      }
+    } else delete s.led;
     if (G.DEX_BY) for (const coll of ['owned', 'shiny']) {
       for (const d of Object.keys(s[coll] || {})) if (!G.DEX_BY[d]) delete s[coll][d];
     }
@@ -170,12 +180,83 @@ G.DB = (() => {
    *   - monedas, compañero, pity...: los de la versión más reciente
    * Es idempotente: fusionar dos veces da lo mismo.
    */
+  /*
+   * LIBRETA de monedas y tickets (14-10-2026). Antes las monedas y los tickets
+   * eran "los de la versión más reciente": si un aparato con datos viejos (el
+   * móvil con la pestaña abierta de ayer) guardaba algo, su número ganaba y se
+   * perdía lo conseguido en el otro (un jugador pasó de 36 tickets a 3).
+   * Ahora cada aparato apunta en save.led[aparato] lo que ha ganado y gastado
+   * de cada cosa ([ganado, gastado], sólo crecen) y el saldo es la suma de
+   * todos: al fusionar se toma el mayor de cada apunte y no se pierde nada.
+   *   led.base: el saldo que había antes de la libreta (o al empezar).
+   *   led.old:  cambios de una versión anterior del juego (pestañas sin actualizar).
+   *   led.gift: lo regalado por la Moderación (grant.js): [grantedCoins/grantedT10, 0].
+   *             Va aparte para que un regalo aplicado en dos aparatos a la vez cuente una vez.
+   */
+  const CUR = {
+    c: [s => s.coins, (s, v) => { s.coins = v; }],
+    t1: [s => s.tickets.t1, (s, v) => { s.tickets.t1 = v; }],
+    t10: [s => s.tickets.t10, (s, v) => { s.tickets.t10 = v; }]
+  };
+  // Este aparato (navegador): un nombre al azar que se queda guardado.
+  const DEV = (() => {
+    let d = read('ps.dev');
+    if (typeof d !== 'string' || !/^[a-z0-9]{6,12}$/.test(d)) { d = 'd' + Math.random().toString(36).slice(2, 10); write('ps.dev', d); }
+    return d;
+  })();
+  const num = v => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
+  const balOf = s => { const o = {}; for (const k in CUR) o[k] = num(CUR[k][0](s)); return o; };
+  function ledSum(led, k) {
+    let t = 0;
+    for (const dev in led) { const e = led[dev] && led[dev][k]; if (e) t += num(e[0]) - num(e[1]); }
+    return t;
+  }
+  function addTo(led, dev, k, d) {
+    if (!d) return;
+    const e = led[dev] = led[dev] || {};
+    const p = e[k] = e[k] || [0, 0];
+    if (d > 0) p[0] = num(p[0]) + d; else p[1] = num(p[1]) - d;
+  }
+  /** La libreta de una partida (sin tocarla); lo que no cuadre, a `dev`. */
+  const GIFT = { c: s => s.grantedCoins, t10: s => s.grantedT10 };
+  function ledOf(s, dev) {
+    const b = balOf(s);
+    let led;
+    if (!isObj(s.led)) {
+      // El saldo de antes ya incluía lo regalado: se apunta como gastado en base y ganado en gift.
+      led = { base: {} };
+      for (const k in CUR) led.base[k] = [b[k], k in GIFT ? num(GIFT[k](s)) : 0];
+    } else led = JSON.parse(JSON.stringify(s.led));
+    const g = led.gift = isObj(led.gift) ? led.gift : {};
+    for (const k in GIFT) g[k] = [Math.max(num(g[k] && g[k][0]), num(GIFT[k](s))), 0];
+    // Un saldo en negativo (lo mismo gastado en dos aparatos sin conexión) se ve como 0.
+    for (const k in CUR) addTo(led, dev, k, b[k] - Math.max(0, ledSum(led, k)));
+    return led;
+  }
+  /** Apunta en la libreta de ESTE aparato lo que ha cambiado desde la última vez. */
+  function fold(s) {
+    if (!s) return s;
+    s.led = ledOf(s, DEV);
+    return s;
+  }
+
   function merge(a, b) {
     if (!a) return b;
     if (!b) return a;
     const newer = (a.updated || 0) >= (b.updated || 0) ? a : b;
     const older = newer === a ? b : a;
     const r = JSON.parse(JSON.stringify(newer));
+    // Monedas y tickets: el mayor de cada apunte de cada aparato, y el saldo es la suma.
+    const la = ledOf(a, 'old'), lb = ledOf(b, 'old'), led = {};
+    for (const src of [la, lb]) for (const dev in src) for (const k in src[dev]) {
+      const p = ((led[dev] = led[dev] || {})[k] = led[dev][k] || [0, 0]), q = src[dev][k];
+      p[0] = Math.max(p[0], num(q[0])); p[1] = Math.max(p[1], num(q[1]));
+    }
+    r.led = led;
+    // Lo regalado ya sumado (grant.js): el mayor, como el apunte gift, para no darlo dos veces.
+    for (const k of ['grantedCoins', 'grantedT10']) r[k] = Math.max(num(a[k]), num(b[k]));
+    r.tickets = r.tickets || { t1: 0, t10: 0 };
+    for (const k in CUR) CUR[k][1](r, Math.max(0, ledSum(led, k)));
     for (const coll of ['owned', 'shiny']) {
       r[coll] = r[coll] || {};
       for (const k in older[coll] || {}) {
@@ -264,7 +345,7 @@ G.DB = (() => {
 
   function beginLocal(k, name) {
     key = k; user = name; guest = false;
-    save = loadLocal(k, name);
+    save = fold(loadLocal(k, name));
     write(K_SES, k);
   }
 
@@ -389,10 +470,36 @@ G.DB = (() => {
     // Firebase). Lo que no se sube sigue en la copia de este navegador y se
     // sube al volver a entrar.
     const hideFlush = () => { if (pending && Date.now() - lastPush > HIDE_GAP) pushNow(); };
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') hideFlush(); });
+    let hiddenAt = 0;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); hideFlush(); }
+      else if (hiddenAt && Date.now() - hiddenAt > PULL_GAP) pullSoon();
+    });
     // Al cerrar o recargar la página, lo pendiente se sube siempre.
     addEventListener('pagehide', () => { if (pending) pushNow(); });
     return true;
+  }
+
+  /*
+   * Al volver al juego tras más de 30 min fuera (el móvil con la pestaña
+   * abierta de ayer), se baja la partida de la nube y se junta con la de aquí
+   * (1 lectura): así se ve lo conseguido en el otro aparato. En plena partida
+   * se espera a volver al menú.
+   */
+  const PULL_GAP = 30 * 60 * 1000;
+  let lastPull = 0, pullT = 0;
+  function pullSoon() {
+    clearTimeout(pullT);
+    if (mode !== 'cloud' || guest || !save || !uid || Date.now() - lastPull < PULL_GAP) return;
+    if (pushing || (G.Game && G.Game.state && G.Game.state !== 'ui')) { pullT = setTimeout(pullSoon, 20000); return; }
+    lastPull = Date.now();
+    const u = uid;
+    docRef().get().then(snap => {
+      if (!snap.exists || !save || uid !== u) return;
+      applyInPlace(merge(plain(fold(save)), migrate(snap.data().save)));
+      write(K_CLOUD + uid, save);
+      if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
+    }).catch(e => console.warn('[DB] no se pudo bajar la partida:', e.code || e.message));
   }
 
   /** Firebase pide email: el nombre se codifica en uno interno, único y válido. */
@@ -421,13 +528,13 @@ G.DB = (() => {
       if (!cached) throw e;                // sin conexión y sin copia: no hay nada que abrir
       online = false;
     }
-    let s = merge(cached && migrate(cached), remote && migrate(remote));
+    let s = merge(cached && fold(migrate(cached)), remote && migrate(remote));
     if (!s) s = newSave(opts.name || displayNameOf(u));
     if (opts.legacy) {
       s = merge(s, opts.legacy.save);
       write(K_MIGRATED + opts.legacy.key, uid);
     }
-    save = migrate(s, s.name);
+    save = fold(migrate(s, s.name));
     key = uid; user = save.name; guest = false;
     let grantDue = false;
     if (online) {
@@ -438,6 +545,7 @@ G.DB = (() => {
       } catch (e) { /* sin red: la próxima subida lo lee dentro de la transacción */ }
     }
     write(K_CLOUD + uid, save);
+    lastPull = Date.now();
     // Sólo se sube si hay algo que la nube no tenga (cuenta nueva, progreso de
     // este ordenador sin subir, o un regalo de la libreta todavía sin aplicar).
     const same = remote && !opts.legacy && (!cached || (cached.updated || 0) <= (remote.updated || 0));
@@ -489,9 +597,10 @@ G.DB = (() => {
       const snap = await tx.get(ref);
       const gsnap = await tx.get(fs.collection('grants').doc(uid));
       const remote = snap.exists ? migrate(snap.data().save) : null;
-      merged = remote ? merge(plain(save), remote) : plain(save);
+      merged = remote ? merge(plain(fold(save)), remote) : plain(fold(save));
       grantSnap = gsnap.exists ? gsnap.data() : null;
       G.Grant.applyGrant(merged, grantSnap);
+      fold(merged);
       const doc = { save: merged, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), v: VERSION };
       if (snap.exists && snap.data().ban === true) doc.ban = true;
       tx.set(ref, doc);
@@ -505,8 +614,8 @@ G.DB = (() => {
       // Se FUSIONA con lo de ahora (no se sobrescribe): si has cambiado algo
       // mientras se subía (elegir compañero, una compra...), no se pierde.
       if (merged && save) {
-        applyInPlace(merge(plain(save), merged));
-        // merge() puede perder un regalo que sólo aplicó la transacción (gana el más nuevo; en empate, el local): es idempotente.
+        applyInPlace(merge(plain(fold(save)), merged));
+        // Por si merge() deja fuera un regalo que sólo aplicó la transacción: es idempotente.
         G.Grant.applyGrant(save, grantSnap);
         write(K_CLOUD + uid, save);
       }
@@ -648,6 +757,7 @@ G.DB = (() => {
   function commit(urgent = false) {
     if (guest || !key || !save) return false;
     save.updated = Date.now();
+    fold(save);
     if (mode === 'local') return write(K_SAVE + key, save);
     write(K_CLOUD + uid, save);
     pending = true;
