@@ -301,10 +301,12 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   const rerollsLeft = s => Math.max(0, 1 + (s.perks.rerolls || 0) - s.rr);
 
   /** Mensaje de la elección que tiene delante (rr: cambios de cartas que le quedan). */
+  /** left: s que le quedan para elegir (el navegador enseña la barra; tras cambiar cartas o volver, no empieza de cero). */
   function choiceMsg(c, s) {
-    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, rr: c.fixed ? 0 : rerollsLeft(s), options: c.options.map(cardOut) };
-    if (c.kind === 'item') return { t: 'level', kind: 'item', options: [itemOut(c.cur), itemOut(c.next)] };
-    return { t: 'level', kind: 'bond', options: c.options.map(groupOut) };
+    const left = Math.round(Math.max(0, CHOICE_MAX - (c.wait || 0)) * 10) / 10;
+    if (c.kind === 'level') return { t: 'level', kind: 'level', lv: c.lv, rr: c.fixed ? 0 : rerollsLeft(s), left, options: c.options.map(cardOut) };
+    if (c.kind === 'item') return { t: 'level', kind: 'item', left, options: [itemOut(c.cur), itemOut(c.next)] };
+    return { t: 'level', kind: 'bond', left, options: c.options.map(groupOut) };
   }
 
   /** Añade una elección; a un desconectado se le resuelve al momento. */

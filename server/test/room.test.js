@@ -494,6 +494,21 @@ test('ranked: false (algo no cuadra con la partida guardada): no sube la marca a
   assert.strictEqual(got, null);
 });
 
+test('level trae el tiempo que queda para elegir (left) y cambiar de cartas no lo reinicia', () => {
+  const r = makeRoom({ n: 2 });
+  r.room.tick();
+  r.room.debug.levelUp();
+  r.room.tick();
+  const first = of(r.sent, 'u0', 'level')[0];
+  assert.ok(first.left > 19 && first.left <= 20, 'left al empezar: ' + first.left);
+  for (let i = 0; i < Math.round(5 / DT); i++) r.room.tick();
+  r.sent.length = 0;
+  r.room.reroll('u0');
+  const again = of(r.sent, 'u0', 'level')[0];
+  assert.ok(again, 'no llegan las cartas nuevas');
+  assert.ok(again.left > 14 && again.left < 16, 'left tras 5 s: ' + again.left);
+});
+
 test('reroll: cambia las cartas de nivel tantas veces como 1 + Cambio de cartas, y no más', () => {
   const members = [{ uid: 'a', name: 'A', dex: 25, shiny: false, kit: { up: { reroll: 1 } } }, { uid: 'b', name: 'B', dex: 4, shiny: false }];
   const sent = [];

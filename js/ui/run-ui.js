@@ -73,6 +73,7 @@ G.RunUI = (() => {
     const c = offers[i], cb = offerCb;
     offers = null; offerCb = null;
     $('lvl-reroll').classList.add('hidden');
+    stopTimer();
     if (coopMode) {
       // Se queda la carta elegida a la vista mientras eligen los demás.
       $('cards').querySelectorAll('.card').forEach((el, j) => el.classList.toggle('picked', j === i));
@@ -96,6 +97,32 @@ G.RunUI = (() => {
     offers = null; offerCb = null;
     $('cards').classList.remove('done');
     G.UI.hide('scr-levelup');
+    stopTimer();
+  }
+
+  /*
+   * Grupo: barra verde abajo con el tiempo que te queda para elegir (el
+   * servidor elige por ti al acabar). Se vacía sola con una transición CSS;
+   * los últimos 5 s se pone amarilla.
+   */
+  const TIMER_MAX = 20;                 // s (CHOICE_MAX en server/room.js)
+  let lowT = 0;
+  function startTimer(left) {
+    const s = Math.max(0, Math.min(TIMER_MAX, Number.isFinite(left) ? left : TIMER_MAX));
+    const el = $('pick-timer'), bar = el.firstElementChild;
+    clearTimeout(lowT);
+    el.classList.remove('hidden');
+    el.classList.toggle('low', s <= 5);
+    bar.style.transition = 'none';
+    bar.style.width = (s / TIMER_MAX * 100) + '%';
+    void bar.offsetWidth;               // que empiece desde ahí y no desde donde estaba
+    bar.style.transition = 'width ' + s + 's linear';
+    bar.style.width = '0%';
+    if (s > 5) lowT = setTimeout(() => el.classList.add('low'), (s - 5) * 1000);
+  }
+  function stopTimer() {
+    clearTimeout(lowT);
+    $('pick-timer').classList.add('hidden');
   }
 
   /**
@@ -305,6 +332,7 @@ G.RunUI = (() => {
       const cb = bond.cb;
       bond = null;
       G.UI.hide('scr-bond');
+      stopTimer();
       cb(i);
       return;
     }
@@ -340,5 +368,5 @@ G.RunUI = (() => {
     $('btn-quit').onclick = onQuit;
   }
 
-  return { showLevelUp, reroll, showItemChoice, showBond, showBondList, pickBond, bondBack, pick, setWaiting, closeLevelUp, showOver, wirePause, showPause };
+  return { showLevelUp, reroll, showItemChoice, showBond, showBondList, pickBond, bondBack, pick, setWaiting, closeLevelUp, startTimer, stopTimer, showOver, wirePause, showPause };
 })();

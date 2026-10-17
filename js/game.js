@@ -210,6 +210,8 @@ G.Game = (() => {
         G.RunUI.showLevelUp(m.lv || pl.level, cards, card => { G.Audio.sfx('confirm'); G.Coop.pick(cards.indexOf(card)); }, true,
           () => G.Coop.reroll());
       }
+      // Tiempo para elegir (cartas y fusión): el servidor elige por ti al acabar.
+      if (m.kind !== 'item') G.RunUI.startTimer(m.left);
       G.RunUI.setWaiting(waitBy);
     },
     /** Quién está eligiendo (la partida se para para todos). Vacía: sigue. */
@@ -299,6 +301,7 @@ G.Game = (() => {
     const coop = !!pl.uid;                    // sólo las partidas en grupo le ponen uid
     if (G.Coop.active) G.Coop.end();
     if (coop) G.Social.setPlaying(false);
+    G.RunUI.stopTimer();
     state = 'over';
     G.Audio.music(null);
     G.Audio.sfx(dead ? 'gameover' : 'back');

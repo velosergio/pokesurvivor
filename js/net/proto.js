@@ -8,8 +8,9 @@
  *                          open{v} start pick{choice} reroll hold{on}
  *                          back (volver a la partida de la que te fuiste: ver `away`)
  *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open}
- *                          started{seed,members} ev{list:[...]} level{options}
+ *                          started{seed,members} ev{list:[...]} level{kind,options,left}
  *                          over{results} bye{reason} err{reason}
+ *                          (left: s que quedan para elegir; sin él, 20)
  *                          away{code,n} (tras el hello: tu partida en grupo sigue sin ti,
  *                          con n conectados; con `back` vuelves a ella)
  *   (encJson('ev', [...]) mete la lista en `list`.)

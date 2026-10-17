@@ -8,7 +8,9 @@
 G.CHANGELOG = [
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
     ['Gacha: nueva tirada ×20 por 20 tickets (trae al menos dos Épicas, una por cada 10) y botón «Saltar» para ver los resultados sin esperar a la animación.',
-     'Gacha: new ×20 pull for 20 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.']
+     'Gacha: new ×20 pull for 20 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.'],
+    ['Cooperativo: al elegir carta de nivel o fusión, una barra verde abajo te enseña cuánto tiempo te queda (se pone amarilla los últimos 5 s). Si se acaba, se elige por ti.',
+     'Co-op: when picking a level card or a fusion, a green bar at the bottom shows how much time you have left (it turns yellow for the last 5 s). If it runs out, one is picked for you.']
   ], chg: [
     ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
      'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.'],

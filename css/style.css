@@ -584,6 +584,11 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 
 .cards.done .card { pointer-events: none; opacity: .45; }
 .cards.done .card.picked { opacity: 1; border-color: var(--gold); }
 #lvl-wait { color: var(--gold); font-size: 15px; }
+/* Grupo: tiempo para elegir (como la barra de experiencia, pero abajo y verde) */
+#pick-timer { position: fixed; left: 0; right: 0; bottom: 0; height: 7px; z-index: 22; background: rgba(0,0,0,.5); pointer-events: none; }
+#pick-timer.hidden { display: none; }
+#pick-timer i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #3fc46e, var(--green)); }
+#pick-timer.low i { background: linear-gradient(90deg, #e0a030, var(--gold)); }
 
 @media (max-width: 760px) {
   .lobby-members { gap: 5px; }
