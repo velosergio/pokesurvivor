@@ -315,7 +315,7 @@ test('caídos todos: fin, over para cada uno y sin ranking antes de 2 min', () =
   const r = makeRoom({ n: 2, rank: { submitGroup: async () => { ranked++; return []; } } });
   r.room.tick();
   for (const m of r.members) { const p = r.pl(m.uid); p.invuln = 0; p.hurt(1e9); }
-  for (let i = 0; i < 40; i++) r.room.tick();
+  for (let i = 0; i < Math.round(2 / DT); i++) r.room.tick();
   for (const m of r.members) {
     const o = of(r.sent, m.uid, 'over');
     assert.strictEqual(o.length, 1, m.uid + ' no ha recibido over');
@@ -337,7 +337,7 @@ test('levantar a un compañero cuenta para el que ayuda', () => {
   b.x = a.x + 10; b.y = a.y;
   a.invuln = 0; a.hurt(1e9);
   assert.ok(a.dead);
-  for (let i = 0; i < 80 && a.dead; i++) { b.invuln = 9; b.hp = b.maxHp; b.x = a.x + 10; b.y = a.y; r.room.tick(); }
+  for (let i = 0; i < Math.round(4 / DT) && a.dead; i++) { b.invuln = 9; b.hp = b.maxHp; b.x = a.x + 10; b.y = a.y; r.room.tick(); }
   assert.ok(!a.dead, 'no se ha levantado');
   assert.strictEqual(b.revives, 1);
   assert.strictEqual(a.revives, 0);
@@ -349,7 +349,7 @@ test('la marca de grupo se sube al acabar si el tiempo cuenta (sin esperar a que
   const step = bots(r);
   steps(step, 121);
   for (const m of r.members) { const p = r.pl(m.uid); p.invuln = 0; p.hurt(1e9); }
-  for (let i = 0; i < 40; i++) r.room.tick();
+  for (let i = 0; i < Math.round(2 / DT); i++) r.room.tick();
   assert.ok(of(r.sent, 'u0', 'over').length || r.over, 'no ha llegado over');
   assert.ok(got, 'no se ha subido la marca');
   assert.ok(got.t >= 120 && got.members.length === 2 && got.lv >= 1 && got.kills >= 0);
@@ -461,7 +461,7 @@ test('ranked: false (algo no cuadra con la partida guardada): no sube la marca a
   const step = bots(r);
   steps(step, 121);
   for (const m of r.members) { const p = r.pl(m.uid); p.invuln = 0; p.hurt(1e9); }
-  for (let i = 0; i < 40; i++) r.room.tick();
+  for (let i = 0; i < Math.round(2 / DT); i++) r.room.tick();
   assert.ok(r.over || of(r.sent, 'u0', 'over').length, 'no ha llegado over');
   assert.strictEqual(got, null);
 });
@@ -524,7 +524,7 @@ test('cofre con candado: avance en décimas (chs) y, al abrirse, pb', () => {
   assert.ok(p, 'no hay cofre cerca');
   calm(G);
   r.room.debug.place('u0', p.x, p.y + 30);
-  for (let i = 0; i < 100; i++) { r.room.debug.player('u0').hp = 1e6; r.room.debug.place('u0', p.x, p.y + 30); r.room.tick(); }
+  for (let i = 0; i < Math.round(5 / DT); i++) { r.room.debug.player('u0').hp = 1e6; r.room.debug.place('u0', p.x, p.y + 30); r.room.tick(); }
   const evs = of(r.sent, 'u0', 'ev').flatMap(m => m.list);
   const chs = evs.filter(ev => ev[0] === 'chs').map(ev => ev[3]);
   assert.ok(chs.length >= 5, 'pocos avances: ' + chs.length);
