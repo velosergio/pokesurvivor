@@ -685,7 +685,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
     if (rank && ranked && why !== 'error' && time >= 120) {
       const kills = results.reduce((a, r) => a + r.ki, 0);
       try {
-        Promise.resolve(rank.submitGroup({ t: Math.floor(time), members: members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: !!m.shiny })), lv: team.level, kills }))
+        Promise.resolve(rank.submitGroup({ t: Math.floor(time), members: members.map((m, i) => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: !!m.shiny, b: seats[i].pl.buildCode() })), lv: team.level, kills }))
           .catch(e => logger.error('[room] ranking de grupo:', e && e.message));
       } catch (e) { logger.error('[room] ranking de grupo:', e && e.message); }
     }

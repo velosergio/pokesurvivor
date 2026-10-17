@@ -353,6 +353,8 @@ test('la marca de grupo se sube al acabar si el tiempo cuenta (sin esperar a que
   assert.ok(of(r.sent, 'u0', 'over').length || r.over, 'no ha llegado over');
   assert.ok(got, 'no se ha subido la marca');
   assert.ok(got.t >= 120 && got.members.length === 2 && got.lv >= 1 && got.kills >= 0);
+  // La build de cada uno (Player.buildCode): al menos el movimiento con el que empieza.
+  for (const m of got.members) assert.match(m.b, /^[a-z-]+\.\d+/, m.b);
 });
 
 test('un snap no pasa de 3 KB con muchos enemigos, y acaban llegando todos', () => {

@@ -7,15 +7,19 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
-    ['Gacha: nueva tirada ×20 por 20 tickets (trae al menos dos Épicas, una por cada 10) y botón «Saltar» para ver los resultados sin esperar a la animación.',
-     'Gacha: new ×20 pull for 20 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.'],
+    ['Gacha: nueva tirada ×20 por 20 tickets o 2 tickets ×10 (trae al menos dos Épicas, una por cada 10) y botón «Saltar» para ver los resultados sin esperar a la animación.',
+     'Gacha: new ×20 pull for 20 tickets or 2 ×10 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.'],
     ['Cooperativo: al elegir carta de nivel o fusión, una barra verde abajo te enseña cuánto tiempo te queda (se pone amarilla los últimos 5 s). Si se acaba, se elige por ti.',
-     'Co-op: when picking a level card or a fusion, a green bar at the bottom shows how much time you have left (it turns yellow for the last 5 s). If it runs out, one is picked for you.']
+     'Co-op: when picking a level card or a fusion, a green bar at the bottom shows how much time you have left (it turns yellow for the last 5 s). If it runs out, one is picked for you.'],
+    ['Ranking: cada marca enseña la build con la que se hizo (movimientos con su nivel, las fusiones juntas y el objeto). Toca una marca para ver el detalle: nombres, movimientos evolucionados, el objeto y las mejoras de stat que se cogieron. En grupo, la de cada jugador. Las marcas de antes no la tienen.',
+     'Leaderboard: every record shows the build it was made with (moves with their level, fusions grouped together and the item). Tap a record to see the details: names, evolved moves, the item and the stat boosts picked. In co-op, each player’s. Older records don’t have it.']
   ], chg: [
     ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
      'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.'],
     ['Al subir de nivel tienes 2 s de invulnerabilidad al volver a la partida tras elegir carta, también en cooperativo.',
-     'When you level up you get 2 s of invulnerability on returning to the run after picking a card, in co-op too.']
+     'When you level up you get 2 s of invulnerability on returning to the run after picking a card, in co-op too.'],
+    ['Mejora Veto: ahora sube hasta el nivel 5, así que puedes bloquear hasta 5 movimientos por Pokémon (antes 3).',
+     'Ban upgrade: it now goes up to level 5, so you can block up to 5 moves per Pokémon (was 3).']
   ], fix: [
     ['Jugar en dos aparatos (PC y móvil) ya no hace perder monedas ni tickets: antes, si uno tenía la partida abierta con datos viejos y guardaba, borraba lo ganado en el otro. Ahora se suma lo de los dos. Y al volver al juego tras un rato fuera, se trae lo conseguido en el otro aparato (Pokémon, shinies...) sin recargar.',
      'Playing on two devices (PC and phone) no longer loses coins or tickets: before, if one had the game open with old data and saved, it erased what you earned on the other. Now both are added up. And when you come back to the game after a while away, it brings in what you got on the other device (Pokémon, shinies...) without reloading.'],

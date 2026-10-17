@@ -326,6 +326,6 @@ test('un ping sin respuesta cierra la conexión', async () => {
 test('cleanKit: sólo niveles enteros e ids con forma de movimiento', () => {
   const { cleanKit } = require('../index');
   assert.deepStrictEqual(cleanKit(null), { up: {}, bind: [], ban: [] });
-  assert.deepStrictEqual(cleanKit({ up: { hp: 3, atk: 1.5, spd: -1, ['__proto__']: 4, LARGO: 2, xp: 500 }, bind: ['quick-attack', 7, 'a b'], ban: ['x', 'y', 'z', 'w', 'v'] }),
-    { up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w'] });
+  assert.deepStrictEqual(cleanKit({ up: { hp: 3, atk: 1.5, spd: -1, ['__proto__']: 4, LARGO: 2, xp: 500 }, bind: ['quick-attack', 7, 'a b'], ban: ['x', 'y', 'z', 'w', 'v', 'u'] }),
+    { up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w', 'v'] });
 });

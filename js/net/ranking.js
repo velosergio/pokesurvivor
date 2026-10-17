@@ -2,7 +2,10 @@
  * Firestore (pensado para gastar lo mínimo del plan gratuito):
  *
  *   lbs/{tabla}        RESUMEN: el top 50 de la tabla en UN documento
- *                      { top: { id: { t, uids, names, dex, shiny, lv, kills } }, me, ev }
+ *                      { top: { id: { t, uids, names, dex, shiny, lv, kills, b } }, me, ev }
+ *                      b = la build de cada uno (Player.buildCode, ~60 letras;
+ *                      va en el resumen para verla sin leer nada más). Las
+ *                      marcas de antes del 17-10-2026 no la tienen.
  *                      Ver una pestaña del ranking = 1 lectura (antes ~52).
  *   lb/{tabla}/e/{id}  la marca de cada jugador o equipo (la que sirve para
  *                      calcular tu puesto si no estás en el top 50)
@@ -158,7 +161,7 @@ G.Ranking = (() => {
 
   // ---------------- guardar ----------------
 
-  const rowOf = (id, v) => ({ id, t: v.t, uids: v.uids || [], names: v.names || [], dex: v.dex || [], shiny: v.shiny || [], lv: v.lv, kills: v.kills });
+  const rowOf = (id, v) => ({ id, t: v.t, uids: v.uids || [], names: v.names || [], dex: v.dex || [], shiny: v.shiny || [], lv: v.lv, kills: v.kills, b: v.b || [] });
   const sorted = top => Object.entries(top || {}).map(([id, v]) => rowOf(id, v)).sort((a, b) => b.t - a.t);
   const now = () => firebase.firestore.FieldValue.serverTimestamp();
 
@@ -224,6 +227,7 @@ G.Ranking = (() => {
             // (Sin "shiny" si no hay ninguno: el resumen pesa menos.)
             const mine = { t: entry.t, uids: entry.uids, names: entry.names, dex: entry.dex, lv: entry.lv, kills: entry.kills };
             if (entry.shiny.some(Boolean)) mine.shiny = entry.shiny;
+            if (entry.b) mine.b = entry.b;
             let ev = '';
             // Ya estabas con una marca mejor (otro ordenador): nada que escribir.
             if (id in top && top[id].t >= entry.t) { entered = false; newTop = top; return; }
@@ -266,6 +270,7 @@ G.Ranking = (() => {
     if (!fb || !G.Social.me || r.t < MIN_T) return [];
     const ids = boardIds();
     const entry = { t: r.t, uids: [fb.uid], names: [G.Social.me.name], dex: [r.dex], shiny: [!!r.shiny], lv: r.lv, kills: r.kills };
+    if (r.build) entry.b = [String(r.build).slice(0, G.Player.BUILD_MAX)];
     const boards = PERIODS.map(([p]) => ['s_' + ids[p], p]);
     boards.push(['s_' + ALL + '_p' + r.dex, 'p']);
     const better = await store(boards, fb.uid, entry);

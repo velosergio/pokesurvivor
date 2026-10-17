@@ -63,6 +63,18 @@ test('solitario: con shiny, la fila lo lleva igual que la marca', async () => {
   await assertSucceeds(submit(db, S, 'ana', entry({ shiny: [true] }), row({ shiny: [true] })));
 });
 
+test('solitario: la build (opcional) va igual en la marca y en su fila, y es corta', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  const b = ['ember.7*+bite.3|growl.2;lifeorb;atk4,cd2'];
+  await assertSucceeds(submit(db, S, 'ana', entry({ t: 310, b }), row({ t: 310, b })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320, b }), row({ t: 320 })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320 }), row({ t: 320, b })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320, b }), row({ t: 320, b: ['ember.9;;'] })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320, b: ['x'.repeat(401)] }), row({ t: 320, b: ['x'.repeat(401)] })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320, b: ['a', 'b'] }), row({ t: 320, b: ['a', 'b'] })));
+  await assertFails(submit(db, S, 'ana', entry({ t: 320, b: [7] }), row({ t: 320, b: [7] })));
+});
+
 test('solitario: la fila del top no puede inflar nivel ni derrotados', async () => {
   const db = env.authenticatedContext('ana').firestore();
   await assertFails(submit(db, S, 'ana', entry(), row({ lv: 50 })));

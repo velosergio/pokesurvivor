@@ -12,14 +12,14 @@
  * Se tira con TICKETS (se consiguen jugando):
  *   ×1   1 ticket
  *   ×10  10 tickets normales, o 1 ticket ×10 (eliges con qué)
- *   ×20  20 tickets normales (dos ×10 seguidas: cada bloque de 10 trae su Épica)
+ *   ×20  20 tickets normales, o 2 tickets ×10 (dos ×10 seguidas: cada bloque de 10 trae su Épica)
  */
 G.Gacha = (() => {
   /** ¿Qué gasta una tirada de n? → { t1, t10 } o null si no te llega. */
-  /** @param use  't1' (tickets normales) o 't10' (un ticket ×10, sólo para la ×10) */
+  /** @param use  't1' (tickets normales) o 't10' (tickets ×10, sólo para la ×10 y la ×20) */
   function costOf(save, n, use = 't1') {
     const t = save.tickets || { t1: 0, t10: 0 };
-    if (n === 10 && use === 't10') return t.t10 >= 1 ? { t1: 0, t10: 1 } : null;
+    if ((n === 10 || n === 20) && use === 't10') return t.t10 >= n / 10 ? { t1: 0, t10: n / 10 } : null;
     return t.t1 >= n ? { t1: n, t10: 0 } : null;
   }
   const RATES = [[1, 45], [2, 30], [3, 17], [4, 6.5], [5, 1.5]];

@@ -2,6 +2,7 @@
  * Pestañas Solo / Grupo, periodo (diario ... histórico), todos o sólo amigos,
  * filtro por Pokémon (sólo en el histórico) y tu puesto abajo aunque no salgas
  * en el top. Lo leído se guarda 30 min (ver ranking.js).
+ * Cada marca enseña su build (movimientos y objeto); al tocarla, el detalle.
  */
 G.RankingUI = (() => {
   const $ = G.UI.$;
@@ -113,6 +114,27 @@ G.RankingUI = (() => {
     el.insertAdjacentHTML('beforeend',
       `<span class="who"><b translate="no">${r.names.map((n, i) => `<a href="#" class="plink" data-u="${esc(r.uids[i] || '')}">${esc(n)}</a>`).join(' · ')}</b><small>Nv. ${r.lv || 1} · ${(r.kills || 0).toLocaleString('es')} derrotados</small></span>
        <span class="time">${fmt(r.t)}</span>`);
+    if (r.b.length) {
+      const strip = document.createElement('span');
+      strip.className = 'rk-build';
+      strip.innerHTML = r.b.map(c => stripHtml(parseBuild(c))).join('<i class="rk-sep"></i>');
+      el.querySelector('.who').appendChild(strip);
+    }
+    // Tocar la fila (no el nombre ni la bandera) abre o cierra el detalle de la build.
+    el.classList.add('rk-tap');
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-expanded', 'false');
+    const toggle = () => {
+      let det = el.querySelector('.rk-det');
+      if (!det) { det = document.createElement('div'); det.className = 'rk-det'; det.innerHTML = detailHtml(r); el.appendChild(det); }
+      else det.classList.toggle('hidden');
+      const open = !det.classList.contains('hidden');
+      el.classList.toggle('open', open);
+      el.setAttribute('aria-expanded', String(open));
+    };
+    el.onclick = e => { if (!e.target.closest('a, button')) toggle(); };
+    el.onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === el) { e.preventDefault(); toggle(); } };
     el.querySelectorAll('.plink').forEach(a => { a.onclick = e => { e.preventDefault(); G.ProfileUI.show(a.dataset.u); }; });
     // Reportar una marca sospechosa (no la tuya). Lo revisa el admin (mod-ui.js).
     if (!mine && G.Social.me) {
@@ -131,6 +153,45 @@ G.RankingUI = (() => {
       el.appendChild(rep);
     } else el.appendChild(document.createElement('span'));
     return el;
+  }
+
+  // ---------------- builds (Player.buildCode) ----------------
+
+  let STAT = null;
+  /** Texto de la build → { slots: [[{ id, lvl, evo }]], item, stats: [{ s, n }] } (lo desconocido se salta). */
+  function parseBuild(code) {
+    if (!STAT) { STAT = {}; for (const x of G.LevelUp.STATS) STAT[x.id] = x; }
+    const [mv = '', it = '', st = ''] = String(code || '').split(';');
+    const slots = mv.split('|').map(g => g.split('+').map(x => /^([a-z0-9-]+)\.(\d+)(\*?)$/.exec(x))
+      .filter(m => m && G.Moves.BY_ID[m[1]]).map(m => ({ id: m[1], lvl: +m[2], evo: !!m[3] }))).filter(g => g.length);
+    const stats = st.split(',').map(x => /^([a-z]+)(\d+)$/.exec(x)).filter(m => m && STAT[m[1]]).map(m => ({ s: STAT[m[1]], n: +m[2] }));
+    return { slots, item: G.Items.BY[it] ? it : null, stats };
+  }
+  const moveName = m => (m.evo && G.Moves.EVO[m.id] ? G.Moves.EVO[m.id][0] : G.Moves.BY_ID[m.id].name);
+
+  /** La tira de la fila: iconos de los movimientos con su nivel (los fusionados, juntos) y el objeto. */
+  function stripHtml(bd) {
+    return bd.slots.map(g => `<span class="rk-slot${g.length > 1 ? ' fused' : ''}">${g.map(m =>
+      `<span class="rk-mv${m.evo ? ' evo' : ''}" title="${esc(moveName(m))}">${G.Icons.html('move:' + m.id, 16)}<sub>${m.lvl}</sub></span>`).join('')}</span>`).join('')
+      + (bd.item ? `<span class="rk-it" title="${esc(G.Items.BY[bd.item].name)}">${G.Icons.html(bd.item, 16)}</span>` : '');
+  }
+
+  /** El detalle al tocar la fila: la build de cada uno (en grupo, con su nombre). */
+  function detailHtml(r) {
+    if (!r.b.length) return '<p class="sub">Esta marca es de antes de que se guardaran las builds.</p>';
+    const group = r.uids.length > 1;
+    return r.b.map((code, i) => {
+      const bd = parseBuild(code), mon = G.DEX_BY[r.dex[i]];
+      const it = bd.item && G.Items.BY[bd.item];
+      return `<div class="rk-bd">
+        ${group ? `<div class="rk-bd-who"><b translate="no">${esc(r.names[i] || '')}</b> <small>${mon ? esc(mon.name) : ''}</small></div>` : ''}
+        <div><span class="lab">Movimientos</span>${bd.slots.map(g => `<div class="rk-bslot${g.length > 1 ? ' fused' : ''}">${g.map(m =>
+          `<span class="rk-bmv">${G.Icons.html('move:' + m.id, 16)} <span class="${m.evo ? 'gold' : ''}">${esc(moveName(m))}</span> <small>Nv. ${m.lvl}</small></span>`).join('')}</div>`).join('') || '<div>—</div>'}</div>
+        <div><span class="lab">Objeto</span><div>${it ? `${G.Icons.html(bd.item, 16)} <span>${esc(it.name)}</span> <small>${esc(it.desc)}</small>` : '<small>Sin objeto</small>'}</div></div>
+        <div><span class="lab">Mejoras de nivel</span><div class="rk-bstats">${bd.stats.map(x =>
+          `<span>${G.Icons.html(x.s.icon, 14)} <span>${esc(x.s.title)}</span> <small>×${x.n}</small></span>`).join('') || '<small>Ninguna</small>'}</div></div>
+      </div>`;
+    }).join('');
   }
 
   return { init, open };

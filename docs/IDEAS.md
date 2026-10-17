@@ -8,10 +8,6 @@
 
 Opciones, sobre todo al crear la sala, para subir o bajar con qué frecuencia aparecen enemigos y grietas, y qué porcentaje de monedas y de tickets sueltan. Sirve para probar, para partidas más tranquilas o para farmeos acordados por el grupo.
 
-### Builds en el ranking
-
-En cada marca del ranking, además del tiempo y del equipo, enseñar la build con la que se subió: habilidades, objetos y lo que baste para entender por qué esa run llegó ahí.
-
 ## Trabajo medio
 
 ### Resumen al acabar la run
@@ -37,4 +33,3 @@ Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio m
 - Barra de vida sobre el personaje
 - Shader CTR
 - investigar bugs de desconexion
-- Subir veto de 3 a 5 poderes

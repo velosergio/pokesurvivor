@@ -131,10 +131,11 @@ service cloud.firestore {
     //     muy bueno aguanta mucho más)
     //   - nivel y derrotados con margen de sobra (un grupo de 10 muy bueno)
     //   - la cuenta no puede estar baneada por el admin (saves/{uid}.ban)
+    // b (opcional): la build (Player.buildCode), un texto corto por jugador.
     function validEntry(board, id) {
       let d = request.resource.data;
       let run = get(/databases/$(database)/documents/runs/$(me())).data;
-      return d.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'at'])
+      return d.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'b', 'at'])
         && d.t is int && d.t > 0 && d.t <= 3600
         && d.t <= (request.time - run.startedAt).seconds() + 30
         && d.lv is int && d.lv >= 1 && d.lv <= 10 + d.t / 4
@@ -144,6 +145,7 @@ service cloud.firestore {
         && d.names is list && d.names.size() == d.uids.size()
         && d.dex is list && d.dex.size() == d.uids.size()
         && d.shiny is list && d.shiny.size() == d.uids.size()
+        && (!('b' in d) || (d.b is list && d.b.size() == 1 && d.b[0] is string && d.b[0].size() <= 400))
         && d.at == request.time
         && board.matches('s_.*') && d.uids.size() == 1 && id == me()
         && (resource == null || d.t > resource.data.t);
@@ -156,7 +158,7 @@ service cloud.firestore {
     }
 
     // Resumen con el top 50 de cada tabla (lo que se lee al mirar el ranking).
-    //   top: { id: { t, uids, names, dex, shiny, lv, kills } }
+    //   top: { id: { t, uids, names, dex, shiny, lv, kills, b } }
     //   me:  la fila que añades o mejoras (debe coincidir con tu marca validada,
     //        escrita en la misma transacción)
     //   ev:  la fila que sale del top (sólo si tiene menos tiempo que la tuya)
@@ -181,10 +183,11 @@ service cloud.firestore {
       let row = d.top[d.me];
       return board.matches('s_.*') && me() in e.uids
         && changed.hasOnly([d.me, d.ev])
-        && row.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills'])
+        && row.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'b'])
         && row.t == e.t && row.uids == e.uids && row.names == e.names && row.dex == e.dex
         && row.lv == e.lv && row.kills == e.kills
         && ('shiny' in row ? row.shiny == e.shiny : !(true in e.shiny))
+        && ('b' in row ? row.b == e.b : !('b' in e))
         && (d.ev == '' || (!(d.ev in d.top) && d.ev in old && old[d.ev].t <= e.t));
     }
     function removeMine(d, old, changed) {

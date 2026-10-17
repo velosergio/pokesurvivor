@@ -12,6 +12,7 @@ G.GachaUI = (() => {
     $('pull-10').onclick = () => pull(10, 't1');
     $('pull-10b').onclick = () => pull(10, 't10');
     $('pull-20').onclick = () => pull(20);
+    $('pull-20b').onclick = () => pull(20, 't10');
     $('pull-skip').onclick = skip;
     $('pull-close').onclick = close;
 
@@ -73,11 +74,13 @@ G.GachaUI = (() => {
     $('cost-10').innerHTML = `${G.Icons.html('ticket', 18)} 10`;
     $('cost-10b').innerHTML = `${G.Icons.html('ticket10', 18)} 1`;
     $('cost-20').innerHTML = `${G.Icons.html('ticket', 18)} 20`;
+    $('cost-20b').innerHTML = `${G.Icons.html('ticket10', 18)} 2`;
     $('gacha-tickets').innerHTML = `Tienes ${G.Icons.html('ticket', 18)} <b>${t.t1}</b> tickets y ${G.Icons.html('ticket10', 18)} <b>${t.t10}</b> tickets ×10`;
     $('pull-1').disabled = !G.Gacha.costOf(s, 1);
     $('pull-10').disabled = !G.Gacha.costOf(s, 10, 't1');
     $('pull-10b').disabled = !G.Gacha.costOf(s, 10, 't10');
     $('pull-20').disabled = !G.Gacha.costOf(s, 20);
+    $('pull-20b').disabled = !G.Gacha.costOf(s, 20, 't10');
     G.UI.refreshCoins();
   }
 

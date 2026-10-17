@@ -52,8 +52,8 @@ function cleanKit(v) {
       if (/^[a-z]{1,12}$/.test(key) && Number.isInteger(n) && n > 0 && n < 100) up[key] = n;
     }
   }
-  const ids = a => (Array.isArray(a) ? a.slice(0, 4).map(x => (typeof x === 'string' && /^[a-z0-9_-]{1,24}$/.test(x) ? x : '')) : []);
-  return { up, bind: ids(k.bind), ban: ids(k.ban).filter(Boolean) };
+  const ids = (a, max) => (Array.isArray(a) ? a.slice(0, max).map(x => (typeof x === 'string' && /^[a-z0-9_-]{1,24}$/.test(x) ? x : '')) : []);
+  return { up, bind: ids(k.bind, 4), ban: ids(k.ban, 5).filter(Boolean) };
 }
 
 /** ¿Se acepta este Origin? Lista vacía = cualquiera (en local). */

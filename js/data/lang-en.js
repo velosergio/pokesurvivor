@@ -409,6 +409,8 @@ G.I18n.add({
   'Tu mejor puesto {x} {x}:': 'Your best rank {x} {x}:', 'Aún no tienes marca {x} {x}.': 'You don\'t have a record {x} {x} yet.',
   'de hoy': 'today', 'de esta semana': 'this week', 'de este mes': 'this month', 'de este año': 'this year', 'de siempre': 'of all time',
   'en solitario': 'solo', 'en grupo': 'in a group', 'Nv. {x} · {x} derrotados': 'Lv. {x} · {x} defeated',
+  'Esta marca es de antes de que se guardaran las builds.': 'This record is from before builds were saved.',
+  'Objeto': 'Item', 'Sin objeto': 'No item', 'Mejoras de nivel': 'Level-up boosts', 'Ninguna': 'None', 'Nv. {x}': 'Lv. {x}',
   '¡Nueva mejor marca {x} en el ranking!': 'New best record {x} on the leaderboard!', 'de la semana': 'of the week', 'del mes': 'of the month', 'del año': 'of the year', 'histórico': 'all-time',
 
   // ---------------- ajustes ----------------

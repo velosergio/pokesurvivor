@@ -575,6 +575,28 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 
 .rk-rep { background: none; border: 0; padding: 4px; cursor: pointer; opacity: .35; line-height: 0; }
 .rk-rep:hover { opacity: 1; }
 .rk-rep.sent { opacity: .12; cursor: default; }
+/* La build de cada marca: tira en la fila y detalle al tocarla (ranking-ui.js). */
+.rk-row.rk-tap { cursor: pointer; }
+.rk-row.rk-tap:hover, .rk-row.rk-tap:focus-visible { background: rgba(255,255,255,.06); outline: none; }
+.rk-row.mine.rk-tap:hover { background: rgba(255,210,63,.16); }
+.rk-build { display: flex; align-items: center; gap: 6px; margin-top: 2px; overflow: hidden; white-space: nowrap; line-height: 0; }
+.rk-slot { display: inline-flex; gap: 2px; flex: none; }
+.rk-slot.fused { padding: 1px 3px; border: 1px solid rgba(255,210,63,.55); border-radius: 6px; }
+.rk-mv { display: inline-flex; align-items: flex-end; }
+.rk-mv sub { font-size: 10px; line-height: 1; color: var(--muted); margin-left: 1px; }
+.rk-mv.evo sub { color: var(--gold); font-weight: 700; }
+.rk-it { flex: none; padding-left: 6px; border-left: 1px solid rgba(255,255,255,.18); }
+.rk-sep { flex: none; width: 1px; height: 16px; margin: 0 2px; background: rgba(255,255,255,.3); }
+.rk-det { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;
+  padding: 6px 4px 8px 64px; font-size: 14px; cursor: auto; }
+.rk-det .sub { margin: 0; }
+.rk-bd { display: flex; flex-direction: column; gap: 6px; }
+.rk-bd .lab { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.rk-bd small { color: var(--muted); }
+.rk-bd-who b { font-size: 15px; }
+.rk-bslot { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.rk-bslot.fused { border-left: 2px solid var(--gold); padding-left: 6px; margin: 2px 0; }
+.rk-bstats { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .rk-row.mod-row { grid-template-columns: 54px 1fr auto; }
 .rk-row.mod-row.rep { grid-template-columns: 54px auto 1fr auto auto; }
 .mod-warn { color: #ff8a96 !important; }
@@ -596,6 +618,7 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 
   .lob-card b { font-size: 13px; }
   .lob-card small { display: none; }
   .rk-row { grid-template-columns: 40px auto 1fr auto 22px; gap: 6px; }
+  .rk-det { padding-left: 4px; }
 }
 
 /* ---------- tickets y mejoras por Pokémon ---------- */

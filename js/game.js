@@ -337,7 +337,7 @@ G.Game = (() => {
     // Ranking: en solitario lo sube cada uno; el de grupo, el servidor del cooperativo.
     const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
-    const sent = !coop && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny })) : null;
+    const sent = !coop && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny, build: pl.buildCode() })) : null;
     if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
 
     G.RunUI.showOver({

@@ -216,6 +216,19 @@ G.Player = class Player {
   activeMove() { return this.activeGroup()[0]; }
 
   /**
+   * La build en texto corto, para el ranking (ranking.js y server/rank.js; la
+   * lee ranking-ui.js): huecos separados con "|", movimientos fusionados con
+   * "+", cada uno "id.nivel" (con "*" si ha evolucionado); luego ";objeto" y
+   * ";mejoras de stat" (id y veces). P. ej. "ember.7*+bite.3|growl.2;lifeorb;atk4,cd2".
+   */
+  buildCode() {
+    const mv = this.slots.map(g => g.map(m => m.id + '.' + m.lvl + (m.evolved ? '*' : '')).join('+')).join('|');
+    const st = Object.entries(this.statsTaken).filter(([, n]) => n > 0).map(([k, n]) => k + n).join(',');
+    return (mv + ';' + (this.item || '') + ';' + st).slice(0, Player.BUILD_MAX);
+  }
+  static get BUILD_MAX() { return 400; }
+
+  /**
    * Lo llama combat.js al lanzar un movimiento. Elige la animación de PMD y la
    * acelera si la recarga es más corta que la animación, para que encadene.
    */

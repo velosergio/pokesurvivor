@@ -5,8 +5,9 @@
  * de servicio, que salta las reglas de Firestore. Escribe EXACTAMENTE lo mismo
  * que escribía el navegador (js/net/ranking.js, submitGroupNow y store):
  *
- *   lbs/{tabla}        { top: { id: { t, uids, names, dex, shiny?, lv, kills } }, me, ev }
- *   lb/{tabla}/e/{id}  { t, uids, names, dex, shiny, lv, kills, at }
+ *   lbs/{tabla}        { top: { id: { t, uids, names, dex, shiny?, lv, kills, b? } }, me, ev }
+ *   lb/{tabla}/e/{id}  { t, uids, names, dex, shiny, lv, kills, b?, at }
+ *   (b = la build de cada miembro, Player.buildCode)
  *
  *   tabla = g_<periodo> (diario, semanal, mensual, histórico) y g_all2_p<dex>
  *   por cada Pokémon distinto del equipo; id = uids ordenados unidos con "_".
@@ -31,6 +32,8 @@ const MIN_T = 120;
 const ALL = 'all2';
 /** Hasta 1 h (como validEntry en firestore.rules) y de 2 a 10 jugadores (como las salas). */
 const MAX_T = 3600, MAX_TEAM = 10;
+/** Largo máximo de la build de cada miembro (como Player.BUILD_MAX y firestore.rules). */
+const BUILD_MAX = 400;
 /** Tiempo máximo de cada petición a Google (ms). */
 const TIMEOUT = 15000;
 
@@ -198,6 +201,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
       // (Sin "shiny" si no hay ninguno: el resumen pesa menos.)
       const mine = { t: entry.t, uids: entry.uids, names: entry.names, dex: entry.dex, lv: entry.lv, kills: entry.kills };
       if (entry.shiny.some(Boolean)) mine.shiny = entry.shiny;
+      if (entry.b) mine.b = entry.b;
       const mineV = toFs(mine);
       const tOf = v => +fromFs(v && v.mapValue && v.mapValue.fields && v.mapValue.fields.t) || 0;
       for (const [b, period] of boards) {
@@ -247,7 +251,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
   /**
    * Sube la marca de un equipo. Comprueba lo mismo que firestore.rules
    * (validEntry), que la cuenta de servicio se salta.
-   * @param {{ t: number, members: {uid,name,dex,shiny}[], lv: number, kills: number }} r
+   * @param {{ t: number, members: {uid,name,dex,shiny,b?}[], lv: number, kills: number }} r
    * @returns {Promise<string[]>} periodos mejorados ('d', 'w', 'm', 'a')
    */
   async function submitGroup(r) {
@@ -263,6 +267,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
     const id = ms.map(m => m.uid).join('_');
     const entry = { t, uids: ms.map(m => m.uid), names: ms.map(m => String(m.name || '')), dex: ms.map(m => m.dex),
                     shiny: ms.map(m => !!m.shiny), lv, kills };
+    if (ms.some(m => typeof m.b === 'string' && m.b)) entry.b = ms.map(m => (typeof m.b === 'string' ? m.b.slice(0, BUILD_MAX) : ''));
     const ids = boardIds(new Date(now()));
     const boards = PERIODS.map(p => ['g_' + ids[p], p]);
     for (const d of new Set(entry.dex)) boards.push(['g_' + ALL + '_p' + d, 'p']);

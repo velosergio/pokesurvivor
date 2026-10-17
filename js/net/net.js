@@ -55,7 +55,7 @@ G.Net = (() => {
   /** Lo que el servidor necesita saber de tu Pokémon (mejoras de la tienda, atajos, vetos). */
   function kit() {
     const s = G.DB.save, dex = s.partner;
-    return { up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 4) };
+    return { up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5) };
   }
 
   async function hello(sock, fresh) {

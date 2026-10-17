@@ -125,6 +125,22 @@ test('con algún shiny, el resumen lleva shiny', async () => {
   assert.strictEqual(fs.get('lbs/g_all2_p25'), null);
 });
 
+test('la build de cada miembro va en la marca y en el resumen, en el orden de los uids', async () => {
+  const fs = fakeFirestore();
+  const long = 'x'.repeat(500);
+  await rankOf(fs).submitGroup(run({ members: [Object.assign(member('bb', 25), { b: 'ember.3;;atk1' }), Object.assign(member('aa', 4), { b: long })] }));
+  const want = ['x'.repeat(400), 'ember.3;;atk1'];
+  assert.deepStrictEqual(fs.get('lb/g_all2/e/aa_bb').b, want);
+  assert.deepStrictEqual(fs.get('lbs/g_all2').top.aa_bb.b, want);
+});
+
+test('sin builds (servidor viejo), ni la marca ni el resumen llevan b', async () => {
+  const fs = fakeFirestore();
+  await rankOf(fs).submitGroup(run({ members: [Object.assign(member('bb', 25), { b: 7 }), member('aa', 4)] }));
+  assert.ok(!('b' in fs.get('lb/g_all2/e/aa_bb')));
+  assert.ok(!('b' in fs.get('lbs/g_all2').top.aa_bb));
+});
+
 test('no entra si el top está lleno y es peor', async () => {
   const fs = fakeFirestore();
   const top = fullTop(400);
