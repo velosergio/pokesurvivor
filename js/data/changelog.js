@@ -7,8 +7,8 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
-    ['Gacha: nueva tirada ×20 por 20 tickets o 2 tickets ×10 (trae al menos dos Épicas, una por cada 10) y botón «Saltar» para ver los resultados sin esperar a la animación.',
-     'Gacha: new ×20 pull for 20 tickets or 2 ×10 tickets (gives at least two Epics, one per 10) and a “Skip” button to see the results without waiting for the animation.'],
+    ['Gacha: nueva tirada ×20 por 20 tickets o 2 tickets ×10 (trae al menos dos Épicas, una por cada 10) y botón «Saltar» (o Espacio / Enter) para ver los resultados sin esperar a la animación.',
+     'Gacha: new ×20 pull for 20 tickets or 2 ×10 tickets (gives at least two Epics, one per 10) and a “Skip” button (or Space / Enter) to see the results without waiting for the animation.'],
     ['Cooperativo: al elegir carta de nivel o fusión, una barra verde abajo te enseña cuánto tiempo te queda (se pone amarilla los últimos 5 s). Si se acaba, se elige por ti.',
      'Co-op: when picking a level card or a fusion, a green bar at the bottom shows how much time you have left (it turns yellow for the last 5 s). If it runs out, one is picked for you.'],
     ['Ranking: cada marca enseña la build con la que se hizo (movimientos con su nivel, las fusiones juntas y el objeto). Toca una marca para ver el detalle: nombres, movimientos evolucionados, el objeto y las mejoras de stat que se cogieron. En grupo, la de cada jugador. Las marcas de antes no la tienen.',

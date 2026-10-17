@@ -15,6 +15,16 @@ G.GachaUI = (() => {
     $('pull-20b').onclick = () => pull(20, 't10');
     $('pull-skip').onclick = skip;
     $('pull-close').onclick = close;
+    // Espacio o Enter con la tirada abierta = "Saltar". Mientras está abierta se
+    // tragan siempre: si no, irían al botón de tirar que tenía el foco y
+    // gastarían tickets en otra tirada.
+    window.addEventListener('keydown', e => {
+      if (e.code !== 'Space' && e.key !== 'Enter') return;
+      if ($('pull-fx').classList.contains('hidden')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat && !$('pull-skip').classList.contains('hidden')) skip();
+    }, true);
 
     const tabs = $('gacha-gens');
     G.Gacha.BANNERS.forEach(b => {
@@ -94,6 +104,7 @@ G.GachaUI = (() => {
     G.DB.commit(true);
     busy = true;
     skipped = false;
+    if (document.activeElement) document.activeElement.blur();
 
     const best = Math.max(...res.map(r => r.rarity));
     const fx = $('pull-fx'), slot = $('slot'), out = $('pull-results');
