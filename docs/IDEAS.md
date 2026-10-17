@@ -1,5 +1,7 @@
 # Ideas
 
+> Toda nueva idea que implique nuevos cambios debe seguir los principios SOLID y DRY
+
 ## Poco trabajo
 
 ### Ritmo de la partida a medida
