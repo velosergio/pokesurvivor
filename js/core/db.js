@@ -92,6 +92,7 @@ G.DB = (() => {
       evoMoves: {},           // id -> fecha: movimientos evolucionados alguna vez
       ach: {},                // id -> fecha: logros conseguidos
       missions: {},           // misiones del día / semana (systems/progress.js)
+      daily: { played: 0, streak: 0, last: '', prev: '', lastT: 0, best: 0, wins: 0, top10: 0 },   // Desafío diario (modes/daily-mode.js)
       profile: { favs: [], title: '' },   // perfil público: 3 favoritos y título
       stats: { runs: 0, bestTime: 0, bestLevel: 0, totalKills: 0, pulls: 0, coinsEarned: 0, shinies: 0,
                bossesTotal: 0, riftWins: 0, evolutions: 0, missionsDone: 0, groupRuns: 0, bestGroupTime: 0 }
@@ -103,6 +104,7 @@ G.DB = (() => {
     const base = newSave(name || s.name);
     for (const k in base) if (s[k] == null) s[k] = base[k];
     for (const k in base.stats) if (s.stats[k] == null) s.stats[k] = base.stats[k];
+    for (const k in base.daily) if (s.daily[k] == null) s.daily[k] = base.daily[k];
     // v1 -> v2: había un único banner (Kanto) con el pity como número.
     if (typeof s.pity === 'number') s.pity = { 1: s.pity };
     // v2 -> v3: las mejoras eran de la cuenta; pasan al compañero de entonces.
@@ -131,6 +133,9 @@ G.DB = (() => {
     s.tickets.t10 = n(s.tickets.t10);
     s.grantedCoins = n(s.grantedCoins);
     s.grantedT10 = n(s.grantedT10);
+    if (!isObj(s.daily)) s.daily = newSave().daily;
+    for (const k of ['played', 'streak', 'lastT', 'best', 'wins', 'top10']) s.daily[k] = n(s.daily[k]);
+    for (const k of ['last', 'prev']) if (!/^(\d{8})?$/.test(String(s.daily[k] || ''))) s.daily[k] = '';
     if (isObj(s.led)) {
       for (const dev of Object.keys(s.led)) {
         const e = s.led[dev];
@@ -289,6 +294,11 @@ G.DB = (() => {
       });
     }
     for (const k in older.stats || {}) r.stats[k] = Math.max(r.stats[k] || 0, older.stats[k] || 0);
+    // Desafío diario: los contadores, el mayor; el día y la racha, los del que jugó más tarde.
+    const da = r.daily = Object.assign({}, r.daily), db_ = older.daily || {};
+    if ((db_.last || '') > (da.last || '')) for (const k of ['last', 'prev', 'streak', 'lastT']) da[k] = db_[k];
+    for (const k of ['played', 'wins', 'top10']) da[k] = Math.max(da[k] || 0, db_[k] || 0);
+    if (db_.best && (!da.best || db_.best < da.best)) da.best = db_.best;
     if (r.starter == null) r.starter = older.starter;
     if (r.personality == null) r.personality = older.personality;
     if (r.partner == null || !r.owned[r.partner]) { r.partner = older.partner; r.partnerShiny = older.partnerShiny; }

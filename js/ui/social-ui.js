@@ -105,7 +105,7 @@
       if (f.status === 'in') return 'Quiere ser tu amigo';
       if (f.status === 'out') return 'Solicitud enviada';
       if (!f.online) return f.seen ? 'Visto ' + ago(f.seen) : 'Desconectado';
-      return f.play ? 'Jugando' : 'En línea';
+      return f.play ? 'Jugando' : f.room ? 'En una sala' : 'En línea';
     }
 
     function render() {
@@ -141,7 +141,16 @@
         } else if (f.status === 'out') {
           btn('Cancelar', 'ghost', () => G.Social.remove(f.uid));
         } else {
-          if (f.online && !f.play && !inRoom && (!room || room.isHost)) {
+          if (f.online && !f.play && f.room && !room) {
+            // Está en una sala: entras con su código (si está llena o cerrada, el servidor lo dice).
+            btn('Unirse', 'gold', async () => {
+              msg('Conectando…');
+              const r = await G.Social.joinRoom(f.room);
+              if (!r.ok) { msg(r.error, true); G.Social.refreshPresence(true); return; }
+              msg('');
+              G.LobbyUI.open();
+            });
+          } else if (f.online && !f.play && !inRoom && (!room || room.isHost)) {
             btn('Invitar', 'gold', async () => {
               const r = await G.Social.invite(f.uid);
               msg(r.ok ? r.msg : r.error, !r.ok);

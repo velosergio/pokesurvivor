@@ -8,7 +8,9 @@
 G.CHANGELOG = [
   { d: '2026-10-18', title: ['Barra de vida', 'Health bar'], new: [
     ['Barra de vida bajo tu Pokémon: verde, amarilla por debajo de la mitad y roja cuando queda poca. Se puede quitar en Ajustes > Gráficos > «Vida del personaje».',
-     'Health bar under your Pokémon: green, yellow below half and red when it’s low. You can turn it off in Settings > Graphics > “Character health”.']
+     'Health bar under your Pokémon: green, yellow below half and red when it’s low. You can turn it off in Settings > Graphics > “Character health”.'],
+    ['Amigos: si un amigo está en una sala, sale «En una sala» y un botón «Unirse» para entrar directamente, sin pedirle el código.',
+     'Friends: if a friend is in a room, it says “In a room” and shows a “Join” button to get straight in, without asking for the code.']
   ] },
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
     ['Cooperativo: en la sala, el líder puede cambiar las «Condiciones de partida»: cuántos enemigos aparecen (25 %–300 %), cada cuánto se abren las grietas (ninguna–300 %) y cuántas monedas y tickets sueltan (0 %–500 %). Para probar, para partidas tranquilas o para farmear en grupo. Si alguna no está al 100 %, esa partida no sube al ranking.',

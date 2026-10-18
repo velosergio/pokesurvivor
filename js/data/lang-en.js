@@ -375,7 +375,7 @@ G.I18n.add({
   'Quiere ser tu amigo': 'Wants to be your friend', 'Solicitud enviada': 'Request sent', 'Desconectado': 'Offline', 'Jugando': 'Playing', 'En línea': 'Online',
   'Visto hace {x} min': 'Seen {x} min ago', 'Visto hace {x} h': 'Seen {x} h ago', 'Visto hace {x} días': 'Seen {x} days ago',
   'hace {x} min': '{x} min ago', 'hace {x} h': '{x} h ago', 'hace {x} días': '{x} days ago', 'Visto': 'Seen',
-  'Aceptar': 'Accept', 'Rechazar': 'Decline', 'Quitar': 'Remove', 'Invitar': 'Invite', 'En la sala': 'In the room', 'En tu sala': 'In your room',
+  'Aceptar': 'Accept', 'Rechazar': 'Decline', 'Quitar': 'Remove', 'Invitar': 'Invite', 'Unirse': 'Join', 'En una sala': 'In a room', 'En la sala': 'In the room', 'En tu sala': 'In your room',
   '¿Quitar a {x} de tus amigos?': 'Remove {x} from your friends?', 'Cancelar': 'Cancel',
   'Crea una cuenta para jugar con amigos y salir en el ranking.': 'Create an account to play with friends and appear on the leaderboard.',
   'Esto necesita la versión online del juego (con la nube).': 'This needs the online version of the game (with the cloud).',

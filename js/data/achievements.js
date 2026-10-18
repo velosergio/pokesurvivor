@@ -12,9 +12,10 @@ G.AchDefs = (() => {
   const legends = s => Object.keys(s.legends || {}).length;
   const st = k => s => (s.stats && s.stats[k]) || 0;
   const count = k => s => Object.keys(s[k] || {}).length;
+  const dy = k => s => (s.daily && s.daily[k]) || 0;
 
   const CATS = [['coleccion', 'Colección'], ['supervivencia', 'Supervivencia'], ['combate', 'Combate'],
-                ['grietas', 'Grietas'], ['legendarios', 'Legendarios'], ['otros', 'Misiones y más']];
+                ['grietas', 'Grietas'], ['legendarios', 'Legendarios'], ['diario', 'Desafío diario'], ['otros', 'Misiones y más']];
 
   const LIST = [
     // ---------- colección ----------
@@ -71,7 +72,15 @@ G.AchDefs = (() => {
     { id: 'mis50', cat: 'otros', tier: 2, name: 'Constante', desc: 'Completa 50 misiones.', value: st('missionsDone'), goal: 50, reward: { t10: 1 }, title: 'Constante' },
     { id: 'mis200', cat: 'otros', tier: 3, name: 'Incansable', desc: 'Completa 200 misiones.', value: st('missionsDone'), goal: 200, reward: { t10: 3 } },
     { id: 'group1', cat: 'otros', tier: 1, name: 'En compañía', desc: 'Juega una partida en grupo.', value: st('groupRuns'), goal: 1, reward: { t1: 2 } },
-    { id: 'group10', cat: 'otros', tier: 2, name: 'Compañero fiel', desc: 'Juega 10 partidas en grupo.', value: st('groupRuns'), goal: 10, reward: { t10: 1 }, title: 'Compañero fiel' }
+    { id: 'group10', cat: 'otros', tier: 2, name: 'Compañero fiel', desc: 'Juega 10 partidas en grupo.', value: st('groupRuns'), goal: 10, reward: { t10: 1 }, title: 'Compañero fiel' },
+    // ---------- Desafío diario (save.daily: modes/daily-mode.js) ----------
+    { id: 'daily1', cat: 'diario', tier: 1, name: 'Primer desafío', desc: 'Juega un Desafío diario.', value: dy('played'), goal: 1, reward: { t1: 2 } },
+    { id: 'daily7', cat: 'diario', tier: 2, name: 'Una semana de retos', desc: 'Juega 7 Desafíos diarios.', value: dy('played'), goal: 7, reward: { t10: 1 } },
+    { id: 'daily30', cat: 'diario', tier: 3, name: 'Retador diario', desc: 'Juega 30 Desafíos diarios.', value: dy('played'), goal: 30, reward: { t10: 2 }, title: 'Retador diario' },
+    { id: 'streak7', cat: 'diario', tier: 2, name: 'Racha de 7', desc: 'Juega el Desafío diario 7 días seguidos.', value: dy('streak'), goal: 7, reward: { t10: 1 } },
+    { id: 'streak30', cat: 'diario', tier: 3, name: 'Racha de 30', desc: 'Juega el Desafío diario 30 días seguidos.', value: dy('streak'), goal: 30, reward: { t10: 2 }, title: 'Constancia de hierro' },
+    { id: 'dailyTop10', cat: 'diario', tier: 2, name: 'Entre los mejores', desc: 'Termina un día en el top 10 del Desafío diario.', value: dy('top10'), goal: 1, reward: { t10: 1 } },
+    { id: 'dailyWin', cat: 'diario', tier: 3, name: 'Campeón del día', desc: 'Gana un Desafío diario (top 1 del día).', value: dy('wins'), goal: 1, reward: { t10: 2 }, title: 'Campeón del día' }
   ];
 
   // Un logro por legendario: "Vence a Mewtwo"...
