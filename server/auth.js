@@ -12,7 +12,8 @@
  * con bots sin cuentas de verdad. En el servidor publicado va apagado.
  */
 'use strict';
-const crypto = require('crypto'), fs = require('fs'), path = require('path'), vm = require('vm');
+const crypto = require('crypto');
+const { readConfig } = require('./config');
 
 /** Certificados públicos con los que Firebase firma los ID tokens. */
 const KEYS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
@@ -153,10 +154,8 @@ function createAuth({ projectId, fetchKeys = defaultFetchKeys, now = () => Date.
 
 /** projectId de Firebase leído de js/config.js (para no repetirlo: CLAUDE.md). */
 function projectIdFromConfig() {
-  const file = path.join(__dirname, '..', 'js', 'config.js');
-  const ctx = { G: {} };
-  vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx, { filename: file });
-  const id = ctx.G.Config && ctx.G.Config.firebase && ctx.G.Config.firebase.projectId;
+  const cfg = readConfig();
+  const id = cfg.firebase && cfg.firebase.projectId;
   if (!id) throw new Error('js/config.js no tiene G.Config.firebase.projectId');
   return id;
 }

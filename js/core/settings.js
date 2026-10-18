@@ -4,6 +4,7 @@
  *
  *   quality     'auto' | 'high' | 'mid' | 'low'   efectos y partículas
  *   dmgNumbers  true/false                        números de daño
+ *   hpBar       true/false                        barra de vida bajo el jugador
  *   calm        true/false                        menos sacudidas y destellos
  *   fps         true/false                        contador de FPS
  *   stick       0.8 | 1 | 1.25                    tamaño del joystick táctil
@@ -16,7 +17,7 @@
  */
 G.Settings = (() => {
   const KEY = 'ps.settings';
-  const DEF = { quality: 'auto', dmgNumbers: true, calm: false, fps: false, stick: 1, stickMode: 'float', pad: null };
+  const DEF = { quality: 'auto', dmgNumbers: true, hpBar: true, calm: false, fps: false, stick: 1, stickMode: 'float', pad: null };
   let s = Object.assign({}, DEF);
   try { Object.assign(s, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* nada */ }
   const fns = new Set();

@@ -41,12 +41,8 @@
     // ---------------- misiones ----------------
 
     function untilText(kind) {
-      const now = new Date();
-      // Medianoche (diarias) o lunes (semanales), hora de España aproximada por la del navegador.
-      const end = new Date(now);
-      end.setHours(24, 0, 0, 0);
-      if (kind === 'w') { const add = (8 - (now.getDay() || 7)) % 7; end.setDate(end.getDate() + add); }
-      const mins = Math.max(1, Math.round((end - now) / 60000));
+      // Medianoche (diarias) o lunes (semanales), en la hora del juego.
+      const mins = Math.max(1, Math.round(G.U.msUntilReset(kind === 'w') / 60000));
       return mins >= 1440 ? Math.floor(mins / 1440) + ' d ' + Math.floor(mins % 1440 / 60) + ' h'
                           : Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min';
     }

@@ -17,6 +17,8 @@ G.Config = {
   sponsors: '',             // usuario de GitHub Sponsors ('' = sin enlace)
   repo: 'https://github.com/velosergio/pokesurvivor',   // código de esta copia; el contacto (aviso legal,
                             // privacidad, retirada de contenido) es abrir un aviso en <repo>/issues
+  tz: 'America/Bogota',     // hora del juego: días, semanas y meses del ranking y de las misiones
+                            // (también la usa el servidor del cooperativo, server/config.js)
   firebase: {
     apiKey: 'AIzaSyCPhjZhBbJ1t81PhLVjO4D2K17-q6CrScw',
     authDomain: 'pokesurvivor-662eb.firebaseapp.com',

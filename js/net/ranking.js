@@ -33,10 +33,10 @@
  *     Tu puesto exacto, aunque estés el 3.000, sólo en el histórico. Con mucha
  *     gente jugando, ahorra unas 6 de cada 10 escrituras del ranking.
  *
- * Los periodos se cuentan en hora de España (Europe/Madrid).
+ * Los periodos se cuentan en la hora del juego (G.Config.tz, America/Bogota;
+ * hasta el 17-10-2026 eran en hora de España).
  */
 G.Ranking = (() => {
-  const TZ = 'Europe/Madrid';
   const PERIODS = [['d', 'Diario'], ['w', 'Semanal'], ['m', 'Mensual'], ['a', 'Histórico']];
   // Periodos en los que sólo se guarda el top 50 (ver arriba).
   // ('p' = histórico de un Pokémon: casi cada partida entraba en el de su
@@ -53,12 +53,6 @@ G.Ranking = (() => {
 
   // ---------------- periodos ----------------
 
-  function madridDate(date) {
-    const p = {};
-    for (const x of new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)) p[x.type] = x.value;
-    return { y: +p.year, m: +p.month, d: +p.day };
-  }
-
   /** Semana ISO (lunes a domingo) de una fecha y-m-d. */
   function isoWeek(y, m, d) {
     const t = new Date(Date.UTC(y, m - 1, d));
@@ -70,7 +64,7 @@ G.Ranking = (() => {
 
   const ALL = 'all2';                     // histórico (ver arriba)
   function periodIds(date = new Date()) {
-    const { y, m, d } = madridDate(date);
+    const { y, m, d } = G.U.gameDate(date);
     const w = isoWeek(y, m, d);
     const p2 = n => String(n).padStart(2, '0');
     return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };

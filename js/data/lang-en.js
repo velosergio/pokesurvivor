@@ -428,6 +428,7 @@ G.I18n.add({
   'alta': 'high', 'media': 'medium', 'baja': 'low',
   'Pantalla': 'Display', 'Números de daño': 'Damage numbers', 'Los números que salen al golpear y al recibir daño.': 'The numbers that pop up when you hit or get hit.',
   'Menos sacudidas y destellos': 'Less shaking and flashing', 'La cámara tiembla menos y los fogonazos son suaves.': 'The camera shakes less and flashes are softer.',
+  'Vida del personaje': 'Character health', 'Una barra bajo tu Pokémon: verde, amarilla a media vida y roja cuando queda poca.': 'A bar under your Pokémon: green, yellow at half health and red when it’s low.',
   'Mostrar FPS': 'Show FPS', 'Fotogramas por segundo, en la esquina de abajo.': 'Frames per second, in the bottom corner.',
   'Pantalla completa': 'Fullscreen', 'Sin barras del navegador.': 'Without browser bars.', 'Activar': 'Turn on', 'Sí': 'Yes', 'No': 'No',
   'Idioma': 'Language', 'El juego se recarga al cambiarlo.': 'The game reloads when you change it.',

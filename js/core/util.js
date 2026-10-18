@@ -38,6 +38,31 @@ G.U = {
     return (h >>> 0) / 4294967296;
   },
 
+  /**
+   * Fecha y hora en la hora del juego (G.Config.tz; server/rank.js tiene la misma
+   * cuenta). → { y, m, d, h, mi, s, wd } con wd = 1 (lunes) … 7 (domingo).
+   */
+  gameDate(date = new Date()) {
+    const p = {};
+    for (const x of new Intl.DateTimeFormat('en-CA', { timeZone: G.Config.tz, hourCycle: 'h23', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(date)) p[x.type] = x.value;
+    const y = +p.year, m = +p.month, d = +p.day;
+    return { y, m, d, h: +p.hour, mi: +p.minute, s: +p.second, wd: new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7 };
+  },
+
+  /** "2026-10-17": el día de hoy en la hora del juego. */
+  gameDay(date = new Date()) {
+    const { y, m, d } = G.U.gameDate(date);
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  },
+
+  /** Milisegundos hasta la próxima medianoche (o el próximo lunes, con week) en la hora del juego. */
+  msUntilReset(week = false, date = new Date()) {
+    const g = G.U.gameDate(date);
+    const days = week ? 8 - g.wd : 1;
+    return days * 86400000 - ((g.h * 60 + g.mi) * 60 + g.s) * 1000 - date.getMilliseconds();
+  },
+
   /** "3:07" a partir de segundos. */
   mmss(s) {
     const m = Math.floor(s / 60);

@@ -16,7 +16,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLen
 const SA = { project_id: PROJECT, client_email: 'rank@demo-proj.iam.gserviceaccount.com', private_key_id: 'k1',
   private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
 
-// Un instante fijo: miércoles 14-10-2026 a mediodía (hora de Madrid).
+// Un instante fijo: miércoles 14-10-2026 a las 05:00 (hora de Colombia).
 const NOW = Date.UTC(2026, 9, 14, 10, 0, 0);
 const IDS = boardIds(new Date(NOW));
 
@@ -268,13 +268,15 @@ test('conversión de tipos ida y vuelta', () => {
   assert.deepStrictEqual(fromFs(JSON.parse(JSON.stringify(v))), o);
 });
 
-// ---- fechas: lo mismo que el navegador (copia literal de js/net/ranking.js) ----
+// ---- fechas: lo mismo que el navegador (copia literal de G.U.gameDate y js/net/ranking.js) ----
 const Browser = (() => {
-  const TZ = 'Europe/Madrid';
-  function madridDate(date) {
+  const G = { Config: require('../config').readConfig() };
+  function gameDate(date = new Date()) {
     const p = {};
-    for (const x of new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)) p[x.type] = x.value;
-    return { y: +p.year, m: +p.month, d: +p.day };
+    for (const x of new Intl.DateTimeFormat('en-CA', { timeZone: G.Config.tz, hourCycle: 'h23', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(date)) p[x.type] = x.value;
+    const y = +p.year, m = +p.month, d = +p.day;
+    return { y, m, d, h: +p.hour, mi: +p.minute, s: +p.second, wd: new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7 };
   }
   function isoWeek(y, m, d) {
     const t = new Date(Date.UTC(y, m - 1, d));
@@ -285,7 +287,7 @@ const Browser = (() => {
   }
   const ALL = 'all2';
   function periodIds(date = new Date()) {
-    const { y, m, d } = madridDate(date);
+    const { y, m, d } = gameDate(date);
     const w = isoWeek(y, m, d);
     const p2 = n => String(n).padStart(2, '0');
     return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };
@@ -297,25 +299,24 @@ const Browser = (() => {
   return { boardIds };
 })();
 
-test('periodos en hora de Madrid, iguales que en el navegador', () => {
+test('periodos en hora de Colombia, iguales que en el navegador', () => {
+  assert.strictEqual(require('../config').readConfig().tz, 'America/Bogota');
   const cases = [
     ['2026-10-08T12:00:00Z', 'd20261008', 'w2026-41j', 'm202610j'],
-    // Cambio de semana ISO: domingo 23:30 / lunes 00:30 en Madrid (verano, UTC+2).
-    ['2026-10-11T21:30:00Z', 'd20261011', 'w2026-41j', 'm202610j'],
-    ['2026-10-11T22:30:00Z', 'd20261012', 'w2026-42j', 'm202610j'],
-    // Fin de año: en UTC aún es 2025, en Madrid ya 2026 (jueves: semana 1 de 2026).
-    ['2025-12-31T23:30:00Z', 'd20260101', 'w2026-01j', 'm202601j'],
-    ['2025-12-31T22:30:00Z', 'd20251231', 'w2026-01j', 'm202512j'],
+    // Cambio de semana ISO: domingo 23:30 / lunes 00:30 en Colombia (UTC-5).
+    ['2026-10-12T04:30:00Z', 'd20261011', 'w2026-41j', 'm202610j'],
+    ['2026-10-12T05:30:00Z', 'd20261012', 'w2026-42j', 'm202610j'],
+    // Fin de año: en UTC ya es 2026, en Colombia aún 2025 (miércoles: semana 1 de 2026).
+    ['2026-01-01T04:30:00Z', 'd20251231', 'w2026-01j', 'm202512j'],
+    ['2026-01-01T05:30:00Z', 'd20260101', 'w2026-01j', 'm202601j'],
     // 2026 tiene 53 semanas: el viernes 1-1-2027 cae en la 53 de 2026.
     ['2027-01-01T12:00:00Z', 'd20270101', 'w2026-53j', 'm202701j'],
-    ['2027-01-04T00:30:00Z', 'd20270104', 'w2027-01j', 'm202701j'],
-    // Cambio de hora de octubre (25-10-2026, 01:00 UTC): antes UTC+2, después UTC+1.
-    ['2026-10-24T22:30:00Z', 'd20261025', 'w2026-43j', 'm202610j'],
-    ['2026-10-25T22:30:00Z', 'd20261025', 'w2026-43j', 'm202610j'],
-    ['2026-10-25T23:30:00Z', 'd20261026', 'w2026-44j', 'm202610j'],
-    // Cambio de hora de marzo (29-03-2026, 01:00 UTC).
-    ['2026-03-28T23:30:00Z', 'd20260329', 'w2026-13j', 'm202603j'],
-    ['2026-03-31T22:30:00Z', 'd20260401', 'w2026-14j', 'm202604j']
+    ['2027-01-04T05:30:00Z', 'd20270104', 'w2027-01j', 'm202701j'],
+    // Colombia no cambia de hora: el 25-10 (cuando cambia Europa) sigue en UTC-5.
+    ['2026-10-25T04:30:00Z', 'd20261024', 'w2026-43j', 'm202610j'],
+    ['2026-10-25T05:30:00Z', 'd20261025', 'w2026-43j', 'm202610j'],
+    ['2026-03-29T04:59:00Z', 'd20260328', 'w2026-13j', 'm202603j'],
+    ['2026-04-01T05:00:00Z', 'd20260401', 'w2026-14j', 'm202604j']
   ];
   for (const [iso, d, w, m] of cases) {
     const got = boardIds(new Date(iso));

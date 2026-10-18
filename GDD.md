@@ -54,7 +54,7 @@ Menú principal  (el mundo de fondo, con Pokémon salvajes paseando)
 
 ### 2.4 Ranking
 - Tiempo aguantado. Pestañas **Solo / Grupo**; periodos **diario, semanal,
-  mensual, anual e histórico** (hora de España); **todos o sólo amigos**;
+  mensual, anual e histórico** (hora de Colombia); **todos o sólo amigos**;
   **filtro por Pokémon**; tu puesto abajo aunque no salgas en el top 50.
 - Una entrada por jugador (o equipo) y tabla, sólo si mejora. En grupo sale
   el equipo entero en la misma fila (la sube el anfitrión).

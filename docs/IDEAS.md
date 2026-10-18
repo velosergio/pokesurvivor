@@ -22,4 +22,9 @@ Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio m
 - Shader CTR
 - investigar bugs de desconexion
 - agregar unirse a partida
-- nueva 
+- nuevo modo: uno para todos en coop
+- Boton subir al maximo en mejoras
+- Nuevo conjunto de poderes para sanar aliados
+- Nuevo modo de juego combinar hasta 6 combinaciones
+- Nuevo modo de juego craft
+- nuevo stats maximo historico de maximo de daño / maximo cofres / maximo numero de veces revividos en una nueva pestaña del ranking

@@ -510,6 +510,16 @@ G.Player = class Player {
       i++;
     }
 
+    // Barra de vida bajo los pies (Ajustes > Gráficos): verde, amarilla a media vida, roja con poca.
+    if (!this.dead && G.Settings && G.Settings.get('hpBar')) {
+      const f = Math.max(0, Math.min(1, this.hp / (this.maxHp || 1)));
+      const w = Math.max(24, this.r * 2), y = this.y + this.r * 0.6 + 4;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(this.x - w / 2 - 1, y - 1, w + 2, 5.4);
+      ctx.fillStyle = f > 0.5 ? '#5fe08a' : f > 0.25 ? '#ffcb3d' : '#ff5f6d';
+      ctx.fillRect(this.x - w / 2, y, w * f, 3.4);
+    }
+
     // Cooperativo: anillo de "reviviendo" y nombre encima.
     if (this.dead && this.reviveT > 0) {
       ctx.save();

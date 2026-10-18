@@ -1,5 +1,5 @@
 /* ============ missions.js — plantillas de misiones diarias y semanales ============
- * Cada día salen 3 diarias y cada semana 2 semanales (hora de España), con
+ * Cada día salen 3 diarias y cada semana 2 semanales (hora del juego, G.Config.tz), con
  * objetivos y tipos sorteados. Se completan jugando y el premio se recoge en
  * la pantalla de Misiones. La lógica está en systems/progress.js.
  *

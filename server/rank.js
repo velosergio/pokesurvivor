@@ -17,12 +17,14 @@
  * JWT firmado con la clave de la cuenta de servicio, y una sola transacción con
  * todas las tablas (se reintenta una vez si choca con otra escritura).
  *
- * Los periodos se cuentan en hora de España (Europe/Madrid), como en el navegador.
+ * Los periodos se cuentan en la hora del juego (G.Config.tz de js/config.js),
+ * como en el navegador (G.U.gameDate).
  */
 'use strict';
 const crypto = require('crypto');
+const { readConfig } = require('./config');
 
-const TZ = 'Europe/Madrid';
+const TZ = readConfig().tz;
 const PERIODS = ['d', 'w', 'm', 'a'];
 /** Periodos en los que sólo se guarda la marca si entra en el top (como en ranking.js). */
 const TOP_ONLY = new Set(['d', 'w', 'm', 'p']);
@@ -40,9 +42,9 @@ const TIMEOUT = 15000;
 const SCOPE = 'https://www.googleapis.com/auth/datastore';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-// ---------------- periodos (copia de js/net/ranking.js) ----------------
+// ---------------- periodos (copia de G.U.gameDate y js/net/ranking.js) ----------------
 
-function madridDate(date) {
+function gameDate(date) {
   const p = {};
   for (const x of new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)) p[x.type] = x.value;
   return { y: +p.year, m: +p.month, d: +p.day };
@@ -58,7 +60,7 @@ function isoWeek(y, m, d) {
 }
 
 function periodIds(date) {
-  const { y, m, d } = madridDate(date);
+  const { y, m, d } = gameDate(date);
   const w = isoWeek(y, m, d);
   const p2 = n => String(n).padStart(2, '0');
   return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };

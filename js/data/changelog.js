@@ -6,6 +6,10 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-18', title: ['Barra de vida', 'Health bar'], new: [
+    ['Barra de vida bajo tu Pokémon: verde, amarilla por debajo de la mitad y roja cuando queda poca. Se puede quitar en Ajustes > Gráficos > «Vida del personaje».',
+     'Health bar under your Pokémon: green, yellow below half and red when it’s low. You can turn it off in Settings > Graphics > “Character health”.']
+  ] },
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
     ['Cooperativo: en la sala, el líder puede cambiar las «Condiciones de partida»: cuántos enemigos aparecen (25 %–300 %), cada cuánto se abren las grietas (ninguna–300 %) y cuántas monedas y tickets sueltan (0 %–500 %). Para probar, para partidas tranquilas o para farmear en grupo. Si alguna no está al 100 %, esa partida no sube al ranking.',
      'Co-op: in the room, the leader can change the “Game settings”: how many enemies spawn (25%–300%), how often rifts open (none–300%) and how many coins and tickets drop (0%–500%). For testing, relaxed games or farming as a group. If any isn’t at 100%, that game doesn’t go on the leaderboard.'],
@@ -16,6 +20,8 @@ G.CHANGELOG = [
     ['Ranking: cada marca enseña la build con la que se hizo (movimientos con su nivel, las fusiones juntas y el objeto). Toca una marca para ver el detalle: nombres, movimientos evolucionados, el objeto y las mejoras de stat que se cogieron. En grupo, la de cada jugador. Las marcas de antes no la tienen.',
      'Leaderboard: every record shows the build it was made with (moves with their level, fusions grouped together and the item). Tap a record to see the details: names, evolved moves, the item and the stat boosts picked. In co-op, each player’s. Older records don’t have it.']
   ], chg: [
+    ['El ranking diario, semanal y mensual y las misiones diarias y semanales se reinician a medianoche hora de Colombia (antes, hora de España). La cuenta atrás de las misiones ya marca la hora exacta, estés donde estés.',
+     'The daily, weekly and monthly leaderboards and the daily and weekly missions now reset at midnight Colombia time (was Spain time). The mission countdown now shows the exact time, wherever you are.'],
     ['Móvil: en Ajustes > Controles puedes elegir el joystick «Fijo» (siempre en el mismo sitio, abajo a la izquierda o donde lo coloques) en vez del «Flotante», que aparece donde pones el dedo.',
      'Mobile: in Settings > Controls you can pick a “Fixed” joystick (always in the same place, bottom left or wherever you put it) instead of the “Floating” one, which appears where you put your finger.'],
     ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
