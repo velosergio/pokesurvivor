@@ -18,6 +18,8 @@ G.CHANGELOG = [
      'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.'],
     ['Al subir de nivel tienes 2 s de invulnerabilidad al volver a la partida tras elegir carta, también en cooperativo.',
      'When you level up you get 2 s of invulnerability on returning to the run after picking a card, in co-op too.'],
+    ['Al salir de la grieta (ganes o pierdas) tienes 5 s de invulnerabilidad para que no te pillen los enemigos que esperaban en el mapa, también en cooperativo.',
+     'When you leave a rift (win or lose) you get 5 s of invulnerability so the enemies waiting on the map don’t catch you, in co-op too.'],
     ['Mejora Veto: ahora sube hasta el nivel 5, así que puedes bloquear hasta 5 movimientos por Pokémon (antes 3).',
      'Ban upgrade: it now goes up to level 5, so you can block up to 5 moves per Pokémon (was 3).']
   ], fix: [

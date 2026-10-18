@@ -243,6 +243,8 @@ G.Rift = (() => {
     }
     if (pl.dead) pl.revive(0.3);
     if (crew) for (const p of crew) if (p.dead) p.revive(0.3);
+    // 5 s sin daño al volver: los enemigos del mapa siguen donde estaban.
+    for (const p of new Set([...G.Game.everyone(), pl, ...(crew || [])])) p.invuln = Math.max(p.invuln || 0, 5);
     G.Camera.x = pl.x; G.Camera.y = pl.y;
     G.Game.curtain('#c9a6ff');
     if (pl.bonds > 0) G.Game.offerBond();
