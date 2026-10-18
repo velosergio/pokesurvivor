@@ -24,15 +24,34 @@ G.DailyNet = (() => {
     return cache;
   }
 
-  /** Gasta el intento de `day`. Falla (sin gastar nada) si no hay red o ya se jugó. */
+  const fail = (code, msg) => Object.assign(new Error(msg), { code });
+
+  /**
+   * Gasta el intento de `day`, en una transacción: lee lo que hay de verdad en
+   * el servidor (otro aparato puede haber jugado ya) y, sin red, falla en vez
+   * de quedarse esperando a que vuelva. Si falla, no se gasta nada.
+   * Errores: code 'played' (ya jugado hoy) o 'unavailable' (sin conexión).
+   */
   async function start(day) {
     const fb = fbx();
-    if (!fb) throw new Error('sin conexión');
-    const st = await state();
-    if (st && st.d >= day) throw new Error('ya jugado');
-    const claimed = st ? st.claimed : '';
-    await ref(fb).set({ d: day, at: firebase.firestore.FieldValue.serverTimestamp(), claimed });
-    cache = { d: day, claimed };
+    if (!fb) throw fail('unavailable', 'sin conexión');
+    let timer;
+    const late = new Promise((_, no) => { timer = setTimeout(() => no(fail('unavailable', 'sin respuesta')), api.timeout); });
+    try {
+      const now = await Promise.race([late, fb.fs.runTransaction(async tx => {
+        const s = await tx.get(ref(fb));
+        const old = s.exists ? s.data() : null;
+        if (old && old.d >= day) throw fail('played', 'ya jugado');
+        const claimed = (old && old.claimed) || '';
+        tx.set(ref(fb), { d: day, at: firebase.firestore.FieldValue.serverTimestamp(), claimed });
+        return { d: day, claimed };
+      })]);
+      cache = now; cacheUid = fb.uid;
+    } catch (e) {
+      cacheUid = null;                     // lo que se sabía puede estar mal: se vuelve a leer
+      if (e.code === 'played') throw e;
+      throw e.code === 'unavailable' ? e : fail(e.code === 'permission-denied' ? 'played' : 'unavailable', e.message);
+    } finally { clearTimeout(timer); }
   }
 
   /** Apunta el premio de `day` como cobrado. → false si las reglas no lo dejan. */
@@ -49,5 +68,6 @@ G.DailyNet = (() => {
     }
   }
 
-  return { state, start, claim };
+  const api = { state, start, claim, timeout: 10000 };   // timeout: ms esperando al servidor al empezar
+  return api;
 })();

@@ -617,6 +617,7 @@ G.I18n.add({
   'Ya has jugado hoy ({x}). Nuevo desafío en {x}.': 'You already played today ({x}). New challenge in {x}.',
   'Sólo tienes un intento hoy. Si la partida se corta, se pierde. ¿Empezar?': 'You only get one try today. If the run gets cut off, it’s lost. Start?',
   'No se ha podido empezar: revisa la conexión y vuelve a intentarlo.': "Couldn't start: check your connection and try again.",
+  'Ya has jugado el desafío de hoy.': "You've already played today's challenge.",
   '¡Entras en la tabla del Desafío diario!': "You're on the Daily challenge board!",
   'Desafío de ayer: puesto #{x}. Premio: {x}': "Yesterday's challenge: rank #{x}. Prize: {x}",
   'tickets ×10': '×10 tickets', 'ticket ×10': '×10 ticket',

@@ -34,10 +34,15 @@ G.Daily = (() => {
   /** El reto de hoy: { day, dex, seed } (igual para todos). */
   function today(date = new Date()) { return forDay(dayId(date)); }
 
-  /** El reto de un día cualquiera ('AAAAMMDD'). */
-  function forDay(day) {
-    const n = +day, list = playable();
-    const dex = list[Math.floor(G.U.hash(n, 0, 0xD411) * list.length)].dex;
+  /**
+   * El reto de un día cualquiera ('AAAAMMDD'). El Pokémon es el de mayor
+   * hash(día, dex) de la lista: si una versión añade o quita Pokémon, sólo
+   * cambian los días que ganaría (o ganaba) ese, no todos.
+   */
+  function forDay(day, list = playable()) {
+    const n = +day;
+    let dex = list[0].dex, best = -1;
+    for (const p of list) { const h = G.U.hash(n, p.dex, 0xD411); if (h > best) { best = h; dex = p.dex; } }
     const seed = Math.floor(G.U.hash(n, 1, 0x5EED) * 4294967296) || 1;
     return { day, dex, seed };
   }

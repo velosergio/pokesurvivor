@@ -88,13 +88,13 @@ G.Game = (() => {
 
   /**
    * @param coop  { seed, members } para una partida en grupo (lo de `started`)
-   * En solitario, el Pokémon y la semilla los decide el modo (G.Modes.current,
-   * ya empezado con begin() en G.Flow.play); en grupo, tu compañero y la sala.
+   * @param solo  en solitario, el modo ya empezado con begin() (G.Flow.play):
+   *              decide el Pokémon y la semilla. En grupo, tu compañero y la sala.
    */
-  function startRun(coop = null) {
+  function startRun(coop = null, solo = G.Modes.get('classic')) {
     waitBy = []; awayBy = null; crew = null;
     const save = G.DB.save;
-    mode = coop ? null : G.Modes.current;
+    mode = coop ? null : solo;
     const hero = (mode || G.Modes.get('classic')).hero(save);
     const mon = hero.mon;
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
@@ -999,15 +999,24 @@ G.Flow = {
       G.LobbyUI.open();
     } else this.goMenu();
   },
-  /** Empieza una partida en solitario del modo elegido (si el modo lo deja). */
+  /**
+   * Empieza una partida en solitario del modo elegido (si el modo lo deja).
+   * Mientras begin() espera al servidor no se puede pedir otra, y si al
+   * acabar ya no estás en el menú (empezó otra cosa), no se empieza.
+   */
   async play() {
+    if (this.starting || G.Game.state !== 'ui') return;
     const mode = G.Modes.current;
+    this.starting = true;
     try { await mode.begin(); } catch (e) {
       console.warn('[Modo] ' + mode.id + ':', e && (e.code || e.message));
-      G.UI.toast('No se ha podido empezar: revisa la conexión y vuelve a intentarlo.');
+      G.UI.toast(e && e.code === 'played' ? 'Ya has jugado el desafío de hoy.'
+                                          : 'No se ha podido empezar: revisa la conexión y vuelve a intentarlo.', 3500);
+      if (G.UI.isOpen('scr-menu')) G.MenuUI.open();
       return;
-    }
-    G.Game.startRun();
+    } finally { this.starting = false; }
+    if (G.Game.state !== 'ui' || G.Social.room) return;
+    G.Game.startRun(null, mode);
   },
   /** Empieza la partida en grupo (`started` del servidor: { seed, members }). */
   startCoop(cfg) {

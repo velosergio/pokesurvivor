@@ -86,3 +86,12 @@ test('segunda oferta del mismo nivel: distinta de la primera y repetible', () =>
   assert.deepStrictEqual(a2, keys(b.G, b.pl));
   assert.notDeepStrictEqual(a1, a2);
 });
+
+test('cooperativo: cada compañero tiene sus cartas (el uid entra en el azar); en solitario, igual que antes', () => {
+  const a = levelSim(), b = levelSim();
+  a.pl.uid = 'ana'; b.pl.uid = 'bea';
+  assert.notDeepStrictEqual(keys(a.G, a.pl), keys(b.G, b.pl));
+  const c = levelSim(), d = levelSim(0, 6);
+  c.pl.uid = 'ana'; d.pl.uid = 'ana';
+  assert.deepStrictEqual(keys(c.G, c.pl), keys(d.G, d.pl));
+});

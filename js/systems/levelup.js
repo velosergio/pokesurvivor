@@ -139,7 +139,7 @@ G.LevelUp = (() => {
    */
   function offer(pl, n = 3) {
     const k = pl.offerSeq[pl.level] = (pl.offerSeq[pl.level] || 0) + 1;
-    const R = G.RNG.fork('levelup', pl.level, k);
+    const R = G.RNG.fork('levelup', pl.uid || '', pl.level, k);   // (uid: en grupo, cada uno las suyas)
     const pool = candidates(pl, R);
     const picked = [];
     const used = new Set();

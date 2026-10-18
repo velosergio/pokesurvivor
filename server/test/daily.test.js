@@ -65,3 +65,13 @@ test('forDay: el reto de cualquier día (para ver la tabla de ayer)', () => {
   assert.deepStrictEqual({ ...D.forDay('20261018') }, { ...D.today(at('2026-10-18T15:00:00Z')) });
   assert.notStrictEqual(D.forDay('20261017').seed, D.forDay('20261018').seed);
 });
+
+test('el Pokémon del día no cambia al añadir o quitar otros de la lista', () => {
+  const list = G.DEX.filter(p => G.SPRITE_META[p.dex]);
+  const days = Array.from({ length: 60 }, (_, i) => D.dayId(new Date(Date.UTC(2026, 9, 1 + i, 15))));
+  const before = days.map(d => D.forDay(d, list).dex);
+  const gone = list[100].dex;
+  const after = days.map(d => D.forDay(d, list.filter(p => p.dex !== gone)).dex);
+  days.forEach((d, i) => { if (before[i] !== gone) assert.strictEqual(after[i], before[i], d); });
+  assert.deepStrictEqual(days.map(d => D.forDay(d).dex), before, 'por defecto, la lista jugable');
+});

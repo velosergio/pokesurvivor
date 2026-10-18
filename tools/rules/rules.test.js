@@ -191,3 +191,13 @@ test('diario: el premio se cobra una vez, de un día jugado y ya cerrado', async
   const dbB = env.authenticatedContext('bea').firestore();
   await assertFails(dbB.doc('daily/bea').update({ claimed: TODAY }));
 });
+
+test('diario: una sola marca por día en la tabla (no se puede mejorar)', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/ana').set({ d: TODAY, at: ts(), claimed: '' }));
+  await assertSucceeds(submit(db, 'x_d' + TODAY, 'ana', entry(), row()));
+  await assertFails(submit(db, 'x_d' + TODAY, 'ana', entry({ t: 600 }), row({ t: 600 })));
+  // En solitario se sigue pudiendo mejorar.
+  await assertSucceeds(submit(db, S, 'ana', entry(), row()));
+  await assertSucceeds(submit(db, S, 'ana', entry({ t: 600 }), row({ t: 600 })));
+});

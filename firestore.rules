@@ -183,7 +183,8 @@ service cloud.firestore {
         && (!('b' in d) || (d.b is list && d.b.size() == 1 && d.b[0] is string && d.b[0].size() <= 400))
         && d.at == request.time
         && ownBoard(board) && d.uids.size() == 1 && id == me()
-        && (resource == null || d.t > resource.data.t);
+        // (En la tabla del Desafío, una sola marca: el intento es único.)
+        && (resource == null || (d.t > resource.data.t && !board.matches('x_.*')));
     }
 
     match /lb/{board}/e/{id} {
