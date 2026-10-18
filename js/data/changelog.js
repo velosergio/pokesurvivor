@@ -16,6 +16,8 @@ G.CHANGELOG = [
     ['Ranking: cada marca enseña la build con la que se hizo (movimientos con su nivel, las fusiones juntas y el objeto). Toca una marca para ver el detalle: nombres, movimientos evolucionados, el objeto y las mejoras de stat que se cogieron. En grupo, la de cada jugador. Las marcas de antes no la tienen.',
      'Leaderboard: every record shows the build it was made with (moves with their level, fusions grouped together and the item). Tap a record to see the details: names, evolved moves, the item and the stat boosts picked. In co-op, each player’s. Older records don’t have it.']
   ], chg: [
+    ['Móvil: en Ajustes > Controles puedes elegir el joystick «Fijo» (siempre en el mismo sitio, abajo a la izquierda o donde lo coloques) en vez del «Flotante», que aparece donde pones el dedo.',
+     'Mobile: in Settings > Controls you can pick a “Fixed” joystick (always in the same place, bottom left or wherever you put it) instead of the “Floating” one, which appears where you put your finger.'],
     ['Cuando una actualización sea obligatoria (por ejemplo, para arreglar un fallo importante), la partida en curso se termina tras un aviso de 10 s y el juego se recarga. No pierdes nada: las monedas, los tickets, los récords y el ranking de esa partida se guardan como al abandonarla.',
      'When an update is required (for example, to fix an important bug), your current run ends after a 10 s notice and the game reloads. You lose nothing: that run’s coins, tickets, records and leaderboard entry are saved as if you had quit.'],
     ['Al subir de nivel tienes 2 s de invulnerabilidad al volver a la partida tras elegir carta, también en cooperativo.',

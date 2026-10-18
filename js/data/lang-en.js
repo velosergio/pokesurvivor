@@ -435,6 +435,7 @@ G.I18n.add({
   'Pequeño': 'Small', 'Normal': 'Normal', 'Grande': 'Large', 'o flechas': 'or arrow keys', 'moverse': 'move', 'o clic en el icono': 'or click its icon', 'elegir ataque': 'choose move',
   'ataque anterior / siguiente': 'previous / next move', 'elegir carta al subir de nivel': 'choose a card when leveling up',
   'Pon el dedo en cualquier parte y arrastra para moverte: el joystick aparece donde tocas. Toca un ataque de abajo para cambiarlo y el botón de arriba a la derecha para pausar. Se juega en horizontal.': 'Put your finger anywhere and drag to move: the joystick appears where you touch. Tap a move at the bottom to switch to it and the top-right button to pause. Play in landscape.',
+  'Arrastra desde el joystick (abajo a la izquierda, o donde lo coloques) para moverte. Toca un ataque de abajo para cambiarlo y el botón de arriba a la derecha para pausar. Se juega en horizontal.': 'Drag from the joystick (bottom left, or wherever you place it) to move. Tap a move at the bottom to switch to it and the top-right button to pause. Play in landscape.',
   'Apodo': 'Nickname', 'Es único y no se puede cambiar.': 'It\'s unique and can\'t be changed.', 'Tipo de cuenta': 'Account type', 'Partida': 'Save',
   'Cuenta de este navegador': 'This browser\'s account', 'Nombre y contraseña': 'Name and password', 'Google': 'Google',
   'Cerrar sesión': 'Log out', 'Borrar cuenta': 'Delete account', 'Crear cuenta o entrar': 'Sign up or log in',
