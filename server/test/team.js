@@ -18,6 +18,7 @@ function teamRun(sim, { dex = [4, 7, 1, 25], world = 1234, god = false, gap = 16
   const levels = new Map(players.map(p => [p, 0]));
   G.Game = { player: players[0], st: { get time() { return time; } }, everyone: () => players,
              flash() {}, curtain() {}, levelXp: () => 20, offerBond() {} };
+  G.RNG.reseed(world);
   for (const m of [G.Projectiles, G.EnemyMgr, G.Pickups, G.Path, G.Hazards]) m.clear();
   for (const m of [G.Spawner, G.Rift, G.Judgment, G.Events, G.Weather]) m.reset();
   G.Combat.clearFields();

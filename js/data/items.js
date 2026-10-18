@@ -46,7 +46,7 @@ G.Items = (() => {
     const ps = (G.Game && typeof G.Game.everyone === 'function' && G.Game.everyone()) || [];
     const bare = ps.some(p => p && !p.item);
     const pool = LIST.filter(i => i.id !== except && !(bare && i.notFirst));
-    return G.U.pick(pool).id;
+    return G.RNG.stream('loot').pick(pool).id;
   }
 
   /** El que te pones sin llevar ninguno: si no puede ser el primero, otro. */

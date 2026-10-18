@@ -77,6 +77,7 @@ G.Player = class Player {
     this.sashT = -999;         // última vez que salvó la Banda Focus
     this.bellHeal = 0;         // curación pendiente del Cascabel Concha
     this.statsTaken = {};      // mejoras de stat cogidas (condición de evolución)
+    this.offerSeq = {};        // ofertas de cartas por nivel (el azar de cada una: LevelUp.offer)
   }
 
   /** Segundos que hay que estar junto a un compañero caído para levantarlo. */

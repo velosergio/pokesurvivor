@@ -61,7 +61,7 @@
       // embestida
       this.phase = 'walk'; this.pt = 0; this.dx = 0; this.dy = 0;
       // distancia
-      this.shotCd = def.shotCd ? G.U.rand(0.3, def.shotCd) : 0;
+      this.shotCd = def.shotCd ? G.RNG.stream('enemy').rand(0.3, def.shotCd) : 0;
       // desatasco
       this.stuckT = 0; this.sideT = 0; this.side = 1;
       this.bob = Math.random() * 6.28;
@@ -70,7 +70,7 @@
       // personalidades
       this.sc = sc;                       // escala de la run (para sus invocaciones)
       this.shield = 0; this.shieldT = 0;  // escudo que absorbe daño
-      this.skillCd = G.U.rand(1, 4);      // escudos / saltos
+      this.skillCd = G.RNG.stream('enemy').rand(1, 4);      // escudos / saltos
       this.minions = [];
       this.jump = null;                   // { sx, sy, tx, ty, t, dur }
       // Rezagados: si se quedan atrás, fuera de la vista, mientras huyes,
@@ -171,24 +171,24 @@
       // (Los legendarios de la Sentencia de Arceus sólo dan experiencia.)
       if (this.boss && !this.judge) {
         G.Camera.kick(0.9);
-        for (let i = 0; i < 10; i++) G.Pickups.drop('coin', this.x + G.U.rand(-40, 40), this.y + G.U.rand(-30, 30), 5);
+        for (let i = 0; i < 10; i++) G.Pickups.drop('coin', this.x + G.RNG.stream('enemy').rand(-40, 40), this.y + G.RNG.stream('enemy').rand(-30, 30), 5);
         // Los jefes siempre sueltan un objeto equipable.
         G.Pickups.drop('item', this.x - 26, this.y - 10, G.Items.roll());
       }
       G.Pickups.dropXp(this.x, this.y, this.xp, this.boss, !!this.legend, !!this.judge);
-      if (this.golden && Math.random() < 0.35) G.Pickups.drop('coin', this.x + 6, this.y - 4, 3);
+      if (this.golden && G.RNG.stream('enemy').next() < 0.35) G.Pickups.drop('coin', this.x + 6, this.y - 4, 3);
       // Duende del tesoro: Meowth suelta monedas; Gholdengo, un ticket ×10.
       if (this.behavior === 'thief') {
         const n = this.def.loot === 'ticket10' ? 6 : 20;
-        for (let i = 0; i < n; i++) G.Pickups.drop('coin', this.x + G.U.rand(-36, 36), this.y + G.U.rand(-26, 26), 5);
+        for (let i = 0; i < n; i++) G.Pickups.drop('coin', this.x + G.RNG.stream('enemy').rand(-36, 36), this.y + G.RNG.stream('enemy').rand(-26, 26), 5);
         if (this.def.loot === 'ticket10') G.Pickups.drop('ticket10', this.x, this.y - 12, 1);
         G.FX.ring(this.x, this.y, this.r, this.r * 5, '#ffd23f', 0.6, 4);
       }
       if (this.legend) {
         // El legendario de la grieta: tickets sueltos y monedas (el ×10, como
         // la mitad de las veces; antes daba 2 siempre).
-        for (let i = 0; i < 3; i++) G.Pickups.drop('ticket', this.x + G.U.rand(-30, 30), this.y + G.U.rand(-20, 20), 1);
-        for (let i = 0; i < 10; i++) G.Pickups.drop('coin', this.x + G.U.rand(-50, 50), this.y + G.U.rand(-35, 35), 8);
+        for (let i = 0; i < 3; i++) G.Pickups.drop('ticket', this.x + G.RNG.stream('enemy').rand(-30, 30), this.y + G.RNG.stream('enemy').rand(-20, 20), 1);
+        for (let i = 0; i < 10; i++) G.Pickups.drop('coin', this.x + G.RNG.stream('enemy').rand(-50, 50), this.y + G.RNG.stream('enemy').rand(-35, 35), 8);
       }
       G.Audio.sfx(this.boss ? 'bossDown' : 'faint');
       if (this.shiny) {
@@ -316,7 +316,7 @@
         this.skillCd -= dt;
         if (this.skillCd <= 0) {
           if (this.behavior === 'shielder') { this.skillCd = 6; this.castShields(); }
-          else if (dist < 250) { this.skillCd = G.U.rand(5, 7); this.startJump(pl); return; }
+          else if (dist < 250) { this.skillCd = G.RNG.stream('enemy').rand(5, 7); this.startJump(pl); return; }
           else this.skillCd = 0.5;
         }
       }
@@ -386,7 +386,7 @@
           this.stuckT += dt;
           if (this.stuckT > 0.35 && this.sideT <= 0) {
             this.sideT = 0.7; this.stuckT = 0;
-            this.side = Math.random() < 0.5 ? -1 : 1;
+            this.side = G.RNG.stream('enemy').next() < 0.5 ? -1 : 1;
           }
         } else this.stuckT = 0;
       }
@@ -416,8 +416,8 @@
       const others = ['rain', 'beam', 'nova', 'volley'].filter(x => x !== pref);
       const ranged = [pref, others[Math.floor(G.U.hash(this.dex, 5, 9) * 3) % 3]];
       const far = this.behavior === 'ranged';
-      this.ai = { melee, ranged, farLike: far ? 0.65 : 0.35, mode: far ? 'far' : 'close', modeT: G.U.rand(6, 8),
-                  cd: 1.6, cast: null, fury: false, side: Math.random() < 0.5 ? -1 : 1 };
+      this.ai = { melee, ranged, farLike: far ? 0.65 : 0.35, mode: far ? 'far' : 'close', modeT: G.RNG.stream('enemy').rand(6, 8),
+                  cd: 1.6, cast: null, fury: false, side: G.RNG.stream('enemy').next() < 0.5 ? -1 : 1 };
     }
 
     bossMove(dt, pl, dist, dx, dy, spd) {
@@ -430,7 +430,7 @@
       // Alterna siempre: en su distancia favorita está más rato (7-9 s) que en la otra (4-5 s).
       if (ai.modeT <= 0) {
         ai.mode = ai.mode === 'far' ? 'close' : 'far';
-        ai.modeT = (ai.mode === 'far') === (ai.farLike > 0.5) ? G.U.rand(7, 9) : G.U.rand(4, 5);
+        ai.modeT = (ai.mode === 'far') === (ai.farLike > 0.5) ? G.RNG.stream('enemy').rand(7, 9) : G.RNG.stream('enemy').rand(4, 5);
         ai.side = -ai.side;
       }
       let vx = dx * spd * k * 1.1, vy = dy * spd * k * 1.1;
@@ -444,9 +444,9 @@
         if (ai.mode === 'close') {
           const ok = ai.melee.filter(m => m === 'slam' ? dist < 125 : dist < 320);
           // De vez en cuando, aunque esté cerca, también dispara.
-          id = ok.length && Math.random() < 0.8 ? G.U.pick(ok) : dist < 480 ? G.U.pick(ai.ranged) : null;
+          id = ok.length && G.RNG.stream('enemy').next() < 0.8 ? G.RNG.stream('enemy').pick(ok) : dist < 480 ? G.RNG.stream('enemy').pick(ai.ranged) : null;
         } else {
-          id = dist < 115 ? 'slam' : dist < 430 ? G.U.pick(ai.ranged) : null;
+          id = dist < 115 ? 'slam' : dist < 430 ? G.RNG.stream('enemy').pick(ai.ranged) : null;
         }
         if (id) this.bossStart(id, pl);
       }
@@ -483,12 +483,12 @@
           this.jump = { sx: this.x, sy: this.y, tx: pl.x, ty: pl.y, t: -0.5 * f, dur: 0.65 };
           G.Hazards.add({ kind: 'zone', x: pl.x, y: pl.y, r: 82, delay: 0.5 * f + 0.65, dmg: this.dmg * 1.25, type, color: col });
           this.anim.play('Charge', { speed: 1.4 });
-          ai.cast = null; ai.cd = G.U.rand(1.4, 2) + 0.6;
+          ai.cast = null; ai.cd = G.RNG.stream('enemy').rand(1.4, 2) + 0.6;
           break;
         case 'rain': {     // zonas que caen alrededor de ti
           const n = ai.fury ? 6 : 4;
           for (let i = 0; i < n; i++) {
-            const a = i ? Math.random() * 6.2832 : 0, d = i ? G.U.rand(40, 120) : 0;
+            const a = i ? G.RNG.stream('enemy').next() * 6.2832 : 0, d = i ? G.RNG.stream('enemy').rand(40, 120) : 0;
             G.Hazards.add({ kind: 'zone', x: pl.x + Math.cos(a) * d, y: pl.y + Math.sin(a) * d * 0.8, r: 50,
                             delay: 1.05 + i * 0.12, dmg: this.shotDmg() * 1.15, type, color: col });
           }
@@ -536,8 +536,8 @@
     bossEnd() {
       const ai = this.ai;
       ai.cast = null;
-      ai.cd = G.U.rand(1.3, 2.0);
-      if (ai.fury && Math.random() < 0.35) ai.cd = 0.3;    // encadena otro
+      ai.cd = G.RNG.stream('enemy').rand(1.3, 2.0);
+      if (ai.fury && G.RNG.stream('enemy').next() < 0.35) ai.cd = 0.3;    // encadena otro
       return [0, 0, 'Idle'];
     }
 
@@ -574,9 +574,9 @@
           this.anim.play('Charge', { speed: 1.2 });
           break;
         case 'zoner': {
-          const n = G.U.randInt(1, this.def.zones || 3);
+          const n = G.RNG.stream('enemy').randInt(1, this.def.zones || 3);
           for (let i = 0; i < n; i++) {
-            G.Hazards.add({ kind: 'zone', x: pl.x + (i ? G.U.rand(-70, 70) : 0), y: pl.y + (i ? G.U.rand(-55, 55) : 0), r: 44,
+            G.Hazards.add({ kind: 'zone', x: pl.x + (i ? G.RNG.stream('enemy').rand(-70, 70) : 0), y: pl.y + (i ? G.RNG.stream('enemy').rand(-55, 55) : 0), r: 44,
                             delay: 1.2, dmg: this.shotDmg() * 0.95, type: this.atkType, color: col });
           }
           this.anim.play('Shoot');
@@ -626,7 +626,7 @@
       const def = { dex, name: mon ? mon.name : '', hp: Math.round(this.def.hp * 0.35), spd: Math.round(this.def.spd * 1.1),
                     dmg: Math.round(this.def.dmg * 0.6), xp: Math.max(1, Math.round(this.def.xp * 0.25)), behavior: 'chase' };
       for (let i = 0; i < 2; i++) {
-        const a = Math.random() * 6.2832;
+        const a = G.RNG.stream('enemy').next() * 6.2832;
         const m = new Enemy(def, this.x + Math.cos(a) * 30, this.y + Math.sin(a) * 22, this.sc || { hp: 1, spd: 1, dmg: 1 });
         G.EnemyMgr.add(m);
         this.minions.push(m);

@@ -84,7 +84,7 @@ G.Weather = (() => {
 
   function pick(biome) {
     const w = BIOME_W[biome % BIOME_W.length];
-    let r = Math.random() * Object.values(w).reduce((a, b) => a + b, 0);
+    let r = G.RNG.stream('weather').next() * Object.values(w).reduce((a, b) => a + b, 0);
     for (const k in w) { r -= w[k]; if (r <= 0) return k; }
     return 'rain';
   }
@@ -102,8 +102,8 @@ G.Weather = (() => {
       checkT -= dt;
       if (checkT <= 0) {
         checkT = CHECK;
-        if (Math.random() < CHANCE) {
-          const kind = pick(G.World.biome), dur = Math.round(G.U.rand(55, 75));
+        if (G.RNG.stream('weather').next() < CHANCE) {
+          const kind = pick(G.World.biome), dur = Math.round(G.RNG.stream('weather').rand(55, 75));
           start(kind, dur);
           if (G.Coop.isHost) G.Coop.broadcast(['wx', kind, dur]);
         }

@@ -56,7 +56,7 @@ G.Rift = (() => {
       if (checkT <= 0) {
         checkT = CHECK / pace;
         if (G.EnemyMgr.bossAlive()) return;           // con un jefe vivo no cuenta como intento
-        if (Math.random() < CHANCE * (1 + misses)) { misses = 0; open(); }
+        if (G.RNG.stream('rift').next() < CHANCE * (1 + misses)) { misses = 0; open(); }
         else misses++;
       }
     }
@@ -65,9 +65,9 @@ G.Rift = (() => {
 
   function open() {
     const alive = G.Game.everyone().filter(p => !p.dead);
-    const near = G.U.pick(alive.length ? alive : [G.Game.player]);
+    const near = G.RNG.stream('rift').pick(alive.length ? alive : [G.Game.player]);
     for (let i = 0; i < 24; i++) {
-      const a = Math.random() * 6.2832, d = G.U.rand(380, 560);
+      const a = G.RNG.stream('rift').next() * 6.2832, d = G.RNG.stream('rift').rand(380, 560);
       const x = near.x + Math.cos(a) * d, y = near.y + Math.sin(a) * d * 0.85;
       if (!G.World.isFree(x, y, 22)) continue;
       show(x, y, TTL);
@@ -105,14 +105,14 @@ G.Rift = (() => {
     // Los legendarios que aún no has vencido salen 4 veces más (menos repetidos).
     const beaten = (G.DB.save && G.DB.save.legends) || {};
     const ws = pool.map(p => (beaten[p.dex] ? 1 : 4));
-    let r = Math.random() * ws.reduce((a, b) => a + b, 0), mi = 0;
+    let r = G.RNG.stream('rift').next() * ws.reduce((a, b) => a + b, 0), mi = 0;
     while (mi < pool.length - 1 && (r -= ws[mi]) > 0) mi++;
     const mon = pool[mi];
     const cfg = {
-      tx: 5000 + Math.floor(Math.random() * 3000), ty: 5000 + Math.floor(Math.random() * 3000), r: ARENA_R,
-      dex: mon.dex, shiny: G.Sprites.hasShiny(mon.dex) && Math.random() < 1 / 512,
+      tx: 5000 + Math.floor(G.RNG.stream('rift').next() * 3000), ty: 5000 + Math.floor(G.RNG.stream('rift').next() * 3000), r: ARENA_R,
+      dex: mon.dex, shiny: G.Sprites.hasShiny(mon.dex) && G.RNG.stream('rift').next() < 1 / 512,
       // La arena es la de uno de sus tipos, al azar.
-      type: forceType || G.U.pick(mon.types)
+      type: forceType || G.RNG.stream('rift').pick(mon.types)
     };
     if (G.Coop.isHost) G.Coop.broadcast(['arena', cfg]);
     begin(cfg);

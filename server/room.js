@@ -245,6 +245,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
 
   // ---------------- arranque de la partida ----------------
 
+  // El azar de la partida (G.RNG) sale de la semilla de la sala, antes de los reset.
+  G.RNG.reseed(seed | 0 || 1);
   for (const m of [G.Projectiles, G.EnemyMgr, G.Pickups, G.Path, G.Hazards]) m.clear();
   for (const m of [G.Spawner, G.Rift, G.Judgment, G.Events, G.Weather]) m.reset();
   G.Combat.clearFields();

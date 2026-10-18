@@ -90,7 +90,7 @@ G.Combat = (() => {
     const spread = m.spread || 0;
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i / (n - 1) - 0.5) * spread * n;
-      const a = pl.aim + off + G.U.rand(-0.03, 0.03);
+      const a = pl.aim + off + G.RNG.stream('combat').rand(-0.03, 0.03);
       G.Projectiles.spawn(Object.assign({
         x: pl.x + Math.cos(a) * 3, y: pl.y + Math.sin(a) * 3,
         vx: Math.cos(a) * m.speed, vy: Math.sin(a) * m.speed,
@@ -108,7 +108,7 @@ G.Combat = (() => {
     const vis = G.VFX.forMove(m);
     const n = Math.max(3, m.count | 0);
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * 6.2832 + G.U.rand(-0.06, 0.06);
+      const a = (i / n) * 6.2832 + G.RNG.stream('combat').rand(-0.06, 0.06);
       G.Projectiles.spawn(Object.assign({
         x: pl.x + Math.cos(a) * 3, y: pl.y + Math.sin(a) * 3,
         vx: Math.cos(a) * m.speed, vy: Math.sin(a) * m.speed,
@@ -258,7 +258,7 @@ G.Combat = (() => {
     const col = G.U.TYPE_COLOR[m.type], vis = G.VFX.forMove(m);
     const n = Math.max(1, m.count | 0);
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * 6.2832, d = n === 1 ? 0 : G.U.rand(18, 46);
+      const a = G.RNG.stream('combat').next() * 6.2832, d = n === 1 ? 0 : G.RNG.stream('combat').rand(18, 46);
       fields.push({ kind: 'mine', owner: pl, ghost, m, col, vis, x: pl.x + Math.cos(a) * d, y: pl.y + Math.sin(a) * d * 0.8,
                     t: 0, arm: 0.35, life: m.dur || 7, r: m.radius, dmg: m.dmg * pl.atk });
     }
@@ -272,11 +272,11 @@ G.Combat = (() => {
     const col = G.U.TYPE_COLOR[m.type], vis = G.VFX.forMove(m);
     const n = Math.max(1, m.count | 0);
     const near = G.EnemyMgr.queryCircle(pl.x, pl.y, reach(m)).filter(e => !e.dead);
-    G.U.shuffle ? G.U.shuffle(near) : near.sort(() => Math.random() - 0.5);
+    G.U.shuffle ? G.U.shuffle(near) : near.sort(() => G.RNG.stream('combat').next() - 0.5);
     for (let i = 0; i < n; i++) {
       const e = near[i];
-      const x = e ? e.x + G.U.rand(-8, 8) : pl.x + G.U.rand(-140, 140);
-      const y = e ? e.y + G.U.rand(-6, 6) : pl.y + G.U.rand(-110, 110);
+      const x = e ? e.x + G.RNG.stream('combat').rand(-8, 8) : pl.x + G.RNG.stream('combat').rand(-140, 140);
+      const y = e ? e.y + G.RNG.stream('combat').rand(-6, 6) : pl.y + G.RNG.stream('combat').rand(-110, 110);
       fields.push({ kind: 'meteor', owner: pl, ghost, m, col, vis, x, y, t: -i * 0.09, fall: 0.5, r: m.radius, dmg: m.dmg * pl.atk });
     }
   }
@@ -284,7 +284,7 @@ G.Combat = (() => {
   /** Torreta: deja algo en el suelo que dispara solo un rato. */
   function turret(pl, m) {
     const col = G.U.TYPE_COLOR[m.type], vis = G.VFX.forMove(m);
-    const a = pl.aim + Math.PI + G.U.rand(-0.6, 0.6);
+    const a = pl.aim + Math.PI + G.RNG.stream('combat').rand(-0.6, 0.6);
     fields.push({ kind: 'turret', owner: pl, ghost, m, col, vis, x: pl.x + Math.cos(a) * 26, y: pl.y + Math.sin(a) * 20,
                   t: 0, life: m.dur || 6, shotT: 0.3, dmg: m.dmg * pl.atk });
     const mine = fields.filter(f => f.kind === 'turret' && f.owner === pl && !f.gone);
@@ -347,11 +347,11 @@ G.Combat = (() => {
     const col = G.U.TYPE_COLOR[m.type], vis = G.VFX.forMove(m);
     const n = Math.max(2, m.count | 0), arc = m.arc || 0.9;
     for (let i = 0; i < n; i++) {
-      const a = pl.aim + (i / (n - 1) - 0.5) * arc + G.U.rand(-0.05, 0.05);
-      const sp = m.speed * G.U.rand(0.85, 1.1);
+      const a = pl.aim + (i / (n - 1) - 0.5) * arc + G.RNG.stream('combat').rand(-0.05, 0.05);
+      const sp = m.speed * G.RNG.stream('combat').rand(0.85, 1.1);
       G.Projectiles.spawn(Object.assign({
         x: pl.x + Math.cos(a) * 4, y: pl.y + Math.sin(a) * 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-        dmg: m.dmg * pl.atk, r: m.size, life: m.life * G.U.rand(0.85, 1.05), pierce: m.pierce | 0, color: col,
+        dmg: m.dmg * pl.atk, r: m.size, life: m.life * G.RNG.stream('combat').rand(0.85, 1.05), pierce: m.pierce | 0, color: col,
         hits: new Set(), vis, ghost, owner: pl
       }, payload(m)));
     }
@@ -532,7 +532,7 @@ G.Combat = (() => {
 
   // Golpe crítico (Mejoras → Golpe Crítico): x1,5 de daño, número naranja y grande.
   const CRIT_MUL = 1.5;
-  const isCrit = pl => !ghost && pl.critChance > 0 && Math.random() < pl.critChance;
+  const isCrit = pl => !ghost && pl.critChance > 0 && G.RNG.stream('combat').next() < pl.critChance;
 
   function hit(pl, e, dmg, col, dx, dy, knock, m) {
     const k = typeK(m.type, e);

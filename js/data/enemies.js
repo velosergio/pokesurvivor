@@ -131,11 +131,11 @@ G.Enemies = (() => {
     const kind = p => behaviorOf(p);
     // Primero el tipo de apoyo (a partes iguales) y luego el Pokémon.
     const kinds = SUPPORT.filter(k => all.some(p => kind(p) === k));
-    const sk = kinds.length ? kinds[Math.floor(Math.random() * kinds.length)] : null;
-    const pick = sk ? G.U.pickN(all.filter(p => kind(p) === sk), 1) : [];
-    if (tier.from > 0) pick.push(...G.U.pickN(all.filter(p => !PLAIN.includes(kind(p)) && !SUPPORT.includes(kind(p))), 1));
-    if (tier.from === 0) return pick.concat(G.U.pickN(all.filter(p => !pick.includes(p) && PLAIN.includes(kind(p))), tier.cast - pick.length));
-    return pick.concat(G.U.pickN(all.filter(p => !pick.includes(p)), tier.cast - pick.length));
+    const sk = kinds.length ? kinds[Math.floor(G.RNG.stream('spawn').next() * kinds.length)] : null;
+    const pick = sk ? G.RNG.stream('spawn').pickN(all.filter(p => kind(p) === sk), 1) : [];
+    if (tier.from > 0) pick.push(...G.RNG.stream('spawn').pickN(all.filter(p => !PLAIN.includes(kind(p)) && !SUPPORT.includes(kind(p))), 1));
+    if (tier.from === 0) return pick.concat(G.RNG.stream('spawn').pickN(all.filter(p => !pick.includes(p) && PLAIN.includes(kind(p))), tier.cast - pick.length));
+    return pick.concat(G.RNG.stream('spawn').pickN(all.filter(p => !pick.includes(p)), tier.cast - pick.length));
   }
 
   let cast = null;      // [{ from, list: [def] }]
@@ -157,7 +157,7 @@ G.Enemies = (() => {
       const ok = p => !p.leg && G.SPRITE_META[p.dex] && !used.has(p.dex);
       let pool = G.DEX.filter(p => ok(p) && p.bst >= slot.bst[0] && p.bst <= slot.bst[1]);
       if (!pool.length) pool = G.DEX.filter(p => ok(p) && p.bst >= 580);
-      const p = G.U.pick(pool);
+      const p = G.RNG.stream('spawn').pick(pool);
       used.add(p.dex);
       return {
         at: slot.at, dex: p.dex, name: p.name,
@@ -196,7 +196,7 @@ G.Enemies = (() => {
   function hordeDefs(type, t) {
     const ti = tierAt(t);
     const pool = candidates(TIERS[ti]).filter(p => p.types.includes(type) && !NO_HORDE.has(behaviorOf(p)));
-    return G.U.pickN(pool, 4).map(p => defFor(p, TIERS[ti], ti));
+    return G.RNG.stream('spawn').pickN(pool, 4).map(p => defFor(p, TIERS[ti], ti));
   }
 
   /** Bolsa de enemigos disponibles en el segundo `t`. */

@@ -92,6 +92,10 @@ G.Game = (() => {
     const mon = G.DEX_BY[save.partner];
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
 
+    // La semilla de la run: el mapa y todo el azar de la partida (G.RNG) salen de ella.
+    const seed = coop ? coop.seed : Math.floor(Math.random() * 1e6);
+    G.RNG.reseed(seed);
+
     G.UI.hideAll();
     G.UI.chrome(false);
     G.FX.clear();
@@ -106,7 +110,7 @@ G.Game = (() => {
     G.Weather.reset();
     G.Path.clear();
     G.Hazards.clear();
-    G.World.reset(coop ? coop.seed : Math.floor(Math.random() * 1e6));
+    G.World.reset(seed);
     G.World.setBiome(0, true);
     biome = 0;
     time = 0; pendingLevels = 0;
@@ -124,7 +128,7 @@ G.Game = (() => {
     // Mejora "Repertorio": un segundo movimiento de ataque al azar.
     if (perks.startMoves >= 2) {
       const pool = G.Moves.poolFor(mon).filter(id => !pl.hasMove(id) && !pl.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
-      if (pool.length) pl.addMove(G.U.pick(pool));
+      if (pool.length) pl.addMove(G.RNG.stream('run').pick(pool));
       pl.setActive(0);
     }
 

@@ -37,7 +37,7 @@ G.Pickups = (() => {
   function setRates(r) { rates = { coin: r.coin, ticket: r.ticket, ticket10: r.ticket }; }
 
   /** k entero al azar: 2,5 → 2 o 3 (mitad y mitad). */
-  const roll = k => Math.floor(k) + (Math.random() < k % 1 ? 1 : 0);
+  const roll = k => Math.floor(k) + (G.RNG.stream('loot').next() < k % 1 ? 1 : 0);
   function all() { return list; }
 
   function push(o) {
@@ -51,7 +51,7 @@ G.Pickups = (() => {
       } else {
         const n = roll(k);
         if (n <= 0) return;
-        for (let i = 1; i < n; i++) add(orb(o.kind, o.x + G.U.rand(-12, 12), o.y + G.U.rand(-8, 8), o.value));
+        for (let i = 1; i < n; i++) add(orb(o.kind, o.x + G.RNG.stream('loot').rand(-12, 12), o.y + G.RNG.stream('loot').rand(-8, 8), o.value));
       }
     }
     add(o);
@@ -119,7 +119,7 @@ G.Pickups = (() => {
     if (boss) {
       // Los jefes revientan en un montón de orbes grandes + recompensas.
       for (let i = 0; i < 14; i++) {
-        const a = Math.random() * 6.2832, d = G.U.rand(10, 70);
+        const a = G.RNG.stream('loot').next() * 6.2832, d = G.RNG.stream('loot').rand(10, 70);
         push(orb('xpBig', x + Math.cos(a) * d, y + Math.sin(a) * d, Math.ceil(value / 14)));
       }
       if (plain) return;
@@ -127,15 +127,15 @@ G.Pickups = (() => {
       push(orb('magnet', x - 24, y, 0));
       // Ticket ×10: siempre el legendario de la grieta; un jefe normal, 1 de cada 3 veces.
       // (Hasta el 12-10-2026 el legendario de la grieta daba siempre 2: salían demasiados.)
-      if (Math.random() < (legend ? LEGEND_T10 : BOSS_T10)) push(orb('ticket10', x, y - 20, 1));
+      if (G.RNG.stream('loot').next() < (legend ? LEGEND_T10 : BOSS_T10)) push(orb('ticket10', x, y - 20, 1));
       return;
     }
     push(orb(value >= 20 ? 'xpBig' : 'xp', x, y, value));
-    if (Math.random() < TICKET_RATE) push(orb('ticket', x + G.U.rand(-6, 6), y, 1));
+    if (G.RNG.stream('loot').next() < TICKET_RATE) push(orb('ticket', x + G.RNG.stream('loot').rand(-6, 6), y, 1));
 
     // Drops ocasionales.
-    const r = Math.random();
-    if (r < 0.012) push(orb('heal', x + G.U.rand(-8, 8), y, 0));
+    const r = G.RNG.stream('loot').next();
+    if (r < 0.012) push(orb('heal', x + G.RNG.stream('loot').rand(-8, 8), y, 0));
     else if (r < 0.020) push(orb('magnet', x, y, 0));
     else if (r < 0.026) push(orb('bomb', x, y, 0));
   }
@@ -146,11 +146,11 @@ G.Pickups = (() => {
   }
 
   function orb(kind, x, y, value) {
-    const a = Math.random() * 6.2832;
+    const a = G.RNG.stream('loot').next() * 6.2832;
     return {
       kind, x, y, value,
-      vx: Math.cos(a) * G.U.rand(10, 46), vy: Math.sin(a) * G.U.rand(10, 46),
-      t: Math.random() * 6.28, pulled: false
+      vx: Math.cos(a) * G.RNG.stream('loot').rand(10, 46), vy: Math.sin(a) * G.RNG.stream('loot').rand(10, 46),
+      t: G.RNG.stream('loot').next() * 6.28, pulled: false
     };
   }
 

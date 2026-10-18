@@ -28,9 +28,9 @@ G.Events = (() => {
   let crew = null;      // (servidor) el equipo, si update(…, team): el premio es para todos
 
   function reset() {
-    nextT = G.U.rand(EVERY[0], EVERY[1]);
+    nextT = G.RNG.stream('events').rand(EVERY[0], EVERY[1]);
     cur = null; last = null; lost = null; crew = null;
-    thiefT = G.U.rand(THIEF_FIRST[0], THIEF_FIRST[1]); thieves = 0;
+    thiefT = G.RNG.stream('events').rand(THIEF_FIRST[0], THIEF_FIRST[1]); thieves = 0;
   }
 
   // ---------------- ciclo ----------------
@@ -53,7 +53,7 @@ G.Events = (() => {
       thiefT -= dt;
       if (thiefT <= 0) {
         if (G.EnemyMgr.bossAlive()) thiefT = 8;
-        else { spawnThief(players, time); thieves++; thiefT = G.U.rand(THIEF_NEXT[0], THIEF_NEXT[1]); }
+        else { spawnThief(players, time); thieves++; thiefT = G.RNG.stream('events').rand(THIEF_NEXT[0], THIEF_NEXT[1]); }
       }
     }
 
@@ -61,9 +61,9 @@ G.Events = (() => {
     nextT -= dt;
     if (nextT > 0) return;
     if (G.EnemyMgr.bossAlive()) { nextT = 10; return; }
-    nextT = G.U.rand(EVERY[0], EVERY[1]);
+    nextT = G.RNG.stream('events').rand(EVERY[0], EVERY[1]);
     const ids = ['horde', 'gold', 'lost'].filter(id => id !== last);
-    start(G.U.pick(ids), time, players);
+    start(G.RNG.stream('events').pick(ids), time, players);
   }
 
   function start(id, time, players) {
@@ -71,7 +71,7 @@ G.Events = (() => {
     if (id === 'horde') {
       const types = G.Enemies.hordeTypes(time);
       if (!types.length) return start('gold', time, players);
-      const type = G.U.pick(types);
+      const type = G.RNG.stream('events').pick(types);
       const defs = G.Enemies.hordeDefs(type, time);
       G.Sprites.preload(defs.map(d => d.dex));
       cur = { id, t: 0, dur: DUR, type, defs };
@@ -109,16 +109,16 @@ G.Events = (() => {
   // ---------------- duende del tesoro ----------------
 
   function spawnThief(players, time) {
-    const gold = Math.random() < 0.25;
+    const gold = G.RNG.stream('events').next() < 0.25;
     const dex = gold ? 1000 : 52;
     const mon = G.DEX_BY[dex];
     if (!mon || !G.SPRITE_META[dex]) return;
-    const pl = G.U.pick(players.filter(p => !p.dead).length ? players.filter(p => !p.dead) : players);
+    const pl = G.RNG.stream('events').pick(players.filter(p => !p.dead).length ? players.filter(p => !p.dead) : players);
     G.Sprites.preload([dex]);
     const def = { dex, name: mon.name, behavior: 'thief', hp: Math.round(60 * (1 + time / 95) * (gold ? 1.5 : 1)),
                   spd: 92, dmg: 0, xp: 10, loot: gold ? 'ticket10' : 'coins' };
     for (let i = 0; i < 12; i++) {
-      const a = Math.random() * 6.2832, d = G.U.rand(230, 300);
+      const a = G.RNG.stream('events').next() * 6.2832, d = G.RNG.stream('events').rand(230, 300);
       const x = pl.x + Math.cos(a) * d, y = pl.y + Math.sin(a) * d * 0.8;
       if (!G.World.isFree(x, y, 14)) continue;
       const e = new G.Enemy(def, x, y, { hp: 1, spd: 1, dmg: 1 });
@@ -136,22 +136,22 @@ G.Events = (() => {
 
   function spawnLost(players) {
     const alive = players.filter(p => !p.dead);
-    const pl = G.U.pick(alive.length ? alive : players);
+    const pl = G.RNG.stream('events').pick(alive.length ? alive : players);
     const pool = G.DEX.filter(p => p.rarity <= 3 && !p.leg && G.SPRITE_META[p.dex] && !G.Sprites.hovers(p.dex));
-    const mon = G.U.pick(pool);
+    const mon = G.RNG.stream('events').pick(pool);
     let at = null, to = null;
     for (let i = 0; i < 20 && !at; i++) {
-      const a = Math.random() * 6.2832, d = G.U.rand(220, 300);
+      const a = G.RNG.stream('events').next() * 6.2832, d = G.RNG.stream('events').rand(220, 300);
       const x = pl.x + Math.cos(a) * d, y = pl.y + Math.sin(a) * d * 0.8;
       if (G.World.isFree(x, y, 16)) at = [x, y];
     }
     for (let i = 0; i < 30 && at && !to; i++) {
-      const a = Math.random() * 6.2832, d = G.U.rand(700, 850);
+      const a = G.RNG.stream('events').next() * 6.2832, d = G.RNG.stream('events').rand(700, 850);
       const x = at[0] + Math.cos(a) * d, y = at[1] + Math.sin(a) * d * 0.85;
       if (G.World.isFree(x, y, 30)) to = [x, y];
     }
     if (!at || !to) return false;
-    makeLost({ dex: mon.dex, x: at[0], y: at[1], tx: to[0], ty: to[1], state: 'wait', hp: 100, grant: Math.random() < 0.2 });
+    makeLost({ dex: mon.dex, x: at[0], y: at[1], tx: to[0], ty: to[1], state: 'wait', hp: 100, grant: G.RNG.stream('events').next() < 0.2 });
     G.Sprites.preload([mon.dex]);
     return true;
   }
@@ -210,7 +210,7 @@ G.Events = (() => {
 
   function rescued() {
     const L = lost;
-    for (let i = 0; i < 12; i++) G.Pickups.drop('coin', L.tx + G.U.rand(-40, 40), L.ty + G.U.rand(-30, 30), 5);
+    for (let i = 0; i < 12; i++) G.Pickups.drop('coin', L.tx + G.RNG.stream('events').rand(-40, 40), L.ty + G.RNG.stream('events').rand(-30, 30), 5);
     G.Pickups.drop('ticket', L.tx, L.ty - 12, 1);
     if (G.Coop.isHost) G.Coop.broadcast(['ev', 'rw', L.dex, L.grant ? 1 : 0]);
     reward(L.dex, L.grant);

@@ -55,3 +55,34 @@ test('los ayudantes de un flujo y los de G.U', () => {
   assert.notStrictEqual(two[0], two[1]);
   assert.ok(two.every(v => [1, 2, 3, 4].includes(v)));
 });
+
+// ---- cartas de nivel (Tarea 2 del plan del Desafío diario) ----
+const { soloRun } = require('./solo.js');
+/** @param spend  números que se gastan antes en otro flujo y en Math.random (lo visual) */
+function levelSim(spend = 0, simSeed = 5) {
+  const sim = createSim({ seed: simSeed });
+  const r = soloRun(sim, { dex: 4 });
+  sim.G.RNG.reseed(99);
+  for (let i = 0; i < spend; i++) { sim.G.RNG.stream('enemy').next(); sim.G.U.rand(0, 1); }
+  r.pl.level = 5;
+  return { G: sim.G, pl: r.pl };
+}
+const keys = (G, pl) => [...G.LevelUp.offer(pl)].map(c => c.key);   // (array de aquí, no del vm)
+
+test('cartas iguales con la misma semilla y la misma build', () => {
+  const a = levelSim(), b = levelSim(0, 6);
+  assert.deepStrictEqual(keys(a.G, a.pl), keys(b.G, b.pl));
+});
+
+test('las cartas no dependen de los enemigos', () => {
+  const a = levelSim(), b = levelSim(500);
+  assert.deepStrictEqual(keys(a.G, a.pl), keys(b.G, b.pl));
+});
+
+test('segunda oferta del mismo nivel: distinta de la primera y repetible', () => {
+  const a = levelSim(), b = levelSim(0, 6);
+  const a1 = keys(a.G, a.pl), a2 = keys(a.G, a.pl);
+  keys(b.G, b.pl);
+  assert.deepStrictEqual(a2, keys(b.G, b.pl));
+  assert.notDeepStrictEqual(a1, a2);
+});

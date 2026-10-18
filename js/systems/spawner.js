@@ -43,7 +43,7 @@ G.Spawner = (() => {
   }
 
   function ringPoint(pl, angle) {
-    const d = G.Camera.outerRadius() + G.U.rand(10, 70);
+    const d = G.Camera.outerRadius() + G.RNG.stream('spawn').rand(10, 70);
     return [pl.x + Math.cos(angle) * d, pl.y + Math.sin(angle) * d * 0.9];
   }
 
@@ -61,7 +61,7 @@ G.Spawner = (() => {
   /** Punto del anillo donde quepa: no dentro de paredes ni en el agua. */
   function freePoint(pl, angle, flying) {
     for (let i = 0; i < 8; i++) {
-      const a = angle + (i === 0 ? 0 : G.U.rand(-0.9, 0.9));
+      const a = angle + (i === 0 ? 0 : G.RNG.stream('spawn').rand(-0.9, 0.9));
       const [x, y] = ringPoint(pl, a);
       if (players.length > 1 && seenByAnyone(x, y)) continue;
       if (flying || G.World.isFree(x, y, 14)) return [x, y];
@@ -72,7 +72,7 @@ G.Spawner = (() => {
   /** Jugador alrededor del que sale el siguiente enemigo. */
   function anchor() {
     const alive = players.filter(o => !o.dead);
-    return alive.length ? G.U.pick(alive) : players[0];
+    return alive.length ? G.RNG.stream('spawn').pick(alive) : players[0];
   }
 
   function scaled(sc, k) { return k === 1 ? sc : Object.assign({}, sc, { hp: sc.hp * k }); }
@@ -82,12 +82,12 @@ G.Spawner = (() => {
   function rollShiny(dex) {
     if (!G.Sprites.hasShiny(dex)) return false;
     if (forceShiny > 0) { forceShiny--; return true; }
-    return Math.random() < SHINY_RATE;
+    return G.RNG.stream('spawn').next() < SHINY_RATE;
   }
 
   function spawnOne(pl, t, angle) {
-    const def = G.U.pick(G.Enemies.bagAt(t));
-    const pt = freePoint(pl, angle == null ? Math.random() * 6.2832 : angle, isFlyer(def));
+    const def = G.RNG.stream('spawn').pick(G.Enemies.bagAt(t));
+    const pt = freePoint(pl, angle == null ? G.RNG.stream('spawn').next() * 6.2832 : angle, isFlyer(def));
     if (!pt) return null;
     const shiny = rollShiny(def.dex);
     const e = new G.Enemy(def, pt[0], pt[1], scaled(G.Enemies.scale(t), G.Coop.scaleHp(players.length) * hpK(t)));
@@ -104,7 +104,7 @@ G.Spawner = (() => {
   }
 
   function spawnBoss(pl, t, b) {
-    const [x, y] = ringPoint(pl, Math.random() * 6.2832);
+    const [x, y] = ringPoint(pl, G.RNG.stream('spawn').next() * 6.2832);
     const e = new G.Enemy(b, x, y, scaled(G.Enemies.bossScale(t), G.Coop.scaleHp(players.length) * (players.length > 1 ? 1.4 : 1)), true);
     if (rollShiny(b.dex)) e.makeShiny();
     G.EnemyMgr.add(e);
@@ -145,11 +145,11 @@ G.Spawner = (() => {
     // --- marea ---
     if (!bossFight) surgeT -= dt;
     if (surgeT <= 0) {
-      surgeT = G.U.rand(38, 56);
-      const base = Math.random() * 6.2832;
+      surgeT = G.RNG.stream('spawn').rand(38, 56);
+      const base = G.RNG.stream('spawn').next() * 6.2832;
       const target = anchor();
       const n = Math.min(cap() - G.EnemyMgr.count, Math.round((14 + Math.floor(t / 22)) * G.Coop.scaleRate(players.length) * 0.4 * pace));
-      for (let i = 0; i < n; i++) spawnOne(target, t, base + G.U.rand(-0.55, 0.55));
+      for (let i = 0; i < n; i++) spawnOne(target, t, base + G.RNG.stream('spawn').rand(-0.55, 0.55));
       say('¡Marea de Pokémon!', 2.2);
       G.Audio.sfx('surge');
     }
@@ -157,8 +157,8 @@ G.Spawner = (() => {
 
   /** Unos cuantos de golpe desde un lado (al empezar una horda). */
   function burst(n) {
-    const base = Math.random() * 6.2832, target = anchor() || G.Game.player, t = G.Game.st.time;
-    for (let i = 0; i < n && G.EnemyMgr.count < cap() + 10; i++) spawnOne(target, t, base + G.U.rand(-0.6, 0.6));
+    const base = G.RNG.stream('spawn').next() * 6.2832, target = anchor() || G.Game.player, t = G.Game.st.time;
+    for (let i = 0; i < n && G.EnemyMgr.count < cap() + 10; i++) spawnOne(target, t, base + G.RNG.stream('spawn').rand(-0.6, 0.6));
   }
 
   /**
@@ -168,8 +168,8 @@ G.Spawner = (() => {
   function ahead(e, pl) {
     if (!players.length) players = [pl];
     const sp = Math.hypot(pl._vx || 0, pl._vy || 0);
-    const a0 = sp > 20 ? Math.atan2(pl._vy, pl._vx) : Math.random() * 6.2832;
-    const pt = freePoint(pl, a0 + G.U.rand(-0.9, 0.9), e.flying);
+    const a0 = sp > 20 ? Math.atan2(pl._vy, pl._vx) : G.RNG.stream('spawn').next() * 6.2832;
+    const pt = freePoint(pl, a0 + G.RNG.stream('spawn').rand(-0.9, 0.9), e.flying);
     if (!pt) return false;
     e.x = pt[0]; e.y = pt[1]; e.kx = e.ky = 0;
     e.phase = 'walk'; e.pt = 0; e.jump = null; e.jumpLift = 0;

@@ -29,8 +29,8 @@ G.LevelUp = (() => {
       apply: pl => pl.heal(pl.maxHp * 0.45) }
   ];
 
-  /** Construye el conjunto de cartas candidatas, con pesos. */
-  function candidates(pl) {
+  /** Construye el conjunto de cartas candidatas, con pesos (R: el azar de esta oferta). */
+  function candidates(pl, R) {
     const out = [];
 
     // --- movimientos nuevos ---
@@ -40,7 +40,7 @@ G.LevelUp = (() => {
       const buffs = pl.moves.filter(m => m.kind === 'buff').length;
       const pool = G.Moves.poolFor(pl.mon).filter(id =>
         !pl.hasMove(id) && !(pl.banned && pl.banned.has(id)) && !(buffs >= 2 && G.Moves.BY_ID[id].kind === 'buff'));
-      for (const id of G.U.pickN(pool, 6)) {
+      for (const id of R.pickN(pool, 6)) {
         const d = G.Moves.BY_ID[id];
         out.push({
           w: 10, type: 'new', key: 'new:' + id,
@@ -91,7 +91,7 @@ G.LevelUp = (() => {
     // acumulaban sin fin (velocidad, recarga y experiencia por las nubes) y el
     // juego acababa colgándose. Las que piden una evolución salen siempre.
     const room = s => !s.max || (pl.statsTaken[s.id] || 0) < s.max;
-    const pickStats = G.U.pickN(STATS.filter(s => !waiting[s.id] && room(s)), 5).concat(STATS.filter(s => waiting[s.id]));
+    const pickStats = R.pickN(STATS.filter(s => !waiting[s.id] && room(s)), 5).concat(STATS.filter(s => waiting[s.id]));
     for (const s of pickStats) {
       const evoFor = waiting[s.id];
       out.push({
@@ -132,9 +132,15 @@ G.LevelUp = (() => {
     }));
   }
 
-  /** Devuelve 3 cartas distintas, elegidas por peso. */
+  /**
+   * Devuelve 3 cartas distintas, elegidas por peso. El azar sólo depende de la
+   * semilla de la run, del nivel y de cuántas ofertas van en ese nivel: con la
+   * misma build hasta ahí, a todos les salen las mismas (Desafío diario).
+   */
   function offer(pl, n = 3) {
-    const pool = candidates(pl);
+    const k = pl.offerSeq[pl.level] = (pl.offerSeq[pl.level] || 0) + 1;
+    const R = G.RNG.fork('levelup', pl.level, k);
+    const pool = candidates(pl, R);
     const picked = [];
     const used = new Set();
     // Si hay una evolución lista, su carta dorada sale siempre.
@@ -143,7 +149,7 @@ G.LevelUp = (() => {
 
     while (picked.length < n && pool.length) {
       const total = pool.reduce((a, c) => a + c.w, 0);
-      let r = Math.random() * total, idx = 0;
+      let r = R.next() * total, idx = 0;
       for (let i = 0; i < pool.length; i++) { r -= pool[i].w; if (r <= 0) { idx = i; break; } }
       const c = pool.splice(idx, 1)[0];
       if (used.has(c.key)) continue;

@@ -83,8 +83,8 @@ G.Judgment = (() => {
   function start() {
     const pool = G.DEX.filter(p => p.leg && p.dex !== ARCEUS && G.SPRITE_META[p.dex]);
     const q = [];
-    for (let i = 0; i < 40; i++) q.push(G.U.pick(pool).dex);
-    const c = { tx: -6000 - Math.floor(Math.random() * 2000), ty: -6000 - Math.floor(Math.random() * 2000), q };
+    for (let i = 0; i < 40; i++) q.push(G.RNG.stream('judgment').pick(pool).dex);
+    const c = { tx: -6000 - Math.floor(G.RNG.stream('judgment').next() * 2000), ty: -6000 - Math.floor(G.RNG.stream('judgment').next() * 2000), q };
     if (G.Coop.isHost) G.Coop.broadcast(['jd', c]);
     begin(c);
   }
@@ -260,7 +260,7 @@ G.Judgment = (() => {
     A.cd -= dt;
     if (A.cd <= 0) {
       const d = G.U.dist(A.x, A.y, tg.x, tg.y);
-      const id = d < 210 && Math.random() < 0.6 ? 'nova' : (A.last === 'rain' ? 'cross' : 'rain');
+      const id = d < 210 && G.RNG.stream('judgment').next() < 0.6 ? 'nova' : (A.last === 'rain' ? 'cross' : 'rain');
       cast(id, tg);
     }
   }
@@ -276,14 +276,14 @@ G.Judgment = (() => {
       for (const p of G.Game.everyone()) {
         if (p.dead) continue;
         for (let i = 0; i < n; i++) {
-          const a = Math.random() * 6.2832, d = i ? G.U.rand(40, 150) : 0;
+          const a = G.RNG.stream('judgment').next() * 6.2832, d = i ? G.RNG.stream('judgment').rand(40, 150) : 0;
           H({ kind: 'zone', x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.8, r: 44, delay: 1.25 + i * 0.09, pct: 0.3, vis: 'pillar' });
         }
       }
       A.anim.play('Shoot', { speed: 0.9 });
     } else if (id === 'cross') {
       // Rayos en cruz que barren la arena.
-      const a0 = Math.atan2(tg.y - A.y, tg.x - A.x) + (Math.random() < 0.5 ? 0 : Math.PI / 4);
+      const a0 = Math.atan2(tg.y - A.y, tg.x - A.x) + (G.RNG.stream('judgment').next() < 0.5 ? 0 : Math.PI / 4);
       const n = arenaT > 30 ? 8 : 4;
       for (let i = 0; i < n; i++) H({ kind: 'beam', x: A.x, y: A.y, angle: a0 + i * 6.2832 / n, len: 1700, w: 34, delay: 1.1, pct: 0.35, color: '#fff3b0' });
       c.wind = 1.1;
@@ -361,7 +361,7 @@ G.Judgment = (() => {
     // Lejos de todos (en el borde de la arena).
     let x = center.x, y = center.y;
     for (let i = 0; i < 16; i++) {
-      const a = Math.random() * 6.2832, d = (ARENA_R - G.U.rand(3, 6)) * ts;
+      const a = G.RNG.stream('judgment').next() * 6.2832, d = (ARENA_R - G.RNG.stream('judgment').rand(3, 6)) * ts;
       x = center.x + Math.cos(a) * d; y = center.y + Math.sin(a) * d;
       if (G.Game.everyone().every(p => G.U.dist2(p.x, p.y, x, y) > 280 * 280)) break;
     }

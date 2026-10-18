@@ -8,6 +8,12 @@ const { soloRun } = require('./solo.js');
 const DT = 1 / 30;
 const run = (r, secs, each) => { for (let i = Math.round(secs / DT); i > 0; i--) { r.step(DT); if (each) each(); } };
 
+/** Abre una grieta y lleva al bot hasta ella (antes se confiaba en que pasara por encima). */
+function openRiftAndGo({ G }, r) {
+  G.Rift.debugOpen();
+  G.Input.axis = () => { const rf = G.Rift.rift; return rf ? G.U.norm(rf.x - r.pl.x, rf.y - r.pl.y) : [0, 0]; };
+}
+
 /** Huella del estado: si dos partidas la dan igual, han ido igual. */
 function print({ G }, r) {
   const en = G.EnemyMgr.all().map(e => [e.dex, Math.round(e.x), Math.round(e.y), Math.round(e.hp)]);
@@ -29,8 +35,9 @@ test('dos minutos de partida en solitario', () => {
 });
 
 test('misma semilla, misma partida; otra semilla, otra', () => {
+  // (La semilla de la partida es la del mundo, como en el juego: soloRun la pone en G.RNG.)
   const a = createSim({ seed: 7 }), b = createSim({ seed: 7 }), c = createSim({ seed: 8 });
-  const ra = soloRun(a), rb = soloRun(b), rc = soloRun(c);
+  const ra = soloRun(a), rb = soloRun(b), rc = soloRun(c, { world: 1235 });
   run(ra, 90); run(rb, 90); run(rc, 90);
   assert.strictEqual(print(a, ra), print(b, rb));
   assert.notStrictEqual(print(a, ra), print(c, rc));
@@ -71,7 +78,7 @@ test('una grieta: entra en la arena y vuelve', () => {
   const sim = createSim({ seed: 5 });
   const r = soloRun(sim, { god: true });
   run(r, 20);
-  sim.G.Rift.debugOpen();
+  openRiftAndGo(sim, r);
   let inside = false, back = false;
   run(r, 240, () => { if (sim.G.Rift.inArena) inside = true; else if (inside) back = true; });
   assert.ok(inside, 'no ha entrado en la grieta');
@@ -134,7 +141,7 @@ test('la grieta avisa con curtain y no con flash', () => {
   sim.G.Game.curtain = () => { curtains++; };
   sim.G.Game.flash = () => { flashes++; };
   run(r, 20);
-  sim.G.Rift.debugOpen();
+  openRiftAndGo(sim, r);
   let inside = false, back = false;
   run(r, 240, () => { if (sim.G.Rift.inArena) inside = true; else if (inside) back = true; });
   assert.ok(inside && back, 'no ha ido y vuelto');
