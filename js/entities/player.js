@@ -426,7 +426,7 @@ G.Player = class Player {
   revive(frac = 0.5) {
     this.dead = false;
     this.hp = Math.max(1, this.maxHp * frac);
-    this.invuln = 2;
+    this.invuln = 3;
     this.reviveT = 0;
     this.anim._start('Idle', false);
     G.FX.ring(this.x, this.y, 6, 70, '#5fe08a', 0.5, 4);
@@ -445,6 +445,7 @@ G.Player = class Player {
     this.anim.update(dt);
     const n = this.net;
     if (!n) return;
+    if (this.invuln > 0) this.invuln -= dt;
     if (this.flash > 0) this.flash -= dt;
     if (this.attackFace > 0) this.attackFace -= dt;
     if (G.U.dist2(this.x, this.y, n.x, n.y) > 300 * 300) { this.x = n.x; this.y = n.y; }

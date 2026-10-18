@@ -17,6 +17,12 @@ G.CHANGELOG = [
      'Health bar under your Pokémon: green, yellow below half and red when it’s low. You can turn it off in Settings > Graphics > “Character health”.'],
     ['Amigos: si un amigo está en una sala, sale «En una sala» y un botón «Unirse» para entrar directamente, sin pedirle el código.',
      'Friends: if a friend is in a room, it says “In a room” and shows a “Join” button to get straight in, without asking for the code.']
+  ], chg: [
+    ['Cooperativo: al levantar a un compañero caído, tiene 3 s de invulnerabilidad (antes 2) para que no lo vuelvan a tumbar nada más levantarse.',
+     'Co-op: when a downed teammate is revived, they get 3 s of invulnerability (was 2) so they don’t get knocked down again right away.']
+  ], fix: [
+    ['Cooperativo: un compañero recién levantado ya no se queda parpadeando para siempre en tu pantalla.',
+     'Co-op: a teammate who was just revived no longer keeps blinking forever on your screen.']
   ] },
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
     ['Cooperativo: en la sala, el líder puede cambiar las «Condiciones de partida»: cuántos enemigos aparecen (25 %–300 %), cada cuánto se abren las grietas (ninguna–300 %) y cuántas monedas y tickets sueltan (0 %–500 %). Para probar, para partidas tranquilas o para farmear en grupo. Si alguna no está al 100 %, esa partida no sube al ranking.',
