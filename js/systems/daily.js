@@ -32,8 +32,11 @@ G.Daily = (() => {
   const playable = () => pool || (pool = G.DEX.filter(p => G.SPRITE_META[p.dex]));
 
   /** El reto de hoy: { day, dex, seed } (igual para todos). */
-  function today(date = new Date()) {
-    const day = dayId(date), n = +day, list = playable();
+  function today(date = new Date()) { return forDay(dayId(date)); }
+
+  /** El reto de un día cualquiera ('AAAAMMDD'). */
+  function forDay(day) {
+    const n = +day, list = playable();
     const dex = list[Math.floor(G.U.hash(n, 0, 0xD411) * list.length)].dex;
     const seed = Math.floor(G.U.hash(n, 1, 0x5EED) * 4294967296) || 1;
     return { day, dex, seed };
@@ -68,5 +71,5 @@ G.Daily = (() => {
     return d && d.last === prevDay(day) ? streak + 1 : 1;
   }
 
-  return { dayId, prevDay, today, playTickets, placePrize, claimOpen, nextStreak };
+  return { dayId, prevDay, today, forDay, playTickets, placePrize, claimOpen, nextStreak };
 })();

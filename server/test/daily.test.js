@@ -60,3 +60,8 @@ test('nextStreak', () => {
   assert.strictEqual(D.nextStreak({ last: '20261015', streak: 4 }, '20261018'), 1);
   assert.strictEqual(D.nextStreak({ last: '20261031', streak: 2 }, '20261101'), 3);
 });
+
+test('forDay: el reto de cualquier día (para ver la tabla de ayer)', () => {
+  assert.deepStrictEqual({ ...D.forDay('20261018') }, { ...D.today(at('2026-10-18T15:00:00Z')) });
+  assert.notStrictEqual(D.forDay('20261017').seed, D.forDay('20261018').seed);
+});

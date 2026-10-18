@@ -19,6 +19,8 @@
  *                   (all2 desde la Sentencia de Arceus: con el final en el
  *                    minuto 30, el histórico empezó de cero; las tablas viejas
  *                    s_all y s_all_pN se quedan en el servidor sin usarse)
+ *     x_d20261018   Desafío diario (js/modes/daily-mode.js): una tabla por
+ *                   día, sólo con su top 50 (como el diario de solitario)
  *   id = tu uid (solitario) o los uid del equipo ordenados y unidos con "_".
  *   Las de grupo (g_) sólo las escribe el servidor del cooperativo (server/rank.js).
  *
@@ -41,7 +43,9 @@ G.Ranking = (() => {
   // Periodos en los que sólo se guarda el top 50 (ver arriba).
   // ('p' = histórico de un Pokémon: casi cada partida entraba en el de su
   //  Pokémon y escribía; ahora también sólo el top 50.)
-  const TOP_ONLY = new Set(['d', 'w', 'm', 'p']);
+  // ('x' = Desafío diario.)
+  const TOP_ONLY = new Set(['d', 'w', 'm', 'p', 'x']);
+  const DAILY = 'x';
   const TOP = 50;
   // Las runs de menos de 2 minutos no se suben (nunca entran en un top que
   // importe y eran muchas lecturas y escrituras para nada: los que empiezan
@@ -81,9 +85,33 @@ G.Ranking = (() => {
     return Object.assign({}, p, { w: p.w + 'j', m: p.m + 'j' });
   }
 
-  /** El filtro por Pokémon sólo existe en el histórico. */
+  /**
+   * El filtro por Pokémon sólo existe en el histórico. En el Desafío diario
+   * (mode 'x') el "periodo" es el día: board('x', '20261018') = 'x_d20261018'.
+   */
   function board(mode, period, dex) {
+    if (mode === DAILY) return DAILY + '_d' + period;
     return mode + '_' + boardIds()[period] + (dex && period === 'a' ? '_p' + dex : '');
+  }
+  /** ¿Sólo se guarda el top 50 de esta tabla? (sin puesto exacto fuera de él) */
+  const topOnlyOf = (mode, period, dex) => mode === DAILY || TOP_ONLY.has(period) || !!dex;
+
+  /** Las tablas de solitario a las que sube una marca: hoy, semana, mes, histórico y su Pokémon. */
+  function soloBoards(dex, date) {
+    const ids = boardIds(date);
+    return PERIODS.map(([p]) => ['s_' + ids[p], p]).concat([['s_' + ALL + '_p' + dex, 'p']]);
+  }
+  /** La del Desafío diario de un día. */
+  function dailyBoards(day) { return [[board(DAILY, day), DAILY]]; }
+
+  /**
+   * ¿Es una tabla de ahora? Las de los periodos actuales, las históricas y la
+   * del Desafío diario de ayer (hace falta para cobrar su premio). Lo que el
+   * navegador recuerda de las demás se borra.
+   */
+  function isCurrentBoard(b, date = new Date()) {
+    if (Object.values(boardIds(date)).includes(b.split('_')[1])) return true;
+    return b === board(DAILY, G.Daily.prevDay(G.Daily.dayId(date)));
   }
 
   const col = b => fbx().fs.collection('lb').doc(b).collection('e');
@@ -125,9 +153,8 @@ G.Ranking = (() => {
   const bestKey = () => 'ps.rk.best2.' + (fbx() ? fbx().uid : '');
   function bests() { try { return JSON.parse(localStorage.getItem(bestKey()) || '{}'); } catch (e) { return {}; } }
   function saveBests(b) {
-    // Sólo se conservan las tablas de los periodos actuales y las históricas.
-    const cur = Object.values(boardIds());
-    for (const k of Object.keys(b)) if (!cur.some(p => k.split(':')[0].split('_')[1] === p)) delete b[k];
+    // Sólo se conservan las tablas de ahora (ver isCurrentBoard).
+    for (const k of Object.keys(b)) if (!isCurrentBoard(k.split(':')[0])) delete b[k];
     try { localStorage.setItem(bestKey(), JSON.stringify(b)); } catch (e) { /* lleno */ }
   }
 
@@ -147,9 +174,7 @@ G.Ranking = (() => {
     const t = thresholds();
     if ((t[b] || 0) >= low) return;
     t[b] = low;
-    // Sólo las tablas de los periodos de ahora (y las históricas).
-    const cur = Object.values(boardIds());
-    for (const k of Object.keys(t)) if (!cur.some(p => k.split('_')[1] === p)) delete t[k];
+    for (const k of Object.keys(t)) if (!isCurrentBoard(k)) delete t[k];
     try { localStorage.setItem(THR, JSON.stringify(t)); } catch (e) { /* lleno */ }
   }
 
@@ -253,20 +278,19 @@ G.Ranking = (() => {
 
   function announce(better) {
     if (!better.length) return;
+    if (better.includes(DAILY)) { G.UI.toast('¡Entras en la tabla del Desafío diario!', 3400); return; }
     const names = { d: 'de hoy', w: 'de la semana', m: 'del mes', a: 'histórico' };
     const best = PERIODS.map(p => p[0]).filter(p => better.includes(p)).pop();
     G.UI.toast('¡Nueva mejor marca ' + names[best] + ' en el ranking!', 3400);
   }
 
-  function submitSolo(r) { return track(submitSoloNow(r)); }
-  async function submitSoloNow(r) {
+  /** @param boards  las tablas a las que sube (las da el modo: soloBoards o dailyBoards) */
+  function submitSolo(r, boards) { return track(submitSoloNow(r, boards)); }
+  async function submitSoloNow(r, boards) {
     const fb = fbx();
     if (!fb || !G.Social.me || r.t < MIN_T) return [];
-    const ids = boardIds();
     const entry = { t: r.t, uids: [fb.uid], names: [G.Social.me.name], dex: [r.dex], shiny: [!!r.shiny], lv: r.lv, kills: r.kills };
     if (r.build) entry.b = [String(r.build).slice(0, G.Player.BUILD_MAX)];
-    const boards = PERIODS.map(([p]) => ['s_' + ids[p], p]);
-    boards.push(['s_' + ALL + '_p' + r.dex, 'p']);
     const better = await store(boards, fb.uid, entry);
     announce(better);
     return better;
@@ -305,8 +329,8 @@ G.Ranking = (() => {
     if (!friendsOnly) return rows.slice(0, TOP);
     const circle = [fb.uid, ...G.Social.friends.filter(f => f.status === 'ok').map(f => f.uid)].slice(0, 30);
     const inTop = rows.filter(r => r.uids.some(u => circle.includes(u)));
-    // En diario, semanal, mensual y por Pokémon no hay marcas fuera del top 50.
-    if (TOP_ONLY.has(period) || dex) return inTop;
+    // En diario, semanal, mensual, por Pokémon y en el Desafío no hay marcas fuera del top 50.
+    if (topOnlyOf(mode, period, dex)) return inTop;
     // Los amigos que no están en el top 50: se buscan aparte (y se guardan 30 min).
     const ck = 'f:' + b + ':' + circle.slice().sort().join(',');
     let extra = cacheGet(ck);
@@ -335,7 +359,7 @@ G.Ranking = (() => {
     const rows = sorted(await summary(b));
     const i = rows.findIndex(r => r.uids.includes(fb.uid));
     if (i >= 0) return { pos: i + 1, t: rows[i].t, row: rows[i] };
-    if (TOP_ONLY.has(period) || dex) return { out: true };
+    if (topOnlyOf(mode, period, dex)) return { out: true };
     const ck = 'r:' + b;
     const c = cacheGet(ck);
     if (c !== undefined) return c;
@@ -519,6 +543,6 @@ G.Ranking = (() => {
       t1: (v.tickets || {}).t1 || 0, t10: (v.tickets || {}).t10 || 0, owned: Object.keys(v.owned || {}).length }; });
   }
 
-  return { PERIODS, periodIds, board, runStarted, submitSolo, top, myRank, removeMine,
+  return { PERIODS, periodIds, board, soloBoards, dailyBoards, isCurrentBoard, runStarted, submitSolo, top, myRank, removeMine,
            report, reported, isAdmin, reports, entryInfo, removeEntry, purgeAbove, removeEverywhere, setMarked, dismiss, markedAccounts };
 })();

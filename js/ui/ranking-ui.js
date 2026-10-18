@@ -1,13 +1,15 @@
 /* ============ ranking-ui.js — pantalla del ranking ============
- * Pestañas Solo / Grupo, periodo (diario ... histórico), todos o sólo amigos,
+ * Pestañas Solo / Grupo / Diario, periodo (diario ... histórico), todos o sólo amigos,
  * filtro por Pokémon (sólo en el histórico) y tu puesto abajo aunque no salgas
  * en el top. Lo leído se guarda 30 min (ver ranking.js).
  * Cada marca enseña su build (movimientos y objeto); al tocarla, el detalle.
+ * Diario = el Desafío diario: hoy o ayer, con el Pokémon de ese día arriba.
  */
 G.RankingUI = (() => {
   const $ = G.UI.$;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let mode = 's', period = 'w', scope = 'all', dex = null;
+  let dayTab = 'today';            // en Diario: 'today' | 'yday'
   let token = 0;
 
   function init() {
@@ -32,8 +34,10 @@ G.RankingUI = (() => {
     tabs(); load();
   }
 
-  function open() {
+  /** @param o.mode  pestaña con la que se abre ('x' = Desafío diario) */
+  function open(o = {}) {
     if (!G.SocialUI.needOnline()) return;
+    if (o.mode) { mode = o.mode; dayTab = 'today'; }
     G.UI.show('scr-rank', true);
     if (!G.Social.started) G.Social.start();
     $('rk-mod').classList.toggle('hidden', !G.Ranking.isAdmin());
@@ -52,13 +56,34 @@ G.RankingUI = (() => {
         box.appendChild(b);
       }
     };
-    mk($('rk-mode'), [['s', `<b>${G.Icons.html('user', 16)} Solo</b>`], ['g', `<b>${G.Icons.html('friends', 16)} Grupo</b>`]],
+    mk($('rk-mode'), [['s', `<b>${G.Icons.html('user', 16)} Solo</b>`], ['g', `<b>${G.Icons.html('friends', 16)} Grupo</b>`],
+                      ['x', `<b>${G.Icons.html('clock', 16)} Diario</b>`]],
        mode, k => { mode = k; }, 'gen-tab');
-    mk($('rk-period'), G.Ranking.PERIODS, period, k => {
+    const daily = mode === 'x';
+    if (daily) mk($('rk-period'), [['today', 'Hoy'], ['yday', 'Ayer']], dayTab, k => { dayTab = k; }, 'chip');
+    else mk($('rk-period'), G.Ranking.PERIODS, period, k => {
       period = k;
       if (k !== 'a' && dex) { dex = null; $('rk-poke').value = ''; $('rk-clear').classList.add('hidden'); }
     }, 'chip');
+    $('rk-poke').classList.toggle('hidden', daily);
+    $('rk-clear').classList.toggle('hidden', daily || !dex);
+    dailyHead();
     mk($('rk-scope'), [['all', 'Todos'], ['friends', 'Sólo amigos']], scope, k => { scope = k; }, 'chip');
+  }
+
+  /** El día que se ve en Diario ('AAAAMMDD'). */
+  const shownDay = () => dayTab === 'yday' ? G.Daily.prevDay(G.Daily.dayId()) : G.Daily.dayId();
+
+  /** Arriba, en Diario: el Pokémon de ese día. */
+  function dailyHead() {
+    const box = $('rk-daily');
+    box.classList.toggle('hidden', mode !== 'x');
+    if (mode !== 'x') return;
+    const mon = G.DEX_BY[G.Daily.forDay(shownDay()).dex];
+    box.innerHTML = '';
+    box.appendChild(G.UI.spriteCanvas(mon.dex, 56, 50, { scale: 1 }));
+    box.insertAdjacentHTML('beforeend', `<span><small class="sub">${dayTab === 'yday' ? 'Desafío de ayer' : 'Desafío de hoy'}</small><br>
+      <b translate="no">${esc(mon.name)}</b> ${G.UI.typeChips(mon.types)}</span>`);
   }
 
   const fmt = t => t >= 3600 ? Math.floor(t / 3600) + ':' + G.U.mmss(t % 3600).padStart(5, '0') : G.U.mmss(t);
@@ -69,10 +94,12 @@ G.RankingUI = (() => {
     list.innerHTML = '<p class="sub">Cargando…</p>';
     $('rk-me').innerHTML = '';
     let rows = [], me = null;
+    // En Diario el "periodo" es el día y no hay filtro por Pokémon.
+    const per = mode === 'x' ? shownDay() : period, dx = mode === 'x' ? null : dex;
     try {
       [rows, me] = await Promise.all([
-        G.Ranking.top(mode, period, dex, scope === 'friends'),
-        G.Social.me ? G.Ranking.myRank(mode, period, dex) : Promise.resolve(null)
+        G.Ranking.top(mode, per, dx, scope === 'friends'),
+        G.Social.me ? G.Ranking.myRank(mode, per, dx) : Promise.resolve(null)
       ]);
     } catch (e) {
       if (my !== token) return;
@@ -85,11 +112,20 @@ G.RankingUI = (() => {
       list.innerHTML = '<p class="sub">Todavía no hay marcas aquí. ¡Sé el primero!</p>';
     }
     const uid = G.Social.uid;
-    const b = G.Ranking.board(mode, period, dex), done = G.Ranking.reported();
+    const b = G.Ranking.board(mode, per, dx), done = G.Ranking.reported();
     rows.forEach((r, i) => list.appendChild(rowEl(r, i + 1, r.uids.includes(uid), b, done)));
 
     // La frase se monta en cada idioma (traducirla por trozos sale rara).
     const en = G.I18n.lang === 'en';
+    if (mode === 'x') {
+      const when = dayTab === 'yday' ? (en ? 'yesterday' : 'de ayer') : (en ? 'today' : 'de hoy');
+      $('rk-me').innerHTML = !G.Social.me ? 'Elige un apodo (en Amigos) para salir en el ranking.'
+        : me && me.out ? (en ? `<span translate="no">You're not in the top 50 of ${when}'s challenge.</span>` : `No estás en el top 50 del desafío ${when}.`)
+        : me ? (en ? `<span translate="no">Your rank in ${when}'s challenge: <b class="gold">#${me.pos}</b> · ${fmt(me.t)}</span>`
+                   : `Tu puesto en el desafío ${when}: <b class="gold">#${me.pos}</b> · ${fmt(me.t)}`)
+        : (en ? `<span translate="no">You don't have a record in ${when}'s challenge.</span>` : `No tienes marca en el desafío ${when}.`);
+      return;
+    }
     const pn = en ? { d: 'today', w: 'this week', m: 'this month', y: 'this year', a: 'of all time' }[period]
                   : { d: 'de hoy', w: 'de esta semana', m: 'de este mes', y: 'de este año', a: 'de siempre' }[period];
     const mon = dex ? G.DEX_BY[dex].name : '';
