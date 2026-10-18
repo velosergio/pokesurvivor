@@ -157,6 +157,7 @@ G.Coop = (() => {
       case 'snap': onSnap(m); break;
       case 'ev': for (const ev of m.list || []) onEvent(ev); break;
       case 'level': if (api.choice) api.choice(m); break;
+      case 'room': onRoom(m); break;
       case 'over': { const cb = api.over; const r = m.results || {}; end(); if (cb) cb(r); break; }
       case 'down': { const cb = api.lost; end(); if (cb) cb('Se ha perdido la conexión con el servidor.'); break; }
     }
@@ -167,6 +168,16 @@ G.Coop = (() => {
     if (s === 'retry') wasRetry = true;
     api.away(s === 'retry' ? 'Reconectando…' : null);
   });
+
+  /**
+   * La sala dice quién sigue conectado (llega cada vez que alguien se corta o
+   * vuelve). Los que no están dejan de verse, en la lista de arriba y en las
+   * flechas, y no cuentan para "Habéis caído todos". Antes seguían ahí, quietos.
+   */
+  function onRoom(m) {
+    const on = new Map((m.members || []).map(x => [x.uid, x.on !== false]));
+    for (const mt of mates.values()) mt.connected = !!on.get(mt.uid);
+  }
 
   function onSnap(s) {
     const now = performance.now();

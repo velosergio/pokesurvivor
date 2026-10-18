@@ -2,13 +2,9 @@
 
 > Toda nueva idea que implique nuevos cambios debe seguir los principios SOLID y DRY
 
-## Poco trabajo
-
-## Trabajo medio
-
 ### Desafío diario
 
-Una run al día con un Pokémon elegido al azar, la misma semilla para todo el mundo y una tabla aparte. Así se puede comparar cómo le fue a cada jugador con las mismas reglas, sin tocar el ranking normal.
+En modo jugar, habilitar un selector, modo clasico o Desafio Diario, Una run al día con un Pokémon elegido al azar, la misma semilla para todo el mundo y una tabla aparte. Así se puede comparar cómo le fue a cada jugador con las mismas reglas, sin tocar el ranking normal.
 
 ## Modos nuevos
 
@@ -25,3 +21,5 @@ Un modo JcJ por rondas. Entre enfrentamientos cada jugador farmea en su propio m
 - Barra de vida sobre el personaje
 - Shader CTR
 - investigar bugs de desconexion
+- agregar unirse a partida
+- nueva 

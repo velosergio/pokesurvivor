@@ -621,6 +621,8 @@ def game_en():
     app = re.search(r'<script defer src="js/app\.min\.js\?v=[^"]+"></script>', idx).group(0)
     a, b = dev.index('<!-- scripts:begin -->'), dev.index('<!-- scripts:end -->') + len('<!-- scripts:end -->')
     src = dev[:a] + app + dev[b:]
+    css = re.search(r'href="css/style\.css(\?v=[^"]+)?"', idx).group(0)  # con la misma huella que index.html
+    src = src.replace('href="css/style.css"', css, 1)
     src = re.sub(r'<!-- seo:(begin|end) -->\n?', '', src)
     src = re.sub(r'<meta name="robots" content="noindex">\s*', '', src)
     src = re.sub(r'<!-- dev\.html: página fuente[^>]*-->\n?', '', src)

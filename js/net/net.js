@@ -10,6 +10,10 @@
  * Si la conexión se corta estando en una sala (o con una partida en grupo
  * pendiente de recuperar tras recargar), se reintenta sola durante 60 s
  * (el servidor guarda tu sitio en la partida ese tiempo: BACK_MS en server/lobby.js).
+ * En partida el servidor manda ~15 snaps por segundo (también mientras alguien
+ * elige carta): si pasan SILENT_MS sin nada, la conexión se da por muerta y se
+ * reintenta. Antes, un corte sin cierre (cambio de wifi a datos, el móvil en
+ * segundo plano) dejaba la partida congelada durante minutos.
  *
  * API:  available() · connect() → Promise · renew() · close() · send(type, campos)
  *       sendIn({seq,x,y,dx,dy,move}) · on(fn(msg)) · onState(fn(estado))
@@ -19,9 +23,10 @@ G.Net = (() => {
   const OPEN_TIMEOUT = 10000;      // ms para conectar y presentarse
   const RETRY_FOR = 60000;         // ms reintentando tras un corte (lo que guarda el servidor)
   const RETRY_GAP = 1500;
+  const SILENT_MS = 8000;          // ms sin mensajes en partida en grupo: conexión muerta
 
   let ws = null, state = 'closed', want = false, ready = null;
-  let retryUntil = 0, retryT = 0, authRetried = false;
+  let retryUntil = 0, retryT = 0, authRetried = false, lastRecv = 0;
   const handlers = new Set(), stateHandlers = new Set();
   const stats = { sent: 0, recv: 0, bytes: 0 };
 
@@ -106,6 +111,7 @@ G.Net = (() => {
     sock.onopen = () => { hello(sock, fresh).catch(e => { console.warn('[Net] token:', e.message); sock.close(); }); };
     sock.onmessage = e => {
       if (sock !== ws) return;
+      lastRecv = Date.now();
       stats.bytes += e.data.byteLength || e.data.length || 0;
       let m;
       try { m = G.Proto.decode(e.data); } catch (err) { console.warn('[Net] mensaje ilegible:', err.message); return; }
@@ -146,6 +152,20 @@ G.Net = (() => {
     emit({ type: 'down', reason: err.message });
     if (err.message === 'update' && G.Updater && G.Updater.check) G.Updater.check();
   }
+
+  /** En partida en grupo, sin mensajes desde hace SILENT_MS: se suelta y se reintenta. */
+  function watch() {
+    if (state !== 'open' || !ws || !(G.Coop && G.Coop.active)) return;
+    if (Date.now() - lastRecv < SILENT_MS) return;
+    const sock = ws;
+    ws = null;                     // su onclose, si llega, ya no cuenta
+    try { sock.close(); } catch (e) { /* nada */ }
+    console.warn('[Net] sin mensajes del servidor: se reconecta');
+    onDown(new Error('silent'));
+  }
+  setInterval(watch, 2000);
+  // Al volver de segundo plano los mensajes en cola aún no han llegado: margen.
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lastRecv = Date.now(); });
 
   /**
    * Se presenta otra vez (Pokémon y mejoras de ahora) con una conexión nueva,

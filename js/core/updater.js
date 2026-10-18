@@ -3,7 +3,8 @@
  * la huella de js/app.min.js), todos los jugadores la reciben sin perder nada:
  *
  *   - Cada 5 min (y al volver a la pestaña) se mira version.json (lo sirve
- *     GitHub Pages: no cuesta nada).
+ *     el nginx del servicio `web`, sin caché). Con una versión pendiente se
+ *     sigue mirando, por si después llega una obligatoria.
  *   - Si NO está en partida: aviso "actualizando en 5 s…" y se recarga.
  *     Si está en el gacha, la tienda de mejoras, los ajustes o escribiendo en
  *     un campo, espera a que termine. En una sala de cooperativo, se recarga
@@ -26,16 +27,16 @@ G.Updater = (() => {
   const EVERY = 5 * 60 * 1000, COUNTDOWN = 5, FORCED = 10;
   const tag = document.querySelector('script[src*="app.min.js?v="]');
   const mine = tag ? (tag.getAttribute('src').match(/v=([0-9a-f]+)/) || [])[1] : null;
-  let pending = false, forced = false, lastCheck = 0, timer = 0, counting = false;
+  let pending = false, forced = false, lastCheck = 0, timer = 0, counting = false, seen = '';
 
   async function check() {
-    if (!mine || pending) return;
+    if (!mine || forced) return;
     lastCheck = Date.now();
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
       if (!r.ok) return;
       const j = await r.json();
-      if (j && j.v && j.v !== mine) { pending = true; forced = !!j.force; console.log('[Actualizar] versión nueva', j.v, '(esta es', mine + ')', forced ? 'OBLIGATORIA' : ''); }
+      if (j && j.v && j.v !== mine && (j.v !== seen || j.force && !forced)) { seen = j.v; pending = true; forced = !!j.force; console.log('[Actualizar] versión nueva', j.v, '(esta es', mine + ')', forced ? 'OBLIGATORIA' : ''); }
     } catch (e) { /* sin red: se mira la próxima vez */ }
   }
 
@@ -95,7 +96,7 @@ G.Updater = (() => {
     if (pending && forced && !counting && inRun()) { forceEnd(); return; }
     if (pending && forced && !counting && G.Game && G.Game.state === 'over') { reload(); return; }   // resumen: ya está guardado
     if (pending && !counting && safe()) countdown();
-    if (!pending && Date.now() - lastCheck > EVERY) check();
+    if (!forced && Date.now() - lastCheck > EVERY) check();
   }
 
   function init() {

@@ -32,7 +32,15 @@ G.CHANGELOG = [
     ['El juego se abre en una sola pestaña a la vez: con dos pestañas del mismo navegador, lo ganado o gastado en una tapaba lo de la otra. Si lo abres en otra, te pregunta y con «Jugar aquí» la otra se para.',
      'The game now runs in one tab at a time: with two tabs in the same browser, what you earned or spent in one overwrote the other. If you open it in another tab, it asks you, and “Play here” stops the other one.'],
     ['Cooperativo: si todos os desconectáis (móvil bloqueado, recarga), la partida espera parada un minuto en vez de terminarse a los 20 s, y nadie cae mientras tanto. Si al volver ya había terminado, se cierra con aviso en vez de quedarse congelada.',
-     'Co-op: if everyone disconnects (phone locked, reload), the run waits paused for a minute instead of ending after 20 s, and nobody gets knocked out meanwhile. If it had already ended when you come back, it closes with a notice instead of freezing.']
+     'Co-op: if everyone disconnects (phone locked, reload), the run waits paused for a minute instead of ending after 20 s, and nobody gets knocked out meanwhile. If it had already ended when you come back, it closes with a notice instead of freezing.'],
+    ['Cooperativo: si la conexión se corta sin avisar (al pasar del wifi a los datos, o con el móvil en segundo plano), el juego se da cuenta a los pocos segundos y se reconecta solo. Antes la partida se quedaba congelada varios minutos.',
+     'Co-op: if the connection drops silently (switching from Wi-Fi to mobile data, or with the phone in the background), the game notices within a few seconds and reconnects by itself. Before, the run stayed frozen for several minutes.'],
+    ['Cooperativo: un compañero que se desconecta deja de verse (en la lista de arriba, en las flechas y en el mapa) hasta que vuelve, y ya no cuenta para «Habéis caído todos». Antes se quedaba quieto en pantalla como si siguiera jugando.',
+     'Co-op: a teammate who disconnects is no longer shown (in the list at the top, the arrows and the map) until they come back, and no longer counts for “Everyone is down”. Before, they stayed frozen on screen as if still playing.'],
+    ['Tras publicar una versión, el aspecto del juego (estilos) se actualiza también: a veces se quedaba el antiguo junto al juego nuevo y algún menú se veía descolocado.',
+     'After a new version is released, the game’s look (styles) updates too: sometimes the old one stayed with the new game and some menus looked out of place.'],
+    ['Si tenías una actualización pendiente durante una partida larga y luego salía una obligatoria, ahora también te llega.',
+     'If you had an update pending during a long run and a required one came out afterwards, it now reaches you too.']
   ] },
   { d: '2026-10-15', title: ['Salas de hasta 10 jugadores', 'Rooms for up to 10 players'], new: [
     ['Al acabar la run ves lo que hizo tu Pokémon: daño hecho, daño recibido y cofres abiertos. En cooperativo se compara al grupo: quién hizo más daño, quién recibió más, quién abrió más cofres, quién levantó más veces a los compañeros y el MVP de la partida.',
