@@ -12,7 +12,7 @@
 G.Config = {
   site: 'https://poke.sergioveloza.com/',
   ws: 'wss://poke.sergioveloza.com/ws',   // servidor del cooperativo (server/; en localhost, ws://localhost:8787/ws)
-  admins: ['MufTp04DgIR02OExhPau6TopYzo2'],   // uids con acceso a Moderación (y en firestore.rules)
+  admins: ['MufTp04DgIR02OExhPau6TopYzo2', '2qKbBtxr9PftGT3j1HXiUtv2MBa2'],   // uids con acceso a Moderación (y en firestore.rules)
   kofi: '',                 // usuario de Ko-fi ('' = sin botón "Apoyar")
   sponsors: '',             // usuario de GitHub Sponsors ('' = sin enlace)
   repo: 'https://github.com/velosergio/pokesurvivor',   // código de esta copia; el contacto (aviso legal,
