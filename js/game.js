@@ -21,6 +21,7 @@ G.Game = (() => {
   let time = 0, last = 0, pendingLevels = 0;
   let pl = null;
   let caught = [];          // shinies conseguidos en esta run
+  let mode = null;          // el modo de esta run (G.Modes); null en cooperativo
   let biome = -1;
 
   const st = { get time() { return time; } };
@@ -85,15 +86,21 @@ G.Game = (() => {
 
   // ---------------- run ----------------
 
-  /** @param coop  { seed, members } para una partida en grupo (lo de `started`) */
+  /**
+   * @param coop  { seed, members } para una partida en grupo (lo de `started`)
+   * En solitario, el Pokémon y la semilla los decide el modo (G.Modes.current,
+   * ya empezado con begin() en G.Flow.play); en grupo, tu compañero y la sala.
+   */
   function startRun(coop = null) {
     waitBy = []; awayBy = null; crew = null;
     const save = G.DB.save;
-    const mon = G.DEX_BY[save.partner];
+    mode = coop ? null : G.Modes.current;
+    const hero = (mode || G.Modes.get('classic')).hero(save);
+    const mon = hero.mon;
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
 
     // La semilla de la run: el mapa y todo el azar de la partida (G.RNG) salen de ella.
-    const seed = coop ? coop.seed : Math.floor(Math.random() * 1e6);
+    const seed = coop ? coop.seed : mode.seed();
     G.RNG.reseed(seed);
 
     G.UI.hideAll();
@@ -116,7 +123,7 @@ G.Game = (() => {
     time = 0; pendingLevels = 0;
     runReal = performance.now(); tampered = false;
 
-    pl = new G.Player(mon, perks, !!save.partnerShiny && G.DB.ownsShiny(mon.dex));
+    pl = new G.Player(mon, perks, hero.shiny);
     banked = { t1: 0, t10: 0 };
     caught = [];
     // Atajos: movimientos con hueco fijo (save.pbind[dex] = [id del 1, id del 2, ...]),
@@ -140,9 +147,8 @@ G.Game = (() => {
     // Hojas de sprites locales: el compañero y los primeros enemigos.
     G.Sprites.preload([mon.dex], 8000, pl.shiny);
     G.Audio.music(G.BIOME_MUSIC[0]);
-    // Para el ranking: el servidor apunta cuándo empieza la partida (anti-trampas).
-    // (El de grupo lo escribe el servidor del cooperativo con su propio reloj.)
-    if (!coop) G.Ranking.runStarted('s');
+    // (Lo que el ranking apunta al empezar lo hace el modo en begin(); el de
+    //  grupo, el servidor del cooperativo con su propio reloj.)
     deathT = 0;
 
     state = 'playing';
@@ -322,6 +328,9 @@ G.Game = (() => {
 
     save.coins += coins;
     bankTickets(false);
+    // Premios propios del modo (el Desafío diario da tickets por aguantar).
+    const bonus = mode ? mode.finish({ t: Math.floor(time) }) : null;
+    if (bonus) G.Progress.grant(bonus);
     save.stats.runs++;
     save.stats.totalKills += pl.kills;
     save.stats.bestTime = Math.max(save.stats.bestTime, Math.floor(time));
@@ -341,11 +350,12 @@ G.Game = (() => {
     // Ranking: en solitario lo sube cada uno; el de grupo, el servidor del cooperativo.
     const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
-    const sent = !coop && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny, build: pl.buildCode() })) : null;
+    const sent = mode && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny, build: pl.buildCode() }), mode.boards(pl.dex)) : null;
     if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
 
     G.RunUI.showOver({
-      dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge,
+      dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge, bonus,
+      mode: mode ? mode.id : 'group',
       moves: pl.moves, caught,
       // Resumen por personaje: en grupo, el del servidor; solo, el tuyo.
       crew: crew || [{ me: true, name: (G.Social.me && G.Social.me.name) || '', dex: pl.dex, shiny: pl.shiny, ki: pl.kills,
@@ -977,7 +987,16 @@ G.Flow = {
       G.LobbyUI.open();
     } else this.goMenu();
   },
-  play() { G.Game.startRun(); },
+  /** Empieza una partida en solitario del modo elegido (si el modo lo deja). */
+  async play() {
+    const mode = G.Modes.current;
+    try { await mode.begin(); } catch (e) {
+      console.warn('[Modo] ' + mode.id + ':', e && (e.code || e.message));
+      G.UI.toast('No se ha podido empezar: revisa la conexión y vuelve a intentarlo.');
+      return;
+    }
+    G.Game.startRun();
+  },
   /** Empieza la partida en grupo (`started` del servidor: { seed, members }). */
   startCoop(cfg) {
     if (G.Game.state !== 'ui' || !G.Social.room) return;

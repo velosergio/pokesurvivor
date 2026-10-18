@@ -16,7 +16,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 /** Lo que no se carga: pantalla, sonido, entrada, red, interfaz y guardado. */
-const SKIP = /^js\/(ui|net)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|onetab|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
+const SKIP = /^js\/(ui|net|modes)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|onetab|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
 
 /** Scripts de dev.html que forman la simulación, en su orden (la misma lista que tools/build.js). */
 function scripts() {
@@ -59,7 +59,8 @@ const mute = (own = {}) => new Proxy(own, { get: (o, k) => (k in o ? o[k] : noop
 
 /**
  * Una simulación nueva, con su G.
- * @returns {{ G: object, clock: { t: number } }}  clock.t = segundos de simulación
+ * @returns {{ G: object, clock: { t: number }, ctx: object }}  clock.t = segundos de simulación;
+ *          ctx = el contexto del vm (para cargar más scripts en pruebas)
  *          (lo avanza quien la usa; es lo que devuelve performance.now()/1000)
  */
 function createSim({ seed = 1 } = {}) {
@@ -91,7 +92,7 @@ function createSim({ seed = 1 } = {}) {
   // Sin imágenes: las hojas de sprites no se descargan (los tamaños salen de G.SPRITE_META).
   G.Sprites.preload = () => Promise.resolve();
   G.Camera.resize(1280, 720, 1);
-  return { G, clock };
+  return { G, clock, ctx: sb };
 }
 
 module.exports = { createSim, scripts, rng, warm: compiledScripts };
