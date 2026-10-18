@@ -459,6 +459,9 @@ img.pix { image-rendering: pixelated; image-rendering: crisp-edges; vertical-ali
   padding: 5px 14px; font-size: 14px; display: flex; gap: 5px; align-items: center;
   text-shadow: 2px 2px 0 var(--shadow); }
 .seg button.on { background: rgba(154,230,255,.22); color: #c9f3ff; }
+.menu-mode { margin: 0 auto 8px; }
+.menu-mode button { padding: 7px 14px; font-size: 15px; }
+.menu-daily { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(8,12,28,.72); border: 1px solid rgba(255,210,63,.35); font-size: 14px; line-height: 1.35; text-align: center; }
 .pcard.shiny { animation: pop .3s ease-out both, legend 1.1s ease-in-out infinite alternate; }
 .caught > span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .caught-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }

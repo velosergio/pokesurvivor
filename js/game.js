@@ -24,7 +24,7 @@ G.Game = (() => {
   let mode = null;          // el modo de esta run (G.Modes); null en cooperativo
   let biome = -1;
 
-  const st = { get time() { return time; } };
+  const st = { get time() { return time; }, get mode() { return mode ? mode.id : null; } };
 
   // ---------------- arranque ----------------
 

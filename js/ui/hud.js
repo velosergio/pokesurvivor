@@ -80,6 +80,11 @@ G.HUD = (() => {
     ctx.font = F(800, 26);
     ctx.fillStyle = 'rgba(255,255,255,.95)';
     ctx.fillText(G.U.mmss(st.time), w / 2, 42);
+    if (st.mode === 'daily') {
+      ctx.font = F(800, 10);
+      ctx.fillStyle = '#ffd23f';
+      ctx.fillText('DESAFÍO DIARIO', w / 2, 14);
+    }
     ctx.font = F(600, 10);
     ctx.fillStyle = '#8fa3c4';
     ctx.fillText(G.World.biomeName().toUpperCase() + '  ·  ' + pl.kills + ' DERROTADOS  ·  ' + pl.coins + ' MONEDAS', w / 2, 58);

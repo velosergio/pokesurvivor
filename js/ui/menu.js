@@ -12,7 +12,7 @@ G.MenuUI = (() => {
       b.dataset.sfx = b.dataset.go === 'play' || b.dataset.go === 'rejoin' ? 'confirm' : 'click';
       b.onclick = () => {
         const go = b.dataset.go;
-        if (go === 'play') { if (G.Social.room) G.LobbyUI.open(); else G.Flow.play(); }
+        if (go === 'play') { if (G.Social.room) G.LobbyUI.open(); else playSolo(); }
         else if (go === 'rejoin') G.Social.rejoin();
         else if (go === 'dex') openDex();
         else if (go === 'upgrades') openUpgrades();
@@ -24,6 +24,9 @@ G.MenuUI = (() => {
         else if (go === 'debug') G.DebugUI.open();
       };
     });
+    document.querySelectorAll('#menu-mode button').forEach(b => {
+      b.onclick = () => { if (G.Modes.current.id === b.dataset.m) return; G.Modes.select(b.dataset.m); G.Audio.sfx('click'); open(); };
+    });
     document.querySelectorAll('[data-back]').forEach(b => { b.onclick = open; });
     G.Social.on(() => { if (G.UI.isOpen('scr-menu')) socialLine(); });
     $('btn-logout').onclick = () => {
@@ -33,12 +36,53 @@ G.MenuUI = (() => {
     };
   }
 
+  // ---------------- modo: Clásico / Desafío diario ----------------
+
+  const until = () => { const m = Math.max(1, Math.round(G.U.msUntilReset() / 60000)); return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
+  /** Por qué no se puede jugar el desafío ahora (availability() del modo). */
+  function dailyWhy(a) {
+    if (a.reason === 'guest') return 'Crea una cuenta para jugar el desafío.';
+    if (a.reason === 'offline') return 'Sin conexión: el desafío necesita internet.';
+    return 'Ya has jugado hoy (' + G.U.mmss(a.last ? a.last.t : 0) + '). Nuevo desafío en ' + until() + '.';
+  }
+
+  /** El selector de modo y, en el diario, la línea con lo de hoy. */
+  let modeTok = 0;
+  function modeLine(daily, mon) {
+    const box = $('menu-mode'), line = $('menu-daily');
+    box.classList.toggle('hidden', !!G.Social.room);
+    box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === (daily ? 'daily' : 'classic')));
+    line.classList.toggle('hidden', !daily);
+    if (!daily) return;
+    const up = Object.values(G.DB.upgradesOf(mon.dex) || {}).some(v => v > 0);
+    line.innerHTML = `<b>Desafío diario</b> · ${up ? 'tienes mejoras para él' : 'sin mejoras para él'}<br><small class="sub">Mismo Pokémon y misma partida para todos. Nuevo en ${until()}.</small>`;
+    const my = ++modeTok;
+    G.Modes.current.availability().then(a => {
+      if (my !== modeTok || a.ok) return;
+      line.insertAdjacentHTML('beforeend', '<br><small class="gold"></small>');
+      line.lastChild.textContent = dailyWhy(a);
+    }).catch(() => {});
+  }
+
+  /** Jugar en solitario: en el diario, antes se mira si se puede y se confirma (un solo intento). */
+  async function playSolo() {
+    const m = G.Modes.current;
+    if (m.id === 'daily') {
+      const a = await m.availability();
+      if (!a.ok) { G.UI.toast(dailyWhy(a), 4000); return; }
+      if (!await G.UI.ask('Desafío diario', 'Sólo tienes un intento hoy. Si la partida se corta, se pierde. ¿Empezar?', 'Empezar')) return;
+    }
+    G.Flow.play();
+  }
+
   // ---------------- menú principal ----------------
 
   function open() {
     const s = G.DB.save;
-    const mon = G.DEX_BY[s.partner];
-    const shiny = !!s.partnerShiny && G.DB.ownsShiny(mon.dex);
+    // En el Desafío diario (no en una sala de grupo) se enseña el Pokémon del día.
+    const daily = G.Modes.current.id === 'daily' && !G.Social.room;
+    const mon = G.DEX_BY[daily ? G.Daily.today().dex : s.partner];
+    const shiny = !daily && !!s.partnerShiny && G.DB.ownsShiny(mon.dex);
     G.UI.chrome(true);
     G.UI.show('scr-menu');
     $('menu-debug').classList.toggle('hidden', !G.Ranking.isAdmin());
@@ -49,7 +93,7 @@ G.MenuUI = (() => {
     $('menu-partner-info').innerHTML = G.UI.typeChips(mon.types) + ' ' + G.UI.stars(mon.rarity);
     // Normal / shiny a mano, aquí mismo (en el móvil no se encontraba en la ficha).
     const seg = $('menu-shiny');
-    seg.classList.toggle('hidden', !G.DB.ownsShiny(mon.dex));
+    seg.classList.toggle('hidden', daily || !G.DB.ownsShiny(mon.dex));
     seg.lastChild.innerHTML = G.Icons.html('shiny', 12) + ' Shiny';
     seg.querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', (b.dataset.v === '1') === shiny);
@@ -61,6 +105,8 @@ G.MenuUI = (() => {
         open();
       };
     });
+
+    modeLine(daily, mon);
 
     const owned = Object.keys(s.owned).filter(d => G.DEX_BY[d]).length;
     const shinies = Object.keys(s.shiny || {}).length;
@@ -93,7 +139,8 @@ G.MenuUI = (() => {
   function socialLine() {
     const room = G.Social.room;
     const play = document.querySelector('#scr-menu [data-go=play] small');
-    if (play) play.textContent = room ? 'Volver a tu sala (' + room.members.length + '/' + G.Social.MAX_PLAYERS + ')' : 'Entra en la mazmorra';
+    if (play) play.textContent = room ? 'Volver a tu sala (' + room.members.length + '/' + G.Social.MAX_PLAYERS + ')'
+      : G.Modes.current.id === 'daily' ? 'Pokémon del día · un intento' : 'Entra en la mazmorra';
     // Tu última partida en grupo sigue sin ti: «Reconectar».
     const away = !room && G.Social.away;
     $('menu-rejoin').classList.toggle('hidden', !away);

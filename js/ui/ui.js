@@ -146,6 +146,31 @@ G.UI = (() => {
     });
   }
 
+  /** Pregunta Sí / No en una ventana del juego (no la del navegador). → Promise<boolean> */
+  function ask(title, text, yes = 'Aceptar', no = 'Cancelar') {
+    return new Promise(done => {
+      const el = document.createElement('section');
+      el.className = 'scr dim';
+      el.style.zIndex = 70;
+      el.innerHTML = `<div class="box center" style="max-width:380px">
+        <h3></h3><p class="sub"></p>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;flex-wrap:wrap">
+          <button class="btn ghost" data-a="no"></button><button class="btn gold" data-a="yes"></button>
+        </div></div>`;
+      el.querySelector('h3').textContent = title;
+      el.querySelector('p').textContent = text;
+      el.querySelector('[data-a=no]').textContent = no;
+      el.querySelector('[data-a=yes]').textContent = yes;
+      document.body.appendChild(el);
+      const end = v => { removeEventListener('keydown', key, true); el.remove(); done(v); };
+      const key = e => { if (e.key === 'Escape') { e.stopPropagation(); end(false); } };
+      addEventListener('keydown', key, true);
+      el.querySelector('[data-a=no]').onclick = () => end(false);
+      el.querySelector('[data-a=yes]').onclick = () => end(true);
+      setTimeout(() => el.querySelector('[data-a=yes]').focus(), 50);
+    });
+  }
+
   function closeLegal() { $('scr-legal').classList.add('hidden'); }
 
   function wireLegal() {
@@ -324,6 +349,6 @@ G.UI = (() => {
     }
   }
 
-  return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete,
+  return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete, ask,
            sprite, spriteCanvas, tick, initChrome, soundControls, statText, byStat, toggleSort, sortBar };
 })();

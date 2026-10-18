@@ -6,7 +6,13 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
-  { d: '2026-10-18', title: ['Barra de vida', 'Health bar'], new: [
+  { d: '2026-10-18', title: ['Desafío diario', 'Daily challenge'], new: [
+    ['Nuevo Desafío diario: en el menú elige «Clásico» o «Desafío diario». Cada día hay un Pokémon y una partida iguales para todo el mundo (mismo mapa y misma suerte; tus mejoras de ese Pokémon cuentan). Sólo hay un intento al día: empieza al pulsar Jugar y, si la partida se corta, se pierde. Necesita cuenta y conexión.',
+     'New Daily challenge: in the menu pick “Classic” or “Daily challenge”. Every day there’s one Pokémon and one run that are the same for everyone (same map and same luck; your upgrades for that Pokémon count). You get one try per day: it starts when you press Play and, if the run gets cut off, it’s lost. Needs an account and a connection.'],
+    ['El desafío tiene su propia tabla en el Ranking (pestaña «Diario», hoy y ayer) y no cuenta para el ranking normal. Da tickets por aguantar (1 a los 5 min, 2 a los 10, 3 a los 20 y 5 si llegas a Arceus) y, al día siguiente, premio por puesto: el 1.º 2 tickets ×10, 2.º y 3.º 1 ticket ×10, del 4.º al 10.º 5 tickets.',
+     'The challenge has its own board in the Leaderboard (“Daily” tab, today and yesterday) and doesn’t count for the normal leaderboard. It gives tickets for surviving (1 at 5 min, 2 at 10, 3 at 20 and 5 if you reach Arceus) and, the next day, a prize by rank: 1st 2 ×10 tickets, 2nd and 3rd 1 ×10 ticket, 4th to 10th 5 tickets.'],
+    ['7 logros nuevos del Desafío diario: jugar 1, 7 y 30 desafíos, rachas de 7 y 30 días, entrar en el top 10 y ganar un día. Con títulos nuevos: «Retador diario», «Constancia de hierro» y «Campeón del día».',
+     '7 new Daily challenge achievements: play 1, 7 and 30 challenges, 7- and 30-day streaks, reach the top 10 and win a day. With new titles: “Daily challenger”, “Iron will” and “Champion of the day”.'],
     ['Barra de vida bajo tu Pokémon: verde, amarilla por debajo de la mitad y roja cuando queda poca. Se puede quitar en Ajustes > Gráficos > «Vida del personaje».',
      'Health bar under your Pokémon: green, yellow below half and red when it’s low. You can turn it off in Settings > Graphics > “Character health”.'],
     ['Amigos: si un amigo está en una sala, sale «En una sala» y un botón «Unirse» para entrar directamente, sin pedirle el código.',

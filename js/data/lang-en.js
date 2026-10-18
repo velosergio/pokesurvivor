@@ -605,5 +605,29 @@ G.I18n.add({
   // ---------------- reportar marcas del ranking ----------------
   'Reportar marca sospechosa': 'Report suspicious record', 'Ya la has reportado': 'You already reported it',
   'Ya has reportado esta marca': 'You already reported this record',
-  '¿Reportar la marca de {x} como trampa?': "Report {x}'s record as cheating?", 'Gracias: la revisaremos': 'Thanks: we will review it'
+  '¿Reportar la marca de {x} como trampa?': "Report {x}'s record as cheating?", 'Gracias: la revisaremos': 'Thanks: we will review it',
+
+  // ---------------- Desafío diario ----------------
+  'Clásico': 'Classic', 'Desafío diario': 'Daily challenge', 'DESAFÍO DIARIO': 'DAILY CHALLENGE', 'Hoy': 'Today', 'Ayer': 'Yesterday',
+  'Desafío de hoy': "Today's challenge", 'Desafío de ayer': "Yesterday's challenge", 'Empezar': 'Start',
+  'Pokémon del día · un intento': 'Pokémon of the day · one try', 'tienes mejoras para él': 'you have upgrades for it', 'sin mejoras para él': 'no upgrades for it',
+  'Mismo Pokémon y misma partida para todos. Nuevo en {x}.': 'Same Pokémon and same run for everyone. New one in {x}.',
+  'Crea una cuenta para jugar el desafío.': 'Create an account to play the challenge.',
+  'Sin conexión: el desafío necesita internet.': 'Offline: the challenge needs internet.',
+  'Ya has jugado hoy ({x}). Nuevo desafío en {x}.': 'You already played today ({x}). New challenge in {x}.',
+  'Sólo tienes un intento hoy. Si la partida se corta, se pierde. ¿Empezar?': 'You only get one try today. If the run gets cut off, it’s lost. Start?',
+  'No se ha podido empezar: revisa la conexión y vuelve a intentarlo.': "Couldn't start: check your connection and try again.",
+  '¡Entras en la tabla del Desafío diario!': "You're on the Daily challenge board!",
+  'Desafío de ayer: puesto #{x}. Premio: {x}': "Yesterday's challenge: rank #{x}. Prize: {x}",
+  'tickets ×10': '×10 tickets', 'ticket ×10': '×10 ticket',
+  'Por aguantar. El premio por puesto llega mañana.': 'For surviving. The rank prize arrives tomorrow.',
+  'Ver la tabla del desafío': 'See the challenge board',
+  'Primer desafío': 'First challenge', 'Juega un Desafío diario.': 'Play a Daily challenge.',
+  'Una semana de retos': 'A week of challenges', 'Juega 7 Desafíos diarios.': 'Play 7 Daily challenges.',
+  'Retador diario': 'Daily challenger', 'Juega 30 Desafíos diarios.': 'Play 30 Daily challenges.',
+  'Racha de 7': '7-day streak', 'Juega el Desafío diario 7 días seguidos.': 'Play the Daily challenge 7 days in a row.',
+  'Racha de 30': '30-day streak', 'Juega el Desafío diario 30 días seguidos.': 'Play the Daily challenge 30 days in a row.',
+  'Constancia de hierro': 'Iron will',
+  'Entre los mejores': 'Among the best', 'Termina un día en el top 10 del Desafío diario.': 'Finish a day in the Daily challenge top 10.',
+  'Campeón del día': 'Champion of the day', 'Gana un Desafío diario (top 1 del día).': 'Win a Daily challenge (top 1 of the day).'
 });

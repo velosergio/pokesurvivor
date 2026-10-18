@@ -209,6 +209,8 @@ G.RunUI = (() => {
       <div style="grid-column:1/-1"><span>Pokémonedas ganadas</span>
         <b class="gold"><span class="coin"></span> +${r.coins}</b>
         <div style="font-size:12px;color:var(--muted)">${r.breakdown}</div></div>
+      ${r.bonus && r.bonus.t1 ? `<div style="grid-column:1/-1"><span>Desafío diario</span><b class="gold">
+        ${G.Icons.html('ticket', 22)} +${r.bonus.t1}</b><div style="font-size:12px;color:var(--muted)">Por aguantar. El premio por puesto llega mañana.</div></div>` : ''}
       ${r.t1 || r.t10 ? `<div style="grid-column:1/-1"><span>Tickets del gacha</span><b>
         ${r.t1 ? G.Icons.html('ticket', 22) + ' +' + r.t1 + ' ' : ''}${r.t10 ? G.Icons.html('ticket10', 22) + ' +' + r.t10 + ' ×10' : ''}</b></div>` : ''}
       <div style="grid-column:1/-1"><span>Movimientos</span><b style="font-size:15px">
@@ -225,6 +227,10 @@ G.RunUI = (() => {
     const ask = $('over-ask');
     if (ask) ask.querySelector('.x').onclick = () => ask.remove();
     $('btn-again').onclick = onBack;
+    // En el Desafío diario: a la tabla de hoy.
+    const board = $('btn-board');
+    board.classList.toggle('hidden', r.mode !== 'daily');
+    board.onclick = () => { onBack(); G.RankingUI.open({ mode: 'x' }); };
     const mvpBox = $('over-mvp');
     if (mvpBox) {
       const mvp = mvpOf(r.crew);

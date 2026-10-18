@@ -177,13 +177,15 @@
       <div class="nm" id="menu-partner-name"></div>
       <div class="lv" id="menu-partner-info"></div>
       <div class="seg hidden" id="menu-shiny"><button data-v="0">Normal</button><button data-v="1"></button></div>
+      <div class="menu-daily hidden" id="menu-daily"></div>
     </div>
   </div>
   <div class="menu-right">
     <div class="box">
       <div class="menu-list">
         <button class="menu-item rejoin hidden" data-go="rejoin" id="menu-rejoin">Reconectar<small id="menu-rejoin-sub">Tu partida en grupo sigue en marcha</small></button>
-        <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
+        <div class="seg menu-mode" id="menu-mode"><button data-m="classic">Clásico</button><button data-m="daily">Desafío diario</button></div>
+        <button class="menu-item play" data-go="play">Jugar<small id="menu-play-sub">Entra en la mazmorra</small></button>
         <button class="menu-item" data-go="dex">Pokémon<small id="menu-dex-count">Tu colección</small></button>
         <button class="menu-item" data-go="upgrades">Mejoras<small>Haz más fuerte cada run</small></button>
         <button class="menu-item" data-go="gacha">Gacha<small>9 regiones · Pokémon y shinies</small></button>
@@ -604,6 +606,7 @@
     <h2 id="over-title">Has caído…</h2>
     <div id="over-stats" class="stats"></div>
     <button id="btn-again" class="btn gold">Volver al menú</button>
+    <button id="btn-board" class="btn ghost hidden">Ver la tabla del desafío</button>
   </div>
 </section>
 
