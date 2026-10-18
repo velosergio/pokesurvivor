@@ -977,6 +977,18 @@ G.Flow = {
     G.Audio.music('village');
     G.MenuUI.open();
     G.LoginUI.offerRecovery();
+    this.claimDaily();
+  },
+  /** El premio del Desafío de ayer (una vez por sesión y cuenta, con conexión). */
+  claimDaily() {
+    const uid = G.DB.online && G.DB.fb && G.DB.fb.uid;
+    if (!uid || this.dailyAsked === uid) return;
+    this.dailyAsked = uid;
+    G.Modes.get('daily').claimYesterday().then(r => {
+      if (!r) return;
+      const p = r.prize, what = p.t10 ? p.t10 + (p.t10 > 1 ? ' tickets ×10' : ' ticket ×10') : p.t1 + ' tickets';
+      G.UI.toast('Desafío de ayer: puesto #' + r.rank + '. Premio: ' + what, 5000);
+    }).catch(e => { this.dailyAsked = null; console.warn('[Diario] premio:', e && (e.code || e.message)); });
   },
   /** Al cerrar el resumen: a la sala si sigues en una, si no al menú. */
   afterRun() {
