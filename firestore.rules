@@ -121,6 +121,41 @@ service cloud.firestore {
         && request.resource.data.startedAt == request.time;
     }
 
+    // ---------- Desafío diario (js/net/daily-net.js) ----------
+    // daily/{uid} = { d, at, claimed }: d = el último día jugado ('AAAAMMDD',
+    // hora de Colombia), claimed = el último día cuyo premio por puesto se cobró.
+    // El intento se gasta al EMPEZAR: d sólo avanza (un intento al día) y tiene
+    // que ser hoy (con 12 h de margen por el reloj del aparato). El premio se
+    // cobra una vez por día, de un día jugado y ya cerrado (01:30 del siguiente).
+    function colDay(t) {
+      let c = t - duration.value(5, 'h');
+      return string(c.year()) + (c.month() < 10 ? '0' : '') + string(c.month()) + (c.day() < 10 ? '0' : '') + string(c.day());
+    }
+    function dailyStart() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['d', 'at', 'claimed'])
+        && d.d is string && d.d.matches('[0-9]{8}') && d.at == request.time
+        && d.d in [colDay(request.time - duration.value(12, 'h')), colDay(request.time), colDay(request.time + duration.value(12, 'h'))]
+        && (resource == null ? d.claimed == '' : (d.d > resource.data.d && d.claimed == resource.data.claimed));
+    }
+    function dailyClaim() {
+      let c = request.resource.data.claimed;
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed'])
+        && c is string && c.matches('[0-9]{8}') && c > resource.data.claimed && c <= resource.data.d
+        && request.time >= timestamp.date(int(c[0:4]), int(c[4:6]), int(c[6:8])) + duration.value(1830, 'm');
+    }
+    match /daily/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow create: if signedIn() && me() == uid && dailyStart();
+      allow update: if signedIn() && me() == uid && (dailyStart() || dailyClaim());
+    }
+    // Tablas que escribe un navegador: las de solitario (s_...) y la del
+    // Desafío del día que empezaste (x_d<día>, con su intento en daily/).
+    function ownBoard(board) {
+      return board.matches('s_.*')
+        || (board.matches('x_d[0-9]{8}') && get(/databases/$(database)/documents/daily/$(me())).data.d == board[3:11]);
+    }
+
     // Sólo las tablas de solitario (s_...): las de grupo las escribe el
     // servidor del cooperativo con la cuenta de servicio (server/rank.js),
     // que no pasa por estas reglas. Un navegador no puede escribir en ellas.
@@ -147,7 +182,7 @@ service cloud.firestore {
         && d.shiny is list && d.shiny.size() == d.uids.size()
         && (!('b' in d) || (d.b is list && d.b.size() == 1 && d.b[0] is string && d.b[0].size() <= 400))
         && d.at == request.time
-        && board.matches('s_.*') && d.uids.size() == 1 && id == me()
+        && ownBoard(board) && d.uids.size() == 1 && id == me()
         && (resource == null || d.t > resource.data.t);
     }
 
@@ -177,11 +212,11 @@ service cloud.firestore {
       return admin() && old.keys().hasAll(d.top.keys()) && d.top.diff(old).changedKeys().size() == 0;
     }
     // Tu fila del top es tu marca validada, campo a campo (sin "shiny" si no
-    // hay ninguno). Sólo en las tablas de solitario, como validEntry.
+    // hay ninguno). Sólo en las tablas de solitario y del Desafío, como validEntry.
     function addMine(board, d, old, changed) {
       let e = getAfter(/databases/$(database)/documents/lb/$(board)/e/$(d.me)).data;
       let row = d.top[d.me];
-      return board.matches('s_.*') && me() in e.uids
+      return ownBoard(board) && me() in e.uids
         && changed.hasOnly([d.me, d.ev])
         && row.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'b'])
         && row.t == e.t && row.uids == e.uids && row.names == e.names && row.dex == e.dex

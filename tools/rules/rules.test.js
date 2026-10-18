@@ -134,3 +134,60 @@ test('libreta: un jugador no se regala Pokémon', async () => {
   const db = env.authenticatedContext('ana').firestore();
   await assertFails(db.doc('grants/ana').set(gift({ mons: { 25: true } })));
 });
+
+// ---------- Desafío diario (js/net/daily-net.js) ----------
+/** 'AAAAMMDD' de una fecha en hora de Colombia (UTC-5, sin cambio de hora). */
+const colDay = (ms = Date.now()) => new Date(ms - 5 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+const TODAY = colDay(), YDAY = colDay(Date.now() - 86400000);
+const start = (d, claimed = '') => ({ d, at: ts(), claimed });
+
+test('diario: el intento se crea y no se repite el mismo día', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertSucceeds(db.doc('daily/ana').set(start(TODAY)));
+  await assertFails(db.doc('daily/ana').set(start(TODAY)));
+});
+
+test('diario: no se vuelve a un día anterior ni se inventa uno lejano', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertFails(db.doc('daily/ana').set(start('20200101')));
+  await assertFails(db.doc('daily/ana').set(start(colDay(Date.now() + 3 * 86400000))));
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/ana').set({ d: TODAY, at: ts(), claimed: '' }));
+  await assertFails(db.doc('daily/ana').set(start(YDAY)));
+});
+
+test('diario: al empezar no se toca lo cobrado ni otros campos', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/ana').set({ d: YDAY, at: ts(), claimed: '' }));
+  await assertFails(db.doc('daily/ana').set(start(TODAY, YDAY)));
+  await assertFails(db.doc('daily/ana').set(Object.assign(start(TODAY), { extra: 1 })));
+  await assertSucceeds(db.doc('daily/ana').set(start(TODAY)));
+});
+
+test('diario: nadie escribe ni lee el intento de otro', async () => {
+  const db = env.authenticatedContext('bea').firestore();
+  await assertFails(db.doc('daily/ana').set(start(TODAY)));
+  await assertFails(db.doc('daily/ana').get());
+});
+
+test('diario: la marca x_ sólo con el intento de ese día', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  await assertFails(submit(db, 'x_d' + TODAY, 'ana', entry(), row()));
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/ana').set({ d: TODAY, at: ts(), claimed: '' }));
+  await assertSucceeds(submit(db, 'x_d' + TODAY, 'ana', entry(), row()));
+  await assertFails(submit(db, 'x_d' + YDAY, 'ana', entry(), row()));
+  await assertFails(submit(db, 'x_dhola', 'ana', entry(), row()));
+});
+
+test('diario: el premio se cobra una vez, de un día jugado y ya cerrado', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  const old = '20260101';
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/ana').set({ d: old, at: ts(), claimed: '' }));
+  await assertFails(db.doc('daily/ana').update({ claimed: '20260102' }), 'un día que no jugó');
+  await assertSucceeds(db.doc('daily/ana').update({ claimed: old }));
+  await assertFails(db.doc('daily/ana').update({ claimed: old }), 'dos veces');
+  await assertFails(db.doc('daily/ana').update({ claimed: '20251231' }), 'hacia atrás');
+  // Hoy aún no ha cerrado (hasta mañana a la 01:30).
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('daily/bea').set({ d: TODAY, at: ts(), claimed: '' }));
+  const dbB = env.authenticatedContext('bea').firestore();
+  await assertFails(dbB.doc('daily/bea').update({ claimed: TODAY }));
+});

@@ -17,7 +17,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 const load = f => vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
 const EN = {};
-for (const f of ['js/core/util.js', 'js/core/i18n.js']) load(f);
+for (const f of ['js/core/rng.js', 'js/core/util.js', 'js/core/i18n.js']) load(f);
 // Captura el diccionario inglés (clave en español).
 const add = G.I18n.add;
 G.I18n.add = d => { Object.assign(EN, d); add(d); };
