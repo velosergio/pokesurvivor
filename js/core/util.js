@@ -7,17 +7,9 @@ G.LIFT = 18;
 G.U = {
   clamp(v, a, b) { return v < a ? a : v > b ? b : v; },
   lerp(a, b, t) { return a + (b - a) * t; },
-  rand(a, b) { return a + Math.random() * (b - a); },
-  randInt(a, b) { return Math.floor(a + Math.random() * (b - a + 1)); },
-  pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
-
-  /** Elige n elementos distintos al azar. */
-  pickN(arr, n) {
-    const c = arr.slice();
-    const out = [];
-    while (out.length < n && c.length) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]);
-    return out;
-  },
+  // rand, randInt, pick y pickN: los de G.RNG.wrap sobre Math.random (sin
+  // semilla; para lo visual. La partida usa los flujos de G.RNG).
+  ...(({ rand, randInt, pick, pickN }) => ({ rand, randInt, pick, pickN }))(G.RNG.wrap(() => Math.random())),
 
   dist(ax, ay, bx, by) { return Math.hypot(bx - ax, by - ay); },
   dist2(ax, ay, bx, by) { const dx = bx - ax, dy = by - ay; return dx * dx + dy * dy; },
