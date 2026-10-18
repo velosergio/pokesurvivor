@@ -7,6 +7,8 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-17', title: ['Actualizaciones obligatorias', 'Required updates'], new: [
+    ['Cooperativo: en la sala, el líder puede cambiar las «Condiciones de partida»: cuántos enemigos aparecen (25 %–300 %), cada cuánto se abren las grietas (ninguna–300 %) y cuántas monedas y tickets sueltan (0 %–500 %). Para probar, para partidas tranquilas o para farmear en grupo. Si alguna no está al 100 %, esa partida no sube al ranking.',
+     'Co-op: in the room, the leader can change the “Game settings”: how many enemies spawn (25%–300%), how often rifts open (none–300%) and how many coins and tickets drop (0%–500%). For testing, relaxed games or farming as a group. If any isn’t at 100%, that game doesn’t go on the leaderboard.'],
     ['Gacha: nueva tirada ×20 por 20 tickets o 2 tickets ×10 (trae al menos dos Épicas, una por cada 10) y botón «Saltar» (o Espacio / Enter) para ver los resultados sin esperar a la animación.',
      'Gacha: new ×20 pull for 20 tickets or 2 ×10 tickets (gives at least two Epics, one per 10) and a “Skip” button (or Space / Enter) to see the results without waiting for the animation.'],
     ['Cooperativo: al elegir carta de nivel o fusión, una barra verde abajo te enseña cuánto tiempo te queda (se pone amarilla los últimos 5 s). Si se acaba, se elige por ti.',

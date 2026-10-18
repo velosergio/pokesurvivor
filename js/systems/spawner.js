@@ -9,6 +9,9 @@
  * Cooperativo (sólo en el anfitrión): aparecen alrededor de un jugador vivo
  * al azar, fuera de la vista de TODOS, y hay más y más fuertes según cuántos
  * jugáis (ver G.Coop.scaleRate / scaleHp).
+ *
+ * Partida a medida (sala del cooperativo, setPace): el goteo y las mareas se
+ * multiplican por `pace` y, si es más de 1, el tope también (hasta ×2).
  */
 G.Spawner = (() => {
   // Tope de enemigos a la vez (antes 420: con tantos se ralentizaba). Cuando
@@ -25,8 +28,10 @@ G.Spawner = (() => {
   const SHINY_RATE = 1 / 4096;
   let acc = 0, bossIdx = 0, surgeT = 32, announce = null, announceT = 0, preloadT = 0;
   let forceShiny = 0;           // para pruebas: los N próximos salen shiny
+  let pace = 1;                 // partida a medida: ×enemigos (reset() lo deja en 1)
 
   function reset() {
+    pace = 1;
     acc = 0; bossIdx = 0; surgeT = 32; announce = null; announceT = 0; preloadT = 0;
     G.Enemies.rollRun();
     G.Sprites.preload(G.Enemies.upcomingDex(0, 80));
@@ -45,7 +50,7 @@ G.Spawner = (() => {
   let players = [];
 
   /** Tope de enemigos para el grupo actual. */
-  function cap() { return CAP + CAP_PER * Math.max(0, players.length - 4); }
+  function cap() { return Math.round((CAP + CAP_PER * Math.max(0, players.length - 4)) * Math.min(2, Math.max(1, pace))); }
 
   /** ¿Lo vería algún jugador? (para no aparecer delante de nadie) */
   function seenByAnyone(x, y) {
@@ -131,7 +136,7 @@ G.Spawner = (() => {
 
     // --- goteo normal ---
     if (G.EnemyMgr.count < cap()) {
-      acc += rate(t) * G.Coop.scaleRate(players.length) * (bossFight ? 0.25 : 1) * dt;
+      acc += rate(t) * pace * G.Coop.scaleRate(players.length) * (bossFight ? 0.25 : 1) * dt;
       let n = Math.floor(acc);
       acc -= n;
       while (n-- > 0 && G.EnemyMgr.count < cap()) spawnOne(anchor(), t);
@@ -143,7 +148,7 @@ G.Spawner = (() => {
       surgeT = G.U.rand(38, 56);
       const base = Math.random() * 6.2832;
       const target = anchor();
-      const n = Math.min(cap() - G.EnemyMgr.count, Math.round((14 + Math.floor(t / 22)) * G.Coop.scaleRate(players.length) * 0.4));
+      const n = Math.min(cap() - G.EnemyMgr.count, Math.round((14 + Math.floor(t / 22)) * G.Coop.scaleRate(players.length) * 0.4 * pace));
       for (let i = 0; i < n; i++) spawnOne(target, t, base + G.U.rand(-0.55, 0.55));
       say('¡Marea de Pokémon!', 2.2);
       G.Audio.sfx('surge');
@@ -183,6 +188,9 @@ G.Spawner = (() => {
   /** Invitado en cooperativo: sólo corre el reloj del aviso. */
   function tickBanner(dt) { if (announceT > 0) announceT -= dt; }
 
-  return { reset, update, ahead, burst, tickBanner, banner, say, rate, SHINY_RATE, CAP, cap,
+  /** Partida a medida: multiplica los enemigos que aparecen (después de reset()). */
+  function setPace(k) { pace = k > 0 ? k : 1; }
+
+  return { reset, update, ahead, burst, tickBanner, banner, say, rate, setPace, SHINY_RATE, CAP, cap,
            debugForceShiny(n = 1) { forceShiny = n; } };
 })();

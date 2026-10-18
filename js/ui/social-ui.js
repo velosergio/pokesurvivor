@@ -161,6 +161,15 @@
 
   G.LobbyUI = (() => {
     let membersKey = '';
+    let rulesOpen = false;
+    /** Condiciones a medida (proto.RULES): nombre y para qué sirve. */
+    const RULE_TEXT = {
+      spawn: ['Enemigos', 'cuántos aparecen'],
+      rift: ['Grietas', 'cada cuánto se abren'],
+      coin: ['Monedas', 'cuántas sueltan'],
+      ticket: ['Tickets', 'cuántos sueltan']
+    };
+    const pct = k => Math.round(k * 100) + '%';
 
     function init() {
       $('lobby-leave').onclick = async () => {
@@ -169,6 +178,7 @@
       };
       $('lobby-menu').onclick = () => G.MenuUI.open();
       $('lobby-start').onclick = start;
+      $('lobby-rules-btn').onclick = () => { rulesOpen = !rulesOpen; render(); };
       $('lobby-start').dataset.sfx = 'confirm';
       $('lobby-copy').onclick = () => {
         const room = G.Social.room;
@@ -193,6 +203,7 @@
       G.Social.refreshPresence();
       G.UI.show('scr-lobby', true);
       membersKey = '';
+      rulesOpen = false;
       render();
     }
 
@@ -260,6 +271,8 @@
         }
       }
 
+      renderRules(room);
+
       const btn = $('lobby-start');
       btn.classList.toggle('hidden', !room.isHost);
       const away = ms.some(m => !m.on);
@@ -271,6 +284,57 @@
         : ms.length < 2 ? 'Necesitas al menos un amigo en la sala: pásale el código.'
         : away ? 'Esperando a que vuelva a conectarse alguien…'
         : 'La partida empieza para todos a la vez.';
+    }
+
+    /** Botón «Condiciones de partida»: el líder las cambia; los demás las ven. */
+    function renderRules(room) {
+      const rules = room.rules || G.Proto.cleanRules(null);
+      const custom = G.Proto.customRules(rules);
+      const sum = $('lobby-rules-sum');
+      sum.textContent = custom ? 'A medida: esta partida no cuenta para el ranking.' : 'Normales.';
+      sum.classList.toggle('custom', custom);
+      $('lobby-rules-btn').textContent = rulesOpen ? 'Ocultar condiciones' : 'Condiciones de partida';
+      const box = $('lobby-rules');
+      box.classList.toggle('hidden', !rulesOpen);
+      if (!rulesOpen) return;
+      box.innerHTML = '';
+      for (const k of Object.keys(G.Proto.RULES)) {
+        const steps = G.Proto.RULES[k], i = steps.indexOf(rules[k]);
+        const row = document.createElement('div');
+        row.className = 'lob-rule';
+        row.innerHTML = `<span><b>${RULE_TEXT[k][0]}</b> <small class="sub">${RULE_TEXT[k][1]}</small></span>`;
+        const val = document.createElement('b');
+        val.textContent = pct(rules[k]);
+        val.classList.toggle('custom', rules[k] !== 1);
+        if (room.isHost) {
+          const step = d => {
+            const v = steps[i + d];
+            if (v === undefined) return;
+            G.Social.setRules(Object.assign({}, rules, { [k]: v }));
+          };
+          const minus = document.createElement('button');
+          minus.className = 'btn small ghost'; minus.type = 'button'; minus.textContent = '−';
+          minus.disabled = i <= 0; minus.onclick = () => step(-1);
+          const plus = document.createElement('button');
+          plus.className = 'btn small ghost'; plus.type = 'button'; plus.textContent = '+';
+          plus.disabled = i >= steps.length - 1; plus.onclick = () => step(1);
+          row.append(minus, val, plus);
+        } else row.appendChild(val);
+        box.appendChild(row);
+      }
+      if (room.isHost && custom) {
+        const b = document.createElement('button');
+        b.className = 'btn small ghost'; b.type = 'button'; b.textContent = 'Volver a las normales';
+        b.onclick = () => G.Social.setRules(null);
+        box.appendChild(b);
+      }
+      const note = document.createElement('p');
+      note.className = 'note';
+      note.style.margin = '2px 0 0';
+      note.textContent = room.isHost
+        ? 'Sólo el líder las cambia. Si alguna no está al 100%, la partida no sube al ranking.'
+        : 'Las elige el líder. Si alguna no está al 100%, la partida no sube al ranking.';
+      box.appendChild(note);
     }
 
     function start() {

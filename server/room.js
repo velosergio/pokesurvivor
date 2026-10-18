@@ -108,11 +108,12 @@ const str = v => (v == null ? '' : String(v));
  * @param {(uid:string, msg:object) => (boolean|void)} o.send  false = no ha salido (se le reenvía todo)
  * @param {(results:object[]) => void} [o.onOver]
  * @param {{submitGroup: Function}} [o.rank]
- * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada)
+ * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada, o condiciones a medida)
+ * @param {object} [o.rules]  condiciones a medida de la sala (proto.RULES): ×enemigos, ×grietas, ×monedas, ×tickets
  * @param {{error: Function, warn: Function}} [o.logger=console]
  * @returns {{ input, pick, hold, drop, back, start, stop, tick, debug }}
  */
-function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logger = console } = {}) {
+function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rules = null, logger = console } = {}) {
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
   const sim = createSim({ seed: seed >>> 0 });
   const { G, clock } = sim;
@@ -247,6 +248,12 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, logg
   for (const m of [G.Projectiles, G.EnemyMgr, G.Pickups, G.Path, G.Hazards]) m.clear();
   for (const m of [G.Spawner, G.Rift, G.Judgment, G.Events, G.Weather]) m.reset();
   G.Combat.clearFields();
+  // Condiciones a medida (después de los reset, que las dejan en lo normal).
+  const pace = proto.cleanRules(rules);
+  if (proto.customRules(pace)) ranked = false;
+  G.Spawner.setPace(pace.spawn);
+  G.Rift.setPace(pace.rift);
+  G.Pickups.setRates(pace);
   G.World.reset(seed | 0 || 1);
   G.World.setBiome(0, true);
   seats.forEach((s, i) => {

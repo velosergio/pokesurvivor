@@ -9,11 +9,11 @@ const DEX = [4, 7, 1, 25, 133, 39, 52, 54, 60, 63];
 const quiet = { error() {}, warn() {}, log() {} };
 
 /** Sala de n jugadores con un `send` falso que guarda todo. */
-function makeRoom({ n = 4, seed = 7, rank, ranked, logger = quiet } = {}) {
+function makeRoom({ n = 4, seed = 7, rank, ranked, rules, logger = quiet } = {}) {
   const members = DEX.slice(0, n).map((dex, i) => ({ uid: 'u' + i, name: 'P' + i, dex, shiny: false }));
   const sent = [];
   const overs = [];
-  const room = createRoom({ members, seed, rank, ranked, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
+  const room = createRoom({ members, seed, rank, ranked, rules, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
   return { room, members, sent, overs, G: room.debug.G, pl: uid => room.debug.player(uid) };
 }
 
@@ -575,4 +575,32 @@ test('cofre con candado: avance en décimas (chs) y, al abrirse, pb', () => {
   assert.ok(chs.length >= 5, 'pocos avances: ' + chs.length);
   assert.ok(chs.some(q => q >= 9));
   assert.ok(evs.some(ev => ev[0] === 'pb' && ev[1] === p.tx && ev[2] === p.ty), 'no se ha abierto');
+});
+
+test('condiciones a medida: monedas y tickets que se sueltan, y tope de enemigos', () => {
+  const r = makeRoom({ n: 2, rules: { coin: 0, ticket: 3, rift: 0, spawn: 2 } });
+  const { G } = r;
+  r.room.tick();
+  const n0 = G.Pickups.count;
+  G.Pickups.drop('coin', 0, 0, 5);
+  assert.strictEqual(G.Pickups.count, n0, 'con ×0 no salen monedas');
+  G.Pickups.drop('ticket', 0, 0, 1);
+  assert.strictEqual(G.Pickups.all().filter(p => p.kind === 'ticket').length, 3, 'con ×3 salen 3 tickets');
+  assert.strictEqual(G.Spawner.cap(), G.Spawner.CAP * 2, 'con ×2 enemigos el tope se dobla');
+
+  const n = makeRoom({ n: 2 });
+  n.room.tick();
+  n.G.Pickups.drop('coin', 0, 0, 5);
+  assert.strictEqual(n.G.Pickups.all().filter(p => p.kind === 'coin')[0].value, 5, 'normales: igual que siempre');
+});
+
+test('condiciones a medida: la marca no sube al ranking de grupo', () => {
+  let ranked = 0;
+  const r = makeRoom({ n: 2, rules: { spawn: 0.5 }, rank: { submitGroup: async () => { ranked++; return []; } } });
+  const step = bots(r);
+  for (let i = 0; i < Math.round(125 / DT); i++) step();
+  for (const m of r.members) { const p = r.pl(m.uid); p.invuln = 0; p.hurt(1e9); }
+  for (let i = 0; i < Math.round(2 / DT); i++) r.room.tick();
+  assert.ok(r.room.debug.over, 'no ha terminado');
+  assert.strictEqual(ranked, 0);
 });

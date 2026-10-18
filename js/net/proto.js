@@ -5,15 +5,17 @@
  *
  * Mensajes de texto (JSON con el tipo en el campo `t`):
  *   navegador -> servidor: hello{token,proto,name,dex,shiny} create join{code} leave
- *                          open{v} start pick{choice} reroll hold{on}
+ *                          open{v} rules{v} start pick{choice} reroll hold{on}
  *                          back (volver a la partida de la que te fuiste: ver `away`)
- *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open}
+ *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open,rules}
  *                          started{seed,members} ev{list:[...]} level{kind,options,left}
  *                          over{results} bye{reason} err{reason}
  *                          (left: s que quedan para elegir; sin él, 20)
  *                          away{code,n} (tras el hello: tu partida en grupo sigue sin ti,
  *                          con n conectados; con `back` vuelves a ella)
  *   (encJson('ev', [...]) mete la lista en `list`.)
+ *   rules: condiciones de la partida que elige el líder en la sala (ver RULES);
+ *   si alguna no es la normal (1), la partida no sube al ranking de grupo.
  *
  * Mensajes binarios (primer byte = tipo; números en little endian):
  *   1 in   (16 B): seq u32 · x f32 · y f32 · dx i8 · dy i8 · move u8
@@ -34,13 +36,36 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 4;
+  const VERSION = 5;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
-  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'start', 'pick', 'reroll', 'hold', 'back',
+  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'rules', 'start', 'pick', 'reroll', 'hold', 'back',
     'hi', 'away', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
   const IN_LEN = 16;
+
+  /**
+   * Condiciones de la partida a medida: multiplicadores que se pueden elegir
+   * (1 = lo normal). spawn: enemigos que aparecen · rift: grietas que se abren
+   * (0 = ninguna) · coin: monedas que sueltan · ticket: tickets que sueltan.
+   */
+  const RULES = {
+    spawn: [0.25, 0.5, 0.75, 1, 1.5, 2, 3],
+    rift: [0, 0.5, 1, 2, 3],
+    coin: [0, 0.5, 1, 2, 3, 5],
+    ticket: [0, 0.5, 1, 2, 3, 5]
+  };
+  /** Deja sólo valores de RULES (lo que falte o no esté, 1). */
+  function cleanRules(v) {
+    const o = {};
+    for (const k of Object.keys(RULES)) {
+      const x = v && typeof v === 'object' ? Number(v[k]) : 1;
+      o[k] = RULES[k].includes(x) ? x : 1;
+    }
+    return o;
+  }
+  /** ¿Alguna condición no es la normal? (entonces no hay ranking) */
+  const customRules = v => { const c = cleanRules(v); return Object.keys(c).some(k => c[k] !== 1); };
   const LIMIT_U16 = 0xFFFF;
 
   /** Escritor sobre un búfer que crece solo. */
@@ -209,7 +234,7 @@
     throw new Error('proto: tipo binario desconocido: ' + b[0]);
   }
 
-  const Proto = { VERSION, BIN, JSON_TYPES, encIn, decIn, encSnap, decSnap, encJson, decode };
+  const Proto = { VERSION, BIN, JSON_TYPES, RULES, cleanRules, customRules, encIn, decIn, encSnap, decSnap, encJson, decode };
   if (typeof module === 'object' && module && module.exports) module.exports = Proto;
   else G.Proto = Proto;
 })();

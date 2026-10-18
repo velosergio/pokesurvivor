@@ -17,6 +17,11 @@
  *    Si crea otra sala o entra en otra, deja esa partida.
  * Si pasado ese tiempo no queda nadie, se para la partida y se borra.
  *
+ * Condiciones a medida (`rules {v}`, sólo el líder y en la espera): ritmo de
+ * enemigos y grietas y lo que sueltan de monedas y tickets (proto.RULES). Se
+ * cuentan en `room` y pasan a la partida; si alguna no es la normal, la partida
+ * no sube al ranking de grupo (ranked: false).
+ *
  * Al empezar, si hay checkKits (rank.js, con la cuenta de servicio), se leen
  * antes las partidas guardadas de los miembros (5 s como mucho): las mejoras de
  * cada uno son lo menos entre lo que dice su navegador y lo guardado, y si algo
@@ -32,6 +37,7 @@
  */
 'use strict';
 const crypto = require('crypto');
+const { cleanRules, customRules } = require('./proto');
 
 /** Letras del código: sin 0/O ni 1/I para que se lea y se dicte sin dudas. */
 const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -43,7 +49,7 @@ const BACK_MS = 60000;
 /**
  * Crea el lobby.
  * @param {object} o
- * @param {Function} o.createRoom  ({members, seed, send, onOver, ranked}) → partida
+ * @param {Function} o.createRoom  ({members, seed, send, onOver, ranked, rules}) → partida
  * @param {Function} [o.checkKits]  (jugadores) → Promise<Map uid → {up, ok}> (ver arriba)
  * @param {number} [o.maxRooms=30] salas a la vez como mucho
  * @param {Function} [o.setTimer]  (fn, ms) → id   (por defecto setTimeout)
@@ -56,7 +62,7 @@ const CHECK_MS = 5000;
 function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = setTimeout, clearTimer = clearTimeout, rand } = {}) {
   if (typeof createRoom !== 'function') throw new Error('createLobby necesita createRoom');
   const random = rand || (() => crypto.randomInt(0x100000000) / 0x100000000);
-  /** código → sala { code, leader, members:[{uid,name,dex,shiny,on}], open, game, seed, timers:Map } */
+  /** código → sala { code, leader, members:[{uid,name,dex,shiny,on}], open, rules, game, seed, timers:Map } */
   const rooms = new Map();
   /** uid → código de su sala (un uid sólo está en una). */
   const byUid = new Map();
@@ -76,7 +82,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
 
   /** Lo que se cuenta de la sala a sus miembros. */
   function info(r) {
-    return { t: 'room', code: r.code, leader: r.leader, open: r.open,
+    return { t: 'room', code: r.code, leader: r.leader, open: r.open, rules: r.rules,
       members: r.members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, on: m.on })) };
   }
 
@@ -184,10 +190,12 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       return { uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, kit };
     });
     // Sin comprobación configurada (local) sube como siempre; con ella, sólo si todo cuadra.
-    const ranked = !checkKits || (!!res && r.members.every(m => { const v = res.get(m.uid); return v && v.ok; }));
+    // Con condiciones a medida, nunca.
+    const ranked = !customRules(r.rules) &&
+      (!checkKits || (!!res && r.members.every(m => { const v = res.get(m.uid); return v && v.ok; })));
     let game = null;
     game = createRoom({
-      members, seed: r.seed, ranked,
+      members, seed: r.seed, ranked, rules: r.rules,
       send(uid, m) {
         if (rooms.get(r.code) !== r || r.game !== game) return;
         const mm = r.members.find(x => x.uid === uid);
@@ -211,7 +219,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       const freed = cur && cur.members.length === 1 ? 1 : 0;
       if (rooms.size - freed >= maxRooms) return kick(conn, 'full');
       free(conn);
-      const r = { code: newCode(), leader: conn.uid, members: [member(conn)], open: true, game: null, seed: 0, timers: new Map() };
+      const r = { code: newCode(), leader: conn.uid, members: [member(conn)], open: true, rules: cleanRules(null), game: null, seed: 0, timers: new Map() };
       rooms.set(r.code, r);
       byUid.set(conn.uid, r.code);
       each(r, info(r));
@@ -243,6 +251,14 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
       if (!r) return;
       if (r.leader !== conn.uid) return err(conn, 'leader');
       r.open = !!msg.v;
+      each(r, info(r));
+    },
+
+    rules(conn, msg, r) {
+      if (!r) return;
+      if (r.leader !== conn.uid) return err(conn, 'leader');
+      if (r.game || r.starting) return err(conn, 'started');
+      r.rules = cleanRules(msg.v);
       each(r, info(r));
     },
 

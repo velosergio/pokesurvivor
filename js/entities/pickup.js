@@ -6,11 +6,15 @@
  * Cooperativo: los objetos los crea el servidor (cada uno con su id) y cada
  * navegador recibe una copia. Todos vuelan hacia el jugador más cercano; quien
  * decide quién lo ha cogido es el servidor.
+ *
+ * Partida a medida (setRates): las monedas valen k veces más y de cada ticket
+ * salen k (con la parte decimal al azar: ×0,5 = la mitad de las veces).
  */
 G.Pickups = (() => {
   let list = [];
   const MAX = 420;
   let nextId = 1;
+  let rates = {};               // partida a medida: { coin, ticket } (clear() lo vacía)
 
   const KIND = {
     xp:    { color: '#7fe0ff', glow: '#2a8fd0', r: 4.5 },
@@ -28,12 +32,32 @@ G.Pickups = (() => {
   const LEGEND_T10 = 1 / 2;             // ticket ×10 del legendario de la grieta
   const TICKET_RATE = 1 / 400;          // (antes 1/260; más raros desde 2026-10-10)
 
-  function clear() { list = []; }
+  function clear() { list = []; rates = {}; }
+  /** Partida a medida (después de clear()): ×monedas y ×tickets. */
+  function setRates(r) { rates = { coin: r.coin, ticket: r.ticket, ticket10: r.ticket }; }
+
+  /** k entero al azar: 2,5 → 2 o 3 (mitad y mitad). */
+  const roll = k => Math.floor(k) + (Math.random() < k % 1 ? 1 : 0);
   function all() { return list; }
 
   function push(o) {
     // En cooperativo sólo el anfitrión crea objetos (las copias llegan por la red).
     if (G.Coop.active && !G.Coop.isHost) return;
+    const k = rates[o.kind];
+    if (k != null && k !== 1) {
+      if (o.kind === 'coin') {
+        o.value = roll(o.value * k);
+        if (o.value <= 0) return;
+      } else {
+        const n = roll(k);
+        if (n <= 0) return;
+        for (let i = 1; i < n; i++) add(orb(o.kind, o.x + G.U.rand(-12, 12), o.y + G.U.rand(-8, 8), o.value));
+      }
+    }
+    add(o);
+  }
+
+  function add(o) {
     reachable(o);
     o.id = nextId++;
     list.push(o);
@@ -222,5 +246,5 @@ G.Pickups = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { clear, all, dropXp, drop, update, draw, addRemote, removeId, pullAll, KIND, get count() { return list.length; } };
+  return { clear, setRates, all, dropXp, drop, update, draw, addRemote, removeId, pullAll, KIND, get count() { return list.length; } };
 })();

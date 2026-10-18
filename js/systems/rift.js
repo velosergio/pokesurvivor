@@ -28,10 +28,13 @@ G.Rift = (() => {
   let arena = null;         // { tx, ty, r, dex, shiny, x, y, back, backs, biome, t, phase, endT, bossId }
   let checkT = CHECK, asked = false, downT = 0, misses = 0;
   let crew = null;          // (servidor) el equipo del último update(…, team): premio y vuelta para todos
+  let pace = 1;             // partida a medida: ×grietas (0 = ninguna; se mira más a menudo)
   const authority = () => !G.Coop.active || G.Coop.isHost;
   const TS = () => G.Tiles.T * G.Sprites.PX;
 
-  function reset() { rift = null; arena = null; checkT = CHECK; asked = false; downT = 0; misses = 0; crew = null; }
+  function reset() { rift = null; arena = null; checkT = CHECK; asked = false; downT = 0; misses = 0; crew = null; pace = 1; }
+  /** Partida a medida (después de reset()): k veces más grietas; 0, ninguna. */
+  function setPace(k) { pace = k >= 0 ? k : 1; checkT = pace > 0 ? CHECK / pace : CHECK; }
 
   // ---------------- grieta en el mapa ----------------
 
@@ -48,10 +51,10 @@ G.Rift = (() => {
       rift.ttl -= dt;
       if (rift.ttl <= 0) { rift = null; return; }
       if (!arena && (team || [pl]).some(q => !q.dead && G.U.dist2(q.x, q.y, rift.x, rift.y - 10) < 30 * 30)) enter();
-    } else if (!arena && authority() && time > FROM && time < G.Judgment.AT - 120) {
+    } else if (!arena && authority() && pace > 0 && time > FROM && time < G.Judgment.AT - 120) {
       checkT -= dt;
       if (checkT <= 0) {
-        checkT = CHECK;
+        checkT = CHECK / pace;
         if (G.EnemyMgr.bossAlive()) return;           // con un jefe vivo no cuenta como intento
         if (Math.random() < CHANCE * (1 + misses)) { misses = 0; open(); }
         else misses++;
@@ -287,7 +290,7 @@ G.Rift = (() => {
   }
 
   return {
-    reset, update, drawable, onEvent, enterRequest() { if (!arena) start(); },
+    reset, setPace, update, drawable, onEvent, enterRequest() { if (!arena) start(); },
     get rift() { return rift; }, get arena() { return arena; },
     get inArena() { return !!arena; },
     get timeLeft() { return arena ? Math.max(0, ARENA_TIME - arena.t) : 0; },

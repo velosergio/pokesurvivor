@@ -52,7 +52,7 @@ G.Social = (() => {
   let beatT = 0, presAt = 0, unInv = null;
   const pres = new Map();           // otherUid -> { online, play, room, seen } (lo último leído)
   const sentInv = new Set();        // a quién invitaste (para retirarlo al salir)
-  let room = null;                  // { id: código, host: líder, isHost, open, members: [{ uid, name, dex, shiny, on }] }
+  let room = null;                  // { id: código, host: líder, isHost, open, rules, members: [{ uid, name, dex, shiny, on }] }
   // Partida en curso: sobrevive a recargar esta pestaña (no a cerrarla). El
   // servidor guarda el sitio 60 s; al volver, el hello recupera la partida.
   const RUN_KEY = 'ps.coop.run';
@@ -379,7 +379,7 @@ G.Social = (() => {
       if (away) away = null;
       const was = room;
       room = {
-        id: m.code, host: m.leader, isHost: m.leader === uid, open: m.open !== false,
+        id: m.code, host: m.leader, isHost: m.leader === uid, open: m.open !== false, rules: G.Proto.cleanRules(m.rules),
         members: (m.members || []).map(x => ({ uid: x.uid, name: x.name, dex: x.dex, shiny: !!x.shiny, on: x.on !== false }))
       };
       if (!was || was.id !== room.id) writeStatus();
@@ -436,6 +436,11 @@ G.Social = (() => {
   /** El líder abre (o cierra) la sala a nuevos jugadores. */
   function setOpen(open) {
     if (room && room.isHost) G.Net.send('open', { v: !!open });
+  }
+
+  /** El líder cambia las condiciones de la partida (proto.RULES). */
+  function setRules(rules) {
+    if (room && room.isHost) G.Net.send('rules', { v: G.Proto.cleanRules(rules) });
   }
 
   /**
@@ -654,7 +659,7 @@ G.Social = (() => {
 
   return {
     start, stop, claimNick, request, accept, remove, publishProfile, getProfile, profileData,
-    createRoom, joinRoom, leaveRoom, setOpen, refreshMember, resumeRun, peekRun, hasRun, checkAway, rejoin, setPlaying, refreshPresence,
+    createRoom, joinRoom, leaveRoom, setOpen, setRules, refreshMember, resumeRun, peekRun, hasRun, checkAway, rejoin, setPlaying, refreshPresence,
     invite, acceptInvite, declineInvite,
     on(fn) { listeners.add(fn); }, off(fn) { listeners.delete(fn); },
     get me() { return me; },

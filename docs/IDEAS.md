@@ -4,15 +4,7 @@
 
 ## Poco trabajo
 
-### Ritmo de la partida a medida
-
-Opciones, sobre todo al crear la sala, para subir o bajar con qué frecuencia aparecen enemigos y grietas, y qué porcentaje de monedas y de tickets sueltan. Sirve para probar, para partidas más tranquilas o para farmeos acordados por el grupo.
-
 ## Trabajo medio
-
-### Resumen al acabar la run
-
-Al terminar, una pantalla con lo que hizo cada personaje: quién hizo más daño, quién recibió más, quién abrió más cofres y quién revivió más veces a los compañeros, y un MVP de la partida. En solitario se queda en el propio resumen; en cooperativo compara al grupo.
 
 ### Desafío diario
 

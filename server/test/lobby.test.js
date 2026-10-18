@@ -460,3 +460,30 @@ test('con checkKits: si tarda más de 5 s, empieza sin ranking', () => {
   s.clk.tick(1);
   assert.strictEqual(s.fr.made[0].opts.ranked, false);
 });
+
+test('condiciones a medida: sólo el líder, se limpian, se cuentan en room y quitan el ranking', async () => {
+  const s = setup({ checkKits: async () => new Map([['a', { up: {}, ok: true }], ['b', { up: {}, ok: true }]]) });
+  const { cs: [a, b] } = room(s, 'a', 'b');
+  assert.deepStrictEqual(b.last('room').rules, { spawn: 1, rift: 1, coin: 1, ticket: 1 });
+  s.lobby.message(b, { t: 'rules', v: { coin: 5 } });
+  assert.deepStrictEqual(b.last(), { t: 'err', reason: 'leader' });
+  s.lobby.message(a, { t: 'rules', v: { spawn: 2, rift: 0, coin: 5, ticket: 7, __proto__: { x: 1 } } });
+  assert.deepStrictEqual(b.last('room').rules, { spawn: 2, rift: 0, coin: 5, ticket: 1 });
+  s.lobby.message(a, { t: 'start' });
+  await new Promise(r => setImmediate(r));
+  const g = s.fr.made[0];
+  assert.deepStrictEqual(g.opts.rules, { spawn: 2, rift: 0, coin: 5, ticket: 1 });
+  assert.strictEqual(g.opts.ranked, false);
+  s.lobby.message(a, { t: 'rules', v: null });
+  assert.deepStrictEqual(a.last(), { t: 'err', reason: 'started' });
+});
+
+test('condiciones normales otra vez: vuelve el ranking', async () => {
+  const s = setup({ checkKits: async () => new Map([['a', { up: {}, ok: true }], ['b', { up: {}, ok: true }]]) });
+  const { cs: [a] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'rules', v: { spawn: 3 } });
+  s.lobby.message(a, { t: 'rules', v: null });
+  s.lobby.message(a, { t: 'start' });
+  await new Promise(r => setImmediate(r));
+  assert.strictEqual(s.fr.made[0].opts.ranked, true);
+});
