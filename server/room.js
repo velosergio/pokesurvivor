@@ -49,7 +49,7 @@
  *   kit [huecos, activo, objeto, vínculos, [velocidad, imán]] tu Pokémon (sólo a ti, al cambiar)
  *
  * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda,
- * bind: atajos, ban: vetados }. Con la cuenta de servicio, lobby.js deja en `up`
+ * bind: atajos, ban: vetados, start: movimiento inicial elegido }. Con la cuenta de servicio, lobby.js deja en `up`
  * lo menos entre eso y la partida guardada (rank.js checkKits); perks() además
  * recorta cada una a su máximo.
  *
@@ -144,7 +144,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     (Array.isArray(kit.bind) ? kit.bind : []).forEach((id, j) => { if (id && G.Moves.BY_ID[id]) pl.bind[id] = j; });
     pl.banned = new Set((Array.isArray(kit.ban) ? kit.ban : []).filter(id => G.Moves.BY_ID[id]).slice(0, perks.bans));
     return {
-      id: i, uid: m.uid, name: str(m.name), pl, perks,
+      id: i, uid: m.uid, name: str(m.name), pl, perks, kit,
       on: true, gone: false, offT: 0,
       in: null, inAt: -1, ack: 0, lastMove: -1, axis: [0, 0],
       accX: 0, accY: 0, accT: 0, tpT: -99,
@@ -262,7 +262,9 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     const p = s.pl;
     p.x = (i - (seats.length - 1) / 2) * 34; p.y = 0;
     G.World.collide(p);
-    p.addMove(G.startMoveOf(p.dex));
+    // Movimiento inicial (Mejoras): el elegido si tiene la mejora y es de los suyos; si no, el de serie.
+    const pick = s.kit.start, up = s.kit.up || {};
+    p.addMove(pick && up.start && G.startChoices(p.dex).includes(pick) ? pick : G.baseStartOf(p.dex));
     // Mejora "Repertorio": un segundo movimiento de ataque al azar (game.js startRun).
     if (s.perks.startMoves >= 2) {
       const pool = G.Moves.poolFor(p.mon).filter(id => !p.hasMove(id) && !p.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');

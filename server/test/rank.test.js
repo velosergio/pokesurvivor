@@ -103,9 +103,9 @@ test('entra en tablas vacías con el mismo formato que el navegador', async () =
   const fs = fakeFirestore();
   const better = await rankOf(fs).submitGroup(run());
   assert.deepStrictEqual(better, ['d', 'w', 'm', 'a']);
-  const boards = ['g_' + IDS.d, 'g_' + IDS.w, 'g_' + IDS.m, 'g_all2', 'g_all2_p25', 'g_all2_p4'];
-  assert.strictEqual(IDS.w, 'w2026-42j');
-  assert.strictEqual(IDS.m, 'm202610j');
+  const boards = ['g_' + IDS.d, 'g_' + IDS.w, 'g_' + IDS.m, 'g_all3', 'g_all3_p25', 'g_all3_p4'];
+  assert.strictEqual(IDS.w, 'w2026-42r');
+  assert.strictEqual(IDS.m, 'm202610r');
   for (const b of boards) {
     const e = fs.get('lb/' + b + '/e/aa_bb');
     assert.deepStrictEqual(e, { t: 300, uids: ['aa', 'bb'], names: ['Naa', 'Nbb'], dex: [4, 25], shiny: [false, false],
@@ -120,9 +120,9 @@ test('entra en tablas vacías con el mismo formato que el navegador', async () =
 test('con algún shiny, el resumen lleva shiny', async () => {
   const fs = fakeFirestore();
   await rankOf(fs).submitGroup(run({ members: [member('aa', 4, true), member('bb', 4)] }));
-  assert.deepStrictEqual(fs.get('lbs/g_all2').top.aa_bb.shiny, [true, false]);
-  assert.ok(fs.get('lbs/g_all2_p4'));
-  assert.strictEqual(fs.get('lbs/g_all2_p25'), null);
+  assert.deepStrictEqual(fs.get('lbs/g_all3').top.aa_bb.shiny, [true, false]);
+  assert.ok(fs.get('lbs/g_all3_p4'));
+  assert.strictEqual(fs.get('lbs/g_all3_p25'), null);
 });
 
 test('la build de cada miembro va en la marca y en el resumen, en el orden de los uids', async () => {
@@ -130,29 +130,29 @@ test('la build de cada miembro va en la marca y en el resumen, en el orden de lo
   const long = 'x'.repeat(500);
   await rankOf(fs).submitGroup(run({ members: [Object.assign(member('bb', 25), { b: 'ember.3;;atk1' }), Object.assign(member('aa', 4), { b: long })] }));
   const want = ['x'.repeat(400), 'ember.3;;atk1'];
-  assert.deepStrictEqual(fs.get('lb/g_all2/e/aa_bb').b, want);
-  assert.deepStrictEqual(fs.get('lbs/g_all2').top.aa_bb.b, want);
+  assert.deepStrictEqual(fs.get('lb/g_all3/e/aa_bb').b, want);
+  assert.deepStrictEqual(fs.get('lbs/g_all3').top.aa_bb.b, want);
 });
 
 test('sin builds (servidor viejo), ni la marca ni el resumen llevan b', async () => {
   const fs = fakeFirestore();
   await rankOf(fs).submitGroup(run({ members: [Object.assign(member('bb', 25), { b: 7 }), member('aa', 4)] }));
-  assert.ok(!('b' in fs.get('lb/g_all2/e/aa_bb')));
-  assert.ok(!('b' in fs.get('lbs/g_all2').top.aa_bb));
+  assert.ok(!('b' in fs.get('lb/g_all3/e/aa_bb')));
+  assert.ok(!('b' in fs.get('lbs/g_all3').top.aa_bb));
 });
 
 test('no entra si el top está lleno y es peor', async () => {
   const fs = fakeFirestore();
   const top = fullTop(400);
-  for (const b of ['g_' + IDS.d, 'g_' + IDS.w, 'g_' + IDS.m, 'g_all2', 'g_all2_p25', 'g_all2_p4']) fs.set('lbs/' + b, { top, me: 'x0_y0', ev: '' });
+  for (const b of ['g_' + IDS.d, 'g_' + IDS.w, 'g_' + IDS.m, 'g_all3', 'g_all3_p25', 'g_all3_p4']) fs.set('lbs/' + b, { top, me: 'x0_y0', ev: '' });
   const better = await rankOf(fs).submitGroup(run());
   // En diario, semanal, mensual y por Pokémon no se guarda nada; en el histórico sí la marca.
   assert.deepStrictEqual(better, ['a']);
   assert.strictEqual(fs.get('lb/g_' + IDS.d + '/e/aa_bb'), null);
-  assert.strictEqual(fs.get('lb/g_all2_p25/e/aa_bb'), null);
-  assert.strictEqual(fs.get('lb/g_all2/e/aa_bb').t, 300);
-  assert.strictEqual(Object.keys(fs.get('lbs/g_all2').top).length, 50);
-  assert.ok(!('aa_bb' in fs.get('lbs/g_all2').top));
+  assert.strictEqual(fs.get('lb/g_all3_p25/e/aa_bb'), null);
+  assert.strictEqual(fs.get('lb/g_all3/e/aa_bb').t, 300);
+  assert.strictEqual(Object.keys(fs.get('lbs/g_all3').top).length, 50);
+  assert.ok(!('aa_bb' in fs.get('lbs/g_all3').top));
 });
 
 test('expulsa al último del top', async () => {
@@ -178,7 +178,7 @@ test('no rebaja una marca mejor', async () => {
   assert.deepStrictEqual(fs.docs, before);
   assert.strictEqual(fs.commits(), 1);
   assert.deepStrictEqual(await rk.submitGroup(run({ t: 600 })), ['d', 'w', 'm', 'a']);
-  assert.strictEqual(fs.get('lbs/g_all2').top.aa_bb.t, 600);
+  assert.strictEqual(fs.get('lbs/g_all3').top.aa_bb.t, 600);
   // El token se pidió una sola vez (se guarda).
   assert.strictEqual(fs.calls.filter(u => u.includes('oauth2')).length, 1);
 });
@@ -189,7 +189,7 @@ test('un miembro con sus == true bloquea la subida', async () => {
   fs.set('saves/aa', { sus: false });
   assert.deepStrictEqual(await rankOf(fs).submitGroup(run()), []);
   assert.strictEqual(fs.commits(), 0);
-  assert.strictEqual(fs.get('lbs/g_all2'), null);
+  assert.strictEqual(fs.get('lbs/g_all3'), null);
 });
 
 test('menos de MIN_T o un solo miembro no sube', async () => {
@@ -223,7 +223,7 @@ test('datos fuera de lo que admiten las reglas no suben', async () => {
   assert.strictEqual(fs.calls.length, 0);
   // El tiempo con decimales del reloj del servidor se guarda en segundos enteros.
   await rk.submitGroup(run({ t: 300.87 }));
-  assert.deepStrictEqual(fs.docs.get('lb/g_all2/e/aa_bb').t, { integerValue: '300' });
+  assert.deepStrictEqual(fs.docs.get('lb/g_all3/e/aa_bb').t, { integerValue: '300' });
 });
 
 test('empate al expulsar: sale la última, y las demás filas no se tocan', async () => {
@@ -231,12 +231,12 @@ test('empate al expulsar: sale la última, y las demás filas no se tocan', asyn
   const top = fullTop(200);
   // Dos filas empatadas con la peor marca: sale la última (como sorted().pop()).
   top['x0_y0'].t = 199; top['x1_y1'].t = 199;
-  fs.set('lbs/g_all2', { top, me: '', ev: '' });
+  fs.set('lbs/g_all3', { top, me: '', ev: '' });
   // Una fila con un tipo que JS no conserva (marca de tiempo): debe quedar igual.
-  fs.docs.get('lbs/g_all2').top.mapValue.fields['x5_y5'].mapValue.fields.when = { timestampValue: '2026-01-01T00:00:00Z' };
-  const raw = JSON.stringify(fs.docs.get('lbs/g_all2').top.mapValue.fields['x5_y5']);
+  fs.docs.get('lbs/g_all3').top.mapValue.fields['x5_y5'].mapValue.fields.when = { timestampValue: '2026-01-01T00:00:00Z' };
+  const raw = JSON.stringify(fs.docs.get('lbs/g_all3').top.mapValue.fields['x5_y5']);
   await rankOf(fs).submitGroup(run());
-  const s = fs.docs.get('lbs/g_all2').top.mapValue.fields;
+  const s = fs.docs.get('lbs/g_all3').top.mapValue.fields;
   assert.ok(!('x1_y1' in s));
   assert.ok('x0_y0' in s);
   assert.strictEqual(JSON.stringify(s['x5_y5']), raw);
@@ -254,7 +254,7 @@ test('reintenta una vez si el commit da ABORTED', async () => {
   assert.deepStrictEqual(await rankOf(fs).submitGroup(run()), ['d', 'w', 'm', 'a']);
   assert.strictEqual(fs.commits(), 2);
   assert.deepStrictEqual(fs.begins[1], { options: { readWrite: { retryTransaction: 'tx1' } } });
-  assert.strictEqual(fs.get('lbs/g_all2').top.aa_bb.t, 300);
+  assert.strictEqual(fs.get('lbs/g_all3').top.aa_bb.t, 300);
 });
 
 test('conversión de tipos ida y vuelta', () => {
@@ -285,7 +285,7 @@ const Browser = (() => {
     const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
     return { year: t.getUTCFullYear(), week: Math.ceil(((t - y0) / 86400000 + 1) / 7) };
   }
-  const ALL = 'all2';
+  const ALL = 'all3';
   function periodIds(date = new Date()) {
     const { y, m, d } = gameDate(date);
     const w = isoWeek(y, m, d);
@@ -294,7 +294,7 @@ const Browser = (() => {
   }
   function boardIds(date) {
     const p = periodIds(date);
-    return Object.assign({}, p, { w: p.w + 'j', m: p.m + 'j' });
+    return Object.assign({}, p, { d: p.d + 'r', w: p.w + 'r', m: p.m + 'r', y: p.y + 'r' });
   }
   return { boardIds };
 })();
@@ -302,25 +302,25 @@ const Browser = (() => {
 test('periodos en hora de Colombia, iguales que en el navegador', () => {
   assert.strictEqual(require('../config').readConfig().tz, 'America/Bogota');
   const cases = [
-    ['2026-10-08T12:00:00Z', 'd20261008', 'w2026-41j', 'm202610j'],
+    ['2026-10-08T12:00:00Z', 'd20261008r', 'w2026-41r', 'm202610r'],
     // Cambio de semana ISO: domingo 23:30 / lunes 00:30 en Colombia (UTC-5).
-    ['2026-10-12T04:30:00Z', 'd20261011', 'w2026-41j', 'm202610j'],
-    ['2026-10-12T05:30:00Z', 'd20261012', 'w2026-42j', 'm202610j'],
+    ['2026-10-12T04:30:00Z', 'd20261011r', 'w2026-41r', 'm202610r'],
+    ['2026-10-12T05:30:00Z', 'd20261012r', 'w2026-42r', 'm202610r'],
     // Fin de año: en UTC ya es 2026, en Colombia aún 2025 (miércoles: semana 1 de 2026).
-    ['2026-01-01T04:30:00Z', 'd20251231', 'w2026-01j', 'm202512j'],
-    ['2026-01-01T05:30:00Z', 'd20260101', 'w2026-01j', 'm202601j'],
+    ['2026-01-01T04:30:00Z', 'd20251231r', 'w2026-01r', 'm202512r'],
+    ['2026-01-01T05:30:00Z', 'd20260101r', 'w2026-01r', 'm202601r'],
     // 2026 tiene 53 semanas: el viernes 1-1-2027 cae en la 53 de 2026.
-    ['2027-01-01T12:00:00Z', 'd20270101', 'w2026-53j', 'm202701j'],
-    ['2027-01-04T05:30:00Z', 'd20270104', 'w2027-01j', 'm202701j'],
+    ['2027-01-01T12:00:00Z', 'd20270101r', 'w2026-53r', 'm202701r'],
+    ['2027-01-04T05:30:00Z', 'd20270104r', 'w2027-01r', 'm202701r'],
     // Colombia no cambia de hora: el 25-10 (cuando cambia Europa) sigue en UTC-5.
-    ['2026-10-25T04:30:00Z', 'd20261024', 'w2026-43j', 'm202610j'],
-    ['2026-10-25T05:30:00Z', 'd20261025', 'w2026-43j', 'm202610j'],
-    ['2026-03-29T04:59:00Z', 'd20260328', 'w2026-13j', 'm202603j'],
-    ['2026-04-01T05:00:00Z', 'd20260401', 'w2026-14j', 'm202604j']
+    ['2026-10-25T04:30:00Z', 'd20261024r', 'w2026-43r', 'm202610r'],
+    ['2026-10-25T05:30:00Z', 'd20261025r', 'w2026-43r', 'm202610r'],
+    ['2026-03-29T04:59:00Z', 'd20260328r', 'w2026-13r', 'm202603r'],
+    ['2026-04-01T05:00:00Z', 'd20260401r', 'w2026-14r', 'm202604r']
   ];
   for (const [iso, d, w, m] of cases) {
     const got = boardIds(new Date(iso));
-    assert.deepStrictEqual({ d: got.d, w: got.w, m: got.m, a: got.a }, { d, w, m, a: 'all2' }, iso);
+    assert.deepStrictEqual({ d: got.d, w: got.w, m: got.m, a: got.a }, { d, w, m, a: 'all3' }, iso);
     assert.deepStrictEqual(got, Browser.boardIds(new Date(iso)), iso);
   }
   // Y cada 3 horas de un año entero.

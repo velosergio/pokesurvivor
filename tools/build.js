@@ -60,12 +60,26 @@ if (!EXPOSE) {
     '--unicode-escape-sequence', 'false', '--target', 'browser'], { stdio: 'inherit', shell });
 }
 const min = fs.readFileSync(outJs);
-const hash = crypto.createHash('sha1').update(min).digest('hex').slice(0, 10);
+// La huella cuenta también el CSS: un cambio sólo de estilos es versión nueva (version.json).
+const hash = crypto.createHash('sha1').update(min).update(fs.readFileSync(path.join(ROOT, 'css', 'style.css'))).digest('hex').slice(0, 10);
+
+// Diccionarios de francés, italiano, portugués y chino (js/lang/), uno por idioma: los pide
+// locales.js con su misma huella ?v=, para que al cambiar no se queden en caché.
+const { build: buildLangs } = require('./build_langs');
+const langSizes = buildLangs();
+const LOC = '<script src="js/core/locales.js"></script>';
+const locHash = crypto.createHash('sha1').update(fs.readFileSync(path.join(ROOT, 'js', 'core', 'locales.js')));
+for (const f of fs.readdirSync(path.join(ROOT, 'js', 'lang')).sort()) locHash.update(fs.readFileSync(path.join(ROOT, 'js', 'lang', f)));
+if (!dev.includes(LOC)) throw new Error('dev.html no carga ' + LOC + ' como se esperaba: revisa build.js');
 
 let html = dev.slice(0, i) + `<script defer src="js/app.min.js?v=${hash}"></script>` + dev.slice(j + END.length);
-// El CSS, también con su huella: sin ella el navegador podía quedarse con el viejo junto al JS nuevo.
+html = html.replace(LOC, `<script src="js/core/locales.js?v=${locHash.digest('hex').slice(0, 10)}"></script>`);
+// La hoja de estilos también con huella: si no, el navegador puede juntar la página nueva
+// con el style.css viejo que tiene guardado.
+const CSS = '<link rel="stylesheet" href="css/style.css">';
+if (!dev.includes(CSS)) throw new Error('dev.html no carga ' + CSS + ' como se esperaba: revisa build.js');
 const cssHash = crypto.createHash('sha1').update(fs.readFileSync(path.join(ROOT, 'css', 'style.css'))).digest('hex').slice(0, 10);
-html = html.replace('href="css/style.css"', `href="css/style.css?v=${cssHash}"`);
+html = html.replace(CSS, `<link rel="stylesheet" href="css/style.css?v=${cssHash}">`);
 html = html.replace(/<meta name="robots" content="noindex">\s*/, '');
 // --sin-seo: sin canonical/redes/datos estructurados ni enlaces a las páginas
 // (para publicar antes de tener el dominio).
@@ -83,4 +97,5 @@ const proto = require(path.join(ROOT, 'js', 'net', 'proto.js')).VERSION;
 // --forzar: versión obligatoria, también corta las partidas en curso (guardándolas).
 const FORZAR = process.argv.includes('--forzar');
 fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify(Object.assign({ v: hash, at: new Date().toISOString(), proto }, FORZAR ? { force: true } : {})) + '\n');
+console.log('ok: diccionarios ' + langSizes.join(' · '));
 console.log(`${FORZAR ? '[OBLIGATORIA] ' : ''}${SIN_SEO ? '[sin SEO] ' : ''}${EXPOSE ? '[SIN PROTEGER, sólo pruebas] ' : ''}ok: ${files.length} scripts · ${(joined.length / 1024).toFixed(0)} KB -> ${(min.length / 1024).toFixed(0)} KB (app.min.js?v=${hash})`);

@@ -69,9 +69,9 @@ G.Spawner = (() => {
     return null;
   }
 
-  /** Jugador alrededor del que sale el siguiente enemigo. */
+  /** Jugador alrededor del que sale el siguiente enemigo (nunca uno que aún vuelve de la grieta). */
   function anchor() {
-    const alive = players.filter(o => !o.dead);
+    const alive = players.filter(o => !o.dead && !G.Rift.leftBehind(o));
     return alive.length ? G.RNG.stream('spawn').pick(alive) : players[0];
   }
 
@@ -85,8 +85,30 @@ G.Spawner = (() => {
     return G.RNG.stream('spawn').next() < SHINY_RATE;
   }
 
+  // Como mucho 3 curanderos, 3 escuderos y 3 invocadores vivos a la vez
+  // (18-10-2026: juntos dejaban a la horda, y a los jefes, casi inmortales).
+  // Si ya hay 3 de uno, sale otro del elenco.
+  const SUPPORT_MAX = 3, SUPPORT = new Set(['healer', 'shielder', 'summoner']);
+  /** Tipos de apoyo que ya tienen 3 vivos. */
+  function supportFull() {
+    const n = {}, full = new Set();
+    for (const e of G.EnemyMgr.all()) {
+      if (!e.dead && SUPPORT.has(e.behavior) && (n[e.behavior] = (n[e.behavior] || 0) + 1) >= SUPPORT_MAX) full.add(e.behavior);
+    }
+    return full;
+  }
+
   function spawnOne(pl, t, angle) {
-    const def = G.RNG.stream('spawn').pick(G.Enemies.bagAt(t));
+    const bag = G.Enemies.bagAt(t);
+    let def = G.RNG.stream('spawn').pick(bag);
+    if (SUPPORT.has(def.behavior)) {
+      const full = supportFull();
+      if (full.has(def.behavior)) {
+        const rest = bag.filter(d => !full.has(d.behavior));
+        if (!rest.length) return null;
+        def = G.RNG.stream('spawn').pick(rest);
+      }
+    }
     const pt = freePoint(pl, angle == null ? G.RNG.stream('spawn').next() * 6.2832 : angle, isFlyer(def));
     if (!pt) return null;
     const shiny = rollShiny(def.dex);

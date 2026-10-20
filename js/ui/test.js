@@ -66,7 +66,7 @@ G.TestUI = (() => {
   function describe(s) {
     const mon = G.DEX_BY[s.dex];
     const mv = G.Moves.BY_ID[s.start];
-    $('starter-info').innerHTML = `${G.UI.typeChips(mon.types)} ${G.Icons.html('move:' + s.start, 16)} ${mv.name} · ${s.traits.join(', ')}`
+    $('starter-info').innerHTML = `${G.UI.typeChips(mon.types)} ${G.Icons.html('move:' + s.start, 16)} ${G.T(mv.name, 'move')} · ${s.traits.join(', ')}`
       + `<br>Vida ${mon.hp} · Ataque ×${mon.atk.toFixed(2)} · Velocidad ${mon.spd}`;
     $('starter-ok').disabled = false;
   }

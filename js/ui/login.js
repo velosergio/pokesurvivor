@@ -63,6 +63,48 @@ G.LoginUI = (() => {
     $('scr-recover').classList.remove('hidden');
   }
 
+  /*
+   * Avisos de una actualización: cada uno sale una vez por navegador, la
+   * primera vez que se entra al menú después de subirla; si hay varios,
+   * uno tras otro. Para uno nuevo, se añade aquí con su propia clave.
+   */
+  const cloud = () => G.DB.mode === 'cloud' && !G.DB.guest;
+  const NOTES = [
+    { key: 'ps.savenote.1', when: cloud,              // botón Guardar (18-10-2026)
+      title: ['Importante: guarda tu partida', 'Important: save your game'],
+      body: ['<p>Hemos incorporado un botón <b class="gold">Guardar</b> arriba a la derecha: sube tu partida a la nube al momento (si no, se sube sola cada cierto tiempo y al cerrar el juego).</p>' +
+             '<p>Úsalo antes de cerrar el juego o de cambiar de aparato: <b>es la forma más segura de no perder nada</b>.</p>',
+             '<p>We have added a <b class="gold">Save</b> button at the top right: it uploads your game to the cloud right away (otherwise it uploads on its own every so often and when you close the game).</p>' +
+             '<p>Use it before closing the game or switching devices: <b>it is the safest way not to lose anything</b>.</p>'] },
+    { key: 'ps.ranknote.1', when: () => cloud() && ((G.DB.save.stats || {}).runs || 0) > 0,   // rankings desde cero (18-10-2026)
+      title: ['Los rankings se han reiniciado', 'The leaderboards have been reset'],
+      body: ['<p>Hemos ajustado la <b>Sentencia de Arceus</b>: huir corriendo con toda la velocidad subida y el veneno ya no sirven para aguantar para siempre.</p>' +
+             '<p>Para que todos compitáis en igualdad, <b>todos los rankings empiezan de cero</b> (hoy, semana, mes, año e histórico). ¡A por el primer puesto!</p>',
+             '<p>We have adjusted the <b>Judgment of Arceus</b>: running away with maxed-out speed and poison no longer let you last forever.</p>' +
+             '<p>So everyone competes on equal terms, <b>all leaderboards start from scratch</b> (daily, weekly, monthly, yearly and all-time). Go for first place!</p>'] }
+  ];
+  /** → true si se ha enseñado alguno. */
+  function updateNotices() {
+    const queue = NOTES.filter(n => { try { return n.when() && !localStorage.getItem(n.key); } catch (e) { return false; } });
+    if (!queue.length) return false;
+    const en = G.I18n.lang === 'en' ? 1 : 0;
+    const next = () => {
+      const n = queue.shift();
+      if (!n) { $('scr-savenote').classList.add('hidden'); return; }
+      try { localStorage.setItem(n.key, '1'); } catch (e) { /* nada */ }
+      $('savenote-title').textContent = n.title[en];
+      // Otros idiomas: el aviso entero va traducido en su diccionario (por trozos sale raro); si falta, en inglés.
+      const other = G.I18n.lang !== 'es' && !en, body = $('savenote-body');
+      if (other) body.setAttribute('translate', 'no');
+      body.innerHTML = !other ? n.body[en] : G.I18n.has(n.body[0]) ? G.T(n.body[0]) : n.body[1];
+      $('savenote-ok').textContent = en ? 'Got it' : 'Entendido';
+    };
+    $('savenote-ok').onclick = next;
+    next();
+    $('scr-savenote').classList.remove('hidden');
+    return true;
+  }
+
   /** Hostname de G.Config.site, para el aviso de una copia en otro dominio. */
   function siteHost() {
     try { return new URL(G.Config.site).host; } catch (e) { return ''; }
@@ -98,5 +140,5 @@ G.LoginUI = (() => {
     setTimeout(() => $('f-user').focus(), 50);
   }
 
-  return { init, open, offerRecovery };
+  return { init, open, offerRecovery, updateNotices };
 })();

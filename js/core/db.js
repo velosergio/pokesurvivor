@@ -82,6 +82,9 @@ G.DB = (() => {
       personality: null,      // { trait, scores }
       upgrades: {},           // (antiguo) mejoras de la cuenta; ahora van por Pokémon
       pupg: {},               // dex -> { id -> nivel }: mejoras de cada Pokémon
+      dfav: {},               // dex -> fecha: favorito de la colección (negativa = quitado entonces)
+      pused: {},              // dex -> partidas jugadas con él (orden "más usados")
+      pstart: {},             // dex -> movimiento inicial elegido (Mejoras → Movimiento inicial)
       tickets: { t1: 0, t10: 0 },   // tickets del gacha (x1 y x10)
       grantedCoins: 0,        // monedas de grants/{uid} ya sumadas a coins
       grantedT10: 0,          // tickets ×10 de la libreta ya sumados
@@ -146,8 +149,16 @@ G.DB = (() => {
         }
       }
     } else delete s.led;
-    if (G.DEX_BY) for (const coll of ['owned', 'shiny']) {
+    if (G.DEX_BY) for (const coll of ['owned', 'shiny', 'dfav', 'pused']) {
       for (const d of Object.keys(s[coll] || {})) if (!G.DEX_BY[d]) delete s[coll][d];
+    }
+    for (const coll of ['dfav', 'pused']) {
+      if (!isObj(s[coll])) { s[coll] = {}; continue; }
+      for (const d of Object.keys(s[coll])) if (!Number.isFinite(+s[coll][d])) delete s[coll][d];
+    }
+    if (!isObj(s.pstart)) s.pstart = {};
+    for (const d of Object.keys(s.pstart)) {
+      if (typeof s.pstart[d] !== 'string' || (G.DEX_BY && !G.DEX_BY[d]) || (G.Moves && !G.Moves.BY_ID[s.pstart[d]])) delete s.pstart[d];
     }
     // Atajos: 4 huecos con un movimiento que exista (o null), sin repetir.
     if (s.pbind && typeof s.pbind === 'object') {
@@ -276,6 +287,15 @@ G.DB = (() => {
       for (const k in older.pupg[d]) mine[k] = Math.max(mine[k] || 0, older.pupg[d][k]);
     }
     r.pupgDone = r.pupgDone || older.pupgDone;
+    // Favoritos: gana lo último que se hizo con cada uno (poner o quitar), en
+    // cualquier aparato. Partidas con cada Pokémon: el mayor de los dos.
+    r.dfav = r.dfav || {};
+    for (const d in older.dfav || {}) if (Math.abs(+older.dfav[d] || 0) > Math.abs(+r.dfav[d] || 0)) r.dfav[d] = older.dfav[d];
+    r.pused = r.pused || {};
+    for (const d in older.pused || {}) r.pused[d] = Math.max(+r.pused[d] || 0, +older.pused[d] || 0);
+    // Movimiento inicial: el de la versión más reciente; si no lo tenía elegido, el de la otra.
+    r.pstart = r.pstart || {};
+    for (const d in older.pstart || {}) if (!(d in r.pstart)) r.pstart[d] = older.pstart[d];
     // Lo conseguido nunca se pierde: unión de legendarios, arenas, objetos, logros...
     for (const coll of ['legends', 'arenas', 'itemsFound', 'evoMoves', 'ach']) {
       r[coll] = r[coll] || {};
@@ -422,6 +442,8 @@ G.DB = (() => {
   // como mucho cada 30 min:
   // con 2 h, quien abría el juego en otro aparato (o en el navegador de otra
   // app) veía la copia vieja de la nube y creía que lo había perdido.
+  // El botón Guardar de la barra de arriba (saveNow, 18-10-2026) sube lo
+  // pendiente al momento, sin esperar a estos plazos.
   const PUSH_GAP = 2 * 3600 * 1000, PUSH_GAP_URGENT = 15 * 1000, PUSH_GAP_RUN = 30 * 60 * 1000, HIDE_GAP = 30 * 60 * 1000;
   let syncState = 'local';           // 'ok' | 'syncing' | 'pending' | 'offline' | 'local'
   const listeners = new Set();
@@ -643,6 +665,26 @@ G.DB = (() => {
       if (!failed && pending && syncState === 'pending') schedulePush(Math.max(1500, PUSH_GAP - (Date.now() - lastPush)));
     });
     return pushing;
+  }
+
+  /**
+   * Botón Guardar: sube ya lo pendiente. Si no hay nada pendiente no gasta
+   * nada, y si se acaba de subir hace menos de 65 s (MIN_GAP) se sube en
+   * cuanto se pueda. → { ok, why?: 'local'|'guest'|'done'|'wait'|'offline'|'fail', secs? }
+   */
+  async function saveNow() {
+    if (guest || !save) return { ok: false, why: 'guest' };
+    if (mode !== 'cloud') return { ok: true, why: 'local' };
+    if (!pending && !pushing && syncState === 'ok') return { ok: true, why: 'done' };
+    if (navigator.onLine === false) { pushNow(); return { ok: false, why: 'offline' }; }
+    const wait = MIN_GAP - sinceOk();
+    if (!pushing && wait > 0) { pending = true; setSync('pending'); schedulePush(wait + 500); return { ok: true, why: 'wait', secs: Math.ceil(wait / 1000) + 1 }; }
+    await pushNow();
+    if (pushing) await pushing;          // (si había otra subida en marcha, también la que va detrás)
+    if (syncState === 'ok') return { ok: true };
+    // Lo cambiado mientras subía va en la siguiente, que espera los 65 s.
+    if (syncState === 'pending' && pushT) return { ok: true, why: 'wait', secs: Math.max(1, Math.ceil((pushDue - Date.now()) / 1000)) };
+    return { ok: false, why: syncState === 'offline' ? 'offline' : 'fail' };
   }
 
   // Si ya había una subida programada antes, se respeta (una compra no espera a la siguiente partida).
@@ -872,6 +914,15 @@ G.DB = (() => {
 
   function ownsShiny(dex) { return !!(save && save.shiny && save.shiny[dex]); }
 
+  /** Favoritos de la colección. */
+  function isFav(dex) { return !!(save && save.dfav && +save.dfav[dex] > 0); }
+  function setFav(dex, on) {
+    if (!save) return;
+    save.dfav = save.dfav || {};
+    save.dfav[dex] = on ? Date.now() : -Date.now();
+    commit();
+  }
+
   /** Mejoras compradas para un Pokémon: { id -> nivel }. */
   function upgradesOf(dex) {
     if (!save) return {};
@@ -888,8 +939,8 @@ G.DB = (() => {
   }
 
   return {
-    ready, register, login, loginWithGoogle, playAsGuest, logout, commit, deleteAccount, flush: pushNow,
-    owns, grant, ownsShiny, grantShiny, merge, setName, upgradesOf,
+    ready, register, login, loginWithGoogle, playAsGuest, logout, commit, deleteAccount, flush: pushNow, saveNow,
+    owns, grant, ownsShiny, grantShiny, merge, setName, upgradesOf, isFav, setFav,
     /** Otra pestaña se ha quedado el juego (onetab.js): no se guarda ni se sube nada más. */
     freeze() { frozen = true; clearTimeout(pushT); clearTimeout(retryT); clearTimeout(pullT); pending = false; },
     onSync(fn) { listeners.add(fn); },

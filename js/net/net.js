@@ -57,10 +57,11 @@ G.Net = (() => {
     handlers.forEach(fn => { try { fn(msg); } catch (e) { console.error('[Net] mensaje:', e); } });
   }
 
-  /** Lo que el servidor necesita saber de tu Pokémon (mejoras de la tienda, atajos, vetos). */
+  /** Lo que el servidor necesita saber de tu Pokémon (mejoras de la tienda, atajos, vetos, movimiento inicial). */
   function kit() {
     const s = G.DB.save, dex = s.partner;
-    return { up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5) };
+    return { up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5),
+             start: (s.pstart && s.pstart[dex]) || '' };
   }
 
   async function hello(sock, fresh) {

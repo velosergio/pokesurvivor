@@ -20,6 +20,11 @@ service cloud.firestore {
     // <admins> (generado por tools/make_rules.js desde js/config.js, no editar a mano)
     function admin() { return signedIn() && me() in ['MufTp04DgIR02OExhPau6TopYzo2', '2qKbBtxr9PftGT3j1HXiUtv2MBa2']; }
     // </admins>
+    // Tope de escrituras (20-10-2026): un documento no se puede volver a escribir
+    // hasta pasados `secs` segundos desde `last` (su hora guardada). El juego
+    // escribe mucho menos que eso; esto sólo frena un bucle (un juego trucado o
+    // un fallo), y lo rechazado no se cobra como escritura.
+    function every(last, secs) { return !(last is timestamp) || request.time > last + duration.value(secs, 's'); }
 
     // ---------- partida guardada ----------
     // Sólo su dueño la lee y la escribe. Ya no se marca a nadie solo (14-10-2026:
@@ -34,7 +39,8 @@ service cloud.firestore {
       allow create: if signedIn() && me() == uid && validSaveDoc() && saneSave(request.resource.data.save)
         && request.resource.data.get('ban', false) == false;
       allow update: if signedIn() && me() == uid && validSaveDoc() && saneSave(request.resource.data.save)
-        && request.resource.data.get('ban', false) == resource.data.get('ban', false);
+        && request.resource.data.get('ban', false) == resource.data.get('ban', false)
+        && every(resource.data.updatedAt, 20);
       // El admin sólo puede banear o desbanear (y quitar la marca vieja).
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ban', 'sus'])
@@ -69,6 +75,13 @@ service cloud.firestore {
     }
 
     // Perfil público: apodo, 3 favoritos, título, mejores marcas y medallas.
+    // Récords del perfil: sólo números (lo que pinta el perfil; nada de texto).
+    function validBest(b) {
+      return b is map && b.keys().hasOnly(['solo', 'group', 'level', 'bosses', 'legends', 'kills', 'medals'])
+        && b.get('solo', 0) is int && b.get('group', 0) is int && b.get('level', 0) is int && b.get('bosses', 0) is int
+        && b.get('legends', 0) is int && b.get('kills', 0) is int && b.get('medals', 0) is int;
+    }
+
     match /profiles/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn()
@@ -79,9 +92,10 @@ service cloud.firestore {
         && request.resource.data.at == request.time
         && (!('favs' in request.resource.data) || (request.resource.data.favs is list && request.resource.data.favs.size() <= 3))
         && (!('title' in request.resource.data) || (request.resource.data.title is string && request.resource.data.title.size() <= 40))
-        && (!('best' in request.resource.data) || request.resource.data.best is map)
+        && (!('best' in request.resource.data) || validBest(request.resource.data.best))
         && (!('medals' in request.resource.data) || (request.resource.data.medals is list && request.resource.data.medals.size() <= 8))
-        && getAfter(/databases/$(database)/documents/names/$(request.resource.data.lower)).data.uid == me();
+        && getAfter(/databases/$(database)/documents/names/$(request.resource.data.lower)).data.uid == me()
+        && (resource == null || every(resource.data.at, 20));
       allow delete: if signedIn() && me() == uid;
     }
 
@@ -116,9 +130,12 @@ service cloud.firestore {
     // Al empezar cada partida en solitario el servidor de Firebase apunta la hora.
     match /runs/{uid} {
       allow read, delete: if signedIn() && me() == uid;
+      // Como mucho cada 10 min: el juego lo escribe una vez por hora como mucho y una
+      // hora vieja sólo deja validEntry más holgada (era la colección que más escribía, 20-10-2026).
       allow create, update: if signedIn() && me() == uid
         && request.resource.data.keys().hasOnly(['startedAt', 'mode'])
-        && request.resource.data.startedAt == request.time;
+        && request.resource.data.startedAt == request.time
+        && (resource == null || every(resource.data.startedAt, 600));
     }
 
     // ---------- Desafío diario (js/net/daily-net.js) ----------
@@ -217,12 +234,16 @@ service cloud.firestore {
     function addMine(board, d, old, changed) {
       let e = getAfter(/databases/$(database)/documents/lb/$(board)/e/$(d.me)).data;
       let row = d.top[d.me];
+      // La fila del resumen es una COPIA exacta de la marca ya validada (validEntry):
+      // también nivel, derrotados y shiny (18-10-2026: sin esto se podía meter
+      // texto con código en el "nivel" y se ejecutaba en quien abría el ranking).
+      // shiny es opcional: las versiones del juego de antes del 18-10 no lo ponían.
       return ownBoard(board) && me() in e.uids
         && changed.hasOnly([d.me, d.ev])
         && row.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'b'])
         && row.t == e.t && row.uids == e.uids && row.names == e.names && row.dex == e.dex
         && row.lv == e.lv && row.kills == e.kills
-        && ('shiny' in row ? row.shiny == e.shiny : !(true in e.shiny))
+        && (!('shiny' in row) || row.shiny == e.shiny)
         && ('b' in row ? row.b == e.b : !('b' in e))
         && (d.ev == '' || (!(d.ev in d.top) && d.ev in old && old[d.ev].t <= e.t));
     }
@@ -242,7 +263,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['at', 'room', 'play', 'on'])
         && request.resource.data.at == request.time
         && request.resource.data.room is string && request.resource.data.room.size() <= 40
-        && request.resource.data.play is bool && request.resource.data.on is bool;
+        && request.resource.data.play is bool && request.resource.data.on is bool
+        && (resource == null || every(resource.data.at, 15));
       allow delete: if signedIn() && me() == uid;
     }
 

@@ -9,8 +9,8 @@
  *   lb/{tabla}/e/{id}  { t, uids, names, dex, shiny, lv, kills, b?, at }
  *   (b = la build de cada miembro, Player.buildCode)
  *
- *   tabla = g_<periodo> (diario, semanal, mensual, histórico) y g_all2_p<dex>
- *   por cada Pokémon distinto del equipo; id = uids ordenados unidos con "_".
+ *   tabla = g_<periodo> (diario, semanal, mensual, histórico) y g_all3_p<dex>
+ *   por cada Pokémon distinto del equipo (desde MIN_T_MON); id = uids ordenados unidos con "_".
  *
  * Antes mira saves/{uid}.sus de cada miembro: si alguno está marcado, no sube.
  * Habla con Firestore por REST (sin dependencias): un token OAuth sacado de un
@@ -31,7 +31,9 @@ const TOP_ONLY = new Set(['d', 'w', 'm', 'p']);
 const TOP = 50;
 /** Las partidas de menos de 2 minutos no se suben. */
 const MIN_T = 120;
-const ALL = 'all2';
+const ALL = 'all3';
+/** En el histórico de cada Pokémon, desde 5 min (como MIN_T_MON en ranking.js). */
+const MIN_T_MON = 300;
 /** Hasta 1 h (como validEntry en firestore.rules) y de 2 a 10 jugadores (como las salas). */
 const MAX_T = 3600, MAX_TEAM = 10;
 /** Largo máximo de la build de cada miembro (como Player.BUILD_MAX y firestore.rules). */
@@ -66,10 +68,10 @@ function periodIds(date) {
   return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };
 }
 
-/** Nombres de las tablas: semana y mes llevan una "j" (ver ranking.js). */
+/** Nombres de las tablas: con una "r" detrás (18-10-2026, todas desde cero; ver ranking.js). */
 function boardIds(date) {
   const p = periodIds(date);
-  return Object.assign({}, p, { w: p.w + 'j', m: p.m + 'j' });
+  return Object.assign({}, p, { d: p.d + 'r', w: p.w + 'r', m: p.m + 'r', y: p.y + 'r' });
 }
 
 // ---------------- valores de Firestore ----------------
@@ -272,7 +274,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
     if (ms.some(m => typeof m.b === 'string' && m.b)) entry.b = ms.map(m => (typeof m.b === 'string' ? m.b.slice(0, BUILD_MAX) : ''));
     const ids = boardIds(new Date(now()));
     const boards = PERIODS.map(p => ['g_' + ids[p], p]);
-    for (const d of new Set(entry.dex)) boards.push(['g_' + ALL + '_p' + d, 'p']);
+    if (t >= MIN_T_MON) for (const d of new Set(entry.dex)) boards.push(['g_' + ALL + '_p' + d, 'p']);
     try {
       if (await flagged(entry.uids)) return [];
       try { return await attempt(boards, id, entry); } catch (e) {

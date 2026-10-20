@@ -16,7 +16,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 /** Lo que no se carga: pantalla, sonido, entrada, red, interfaz y guardado. */
-const SKIP = /^js\/(ui|net|modes)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|onetab|audio|input|touch|updater)\.js$|^js\/entities\/fx\.js$/;
+const SKIP = /^js\/(ui|net|modes)\/|^js\/(game|main)\.js$|^js\/core\/(settings|db|onetab|audio|input|touch|gamepad|updater)\.js$|^js\/entities\/fx\.js$/;
 
 /** Scripts de dev.html que forman la simulación, en su orden (la misma lista que tools/build.js). */
 function scripts() {
@@ -87,6 +87,7 @@ function createSim({ seed = 1 } = {}) {
   for (const k of ['Audio', 'FX', 'Touch', 'UI', 'HUD', 'RunUI', 'Social', 'Ranking', 'Progress', 'Icons']) G[k] = mute();
   G.Settings = mute({ fx: 1, get: () => false });
   G.Input = mute({ axis: () => [0, 0] });
+  G.Pad = mute({ aim: () => null, vector: () => null });
   G.DB = mute({ save: { legends: {} } });
   G.Coop = mute({ active: false, isHost: false, scaleRate: () => 1, scaleHp: () => 1, xpFactor: () => 1, players: () => [], puppets: () => [] });
   // Sin imágenes: las hojas de sprites no se descargan (los tamaños salen de G.SPRITE_META).

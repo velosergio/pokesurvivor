@@ -32,7 +32,14 @@ G.Game = (() => {
     cv = document.getElementById('game');
     ctx = cv.getContext('2d');
     resize();
-    addEventListener('resize', resize);
+    addEventListener('resize', resizeSoon);
+    // iPhone: al girarlo o al abrirlo desde la pantalla de inicio avisa del
+    // cambio ANTES de recolocar la página, y con esas medidas viejas el juego
+    // se quedaba estirado. Se vuelve a medir cuando el lienzo cambia de verdad
+    // (ResizeObserver) y, por si acaso, un poco después de cada aviso.
+    addEventListener('orientationchange', resizeSoon);
+    if (window.visualViewport) visualViewport.addEventListener('resize', resizeSoon);
+    if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(cv);
     G.Touch.init(cv);
     // En móvil: al cambiar de app o girarlo en vertical, la partida se pausa.
     document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
@@ -45,12 +52,22 @@ G.Game = (() => {
   function resize() {
     // Resolución interna como mucho ×1,5: en pantallas ×2 dibujar el doble de
     // píxeles era de lo que más costaba, y con el pixel art no se nota.
-    dpr = Math.min(1.5, window.devicePixelRatio || 1);
-    w = cv.clientWidth; h = cv.clientHeight;
+    const d = Math.min(1.5, window.devicePixelRatio || 1);
+    const cw = cv.clientWidth, ch = cv.clientHeight;
+    if (!cw || !ch) return;
+    G.Touch.resetSafe();
+    if (cw === w && ch === h && d === dpr && cv.width === Math.round(cw * d) && cv.height === Math.round(ch * d)) { checkOrientation(); return; }
+    dpr = d; w = cw; h = ch;
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
     G.Camera.resize(w, h, dpr);
     checkOrientation();
+  }
+  let resizeTs = [];
+  function resizeSoon() {
+    resize();
+    resizeTs.forEach(clearTimeout);
+    resizeTs = [100, 350, 800].map(ms => setTimeout(resize, ms));
   }
 
   /** Móvil en vertical: aviso de girarlo (y pausa). */
@@ -332,6 +349,8 @@ G.Game = (() => {
     const bonus = mode ? mode.finish({ t: Math.floor(time) }) : null;
     if (bonus) G.Progress.grant(bonus);
     save.stats.runs++;
+    save.pused = save.pused || {};
+    save.pused[pl.dex] = (+save.pused[pl.dex] || 0) + 1;     // para "más usados" en la colección
     save.stats.totalKills += pl.kills;
     save.stats.bestTime = Math.max(save.stats.bestTime, Math.floor(time));
     if (coop) save.stats.bestGroupTime = Math.max(save.stats.bestGroupTime || 0, Math.floor(time));
@@ -342,7 +361,7 @@ G.Game = (() => {
     G.Judgment.reset();
     G.Progress.event('runEnd', { time, level: pl.level, coins: pl.coins, types: pl.mon.types, group: coop });
     G.Progress.checkAch();
-    // A la nube al acabar la partida (como mucho cada 30 min); si la marca entra
+    // A la nube al acabar la partida (como mucho cada hora); si la marca entra
     // en un top (hoy, semana o mes), enseguida (abajo, tras subirla al ranking).
     G.DB.commit('run');
     if (G.Social.me) G.Social.publishProfile();
@@ -619,6 +638,7 @@ G.Game = (() => {
     if (fpsAcc >= 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
     frameDt = state === 'playing' ? dt : 0;
 
+    G.Pad.poll(real);
     handleKeys();
 
     // El telón de la grieta se abre aunque el juego esté parado: al volver se
@@ -734,6 +754,33 @@ G.Game = (() => {
     }
   }
 
+  /*
+   * Apuntar a mano: una mira donde está el ratón (y el cursor en cruz), o
+   * delante de tu Pokémon si apuntas con el stick derecho.
+   */
+  function drawAimMark() {
+    const on = state === 'playing' && pl && pl.manualAim && !G.Judgment.cinematic;
+    const cur = on && !G.Pad.aim() ? 'crosshair' : '';
+    if (cv.style.cursor !== cur) cv.style.cursor = cur;
+    if (!on) return;
+    let x, y;
+    if (G.Pad.aim()) {
+      const k = G.Camera.scale;
+      x = (pl.x - G.Camera.left() + Math.cos(pl.aim) * 90) * k;
+      y = (pl.y - G.LIFT * 0.5 - G.Camera.top() + Math.sin(pl.aim) * 90) * k;
+    } else ({ x, y } = G.Input.mouse());
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const [col, lw] of [['rgba(0,0,0,.65)', 4], ['#ffe9a8', 1.6]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 6.2832); ctx.stroke();
+      ctx.beginPath();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * 5, y + dy * 5); ctx.lineTo(x + dx * 14, y + dy * 14); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function render() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -769,6 +816,7 @@ G.Game = (() => {
     if (!G.Judgment.cinematic) G.HUD.draw(ctx, w, h, pl, st);
     G.Judgment.drawOverlay(ctx, w, h, frameDt);
     G.Touch.draw(ctx);
+    drawAimMark();
     if (G.Settings.get('fps')) {
       ctx.save();
       ctx.font = '700 11px Pixelify, monospace';
@@ -898,7 +946,7 @@ G.Game = (() => {
     quit() { if (state !== 'ui' && state !== 'over') quitRun(); },
     /** Para grabar vídeos: abre las cartas de subir de nivel. */
     debugLevelUp() { tampered = true; pl.level++; pendingLevels++; },
-    toUI() { state = 'ui'; Backdrop.restore(); },
+    toUI() { state = 'ui'; if (cv) cv.style.cursor = ''; Backdrop.restore(); },
     get state() { return state; }, get player() { return pl; }, st
   };
 })();
@@ -976,7 +1024,7 @@ G.Flow = {
     if (G.Game.state !== 'ui') G.Game.toUI();
     G.Audio.music('village');
     G.MenuUI.open();
-    G.LoginUI.offerRecovery();
+    if (!G.LoginUI.updateNotices()) G.LoginUI.offerRecovery();
     this.claimDaily();
   },
   /** El premio del Desafío de ayer (una vez por sesión y cuenta, con conexión). */
