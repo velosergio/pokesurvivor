@@ -896,7 +896,8 @@ G.DB = (() => {
       clearTimeout(pushT); clearTimeout(retryT); pending = false;
       stopListening();
       for (const fn of leaveHooks) await fn('delete');
-      await docRef().delete();
+      // (Una cuenta baneada no puede borrar su guardado, ver firestore.rules: se queda.)
+      await docRef().delete().catch(() => {});
       remove(K_CLOUD + uid);
       await auth.currentUser.delete();
       user = key = save = uid = null;

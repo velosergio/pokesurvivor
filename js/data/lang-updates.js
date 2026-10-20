@@ -408,6 +408,22 @@
      "Ranking por Pokémon: agora contam as partidas de 5 minutos ou mais (os outros rankings continuam a partir de 2 minutos).",
      "按宝可梦排行榜：现在只计入 5 分钟及以上的对局（其他排行榜仍从 2 分钟起计）。",
      "按寶可夢排行榜：現在只計入 5 分鐘以上的對局（其他排行榜仍從 2 分鐘起計）。"],
+    ["Amigos: ya no se ve quién está en línea, y puedes invitar a una sala a cualquier amigo (si no entra, la invitación caduca sola a los 3 minutos).",
+     "Amis : on ne voit plus qui est en ligne, et tu peux inviter n’importe quel ami dans un salon (s’il ne rejoint pas, l’invitation expire toute seule au bout de 3 minutes).",
+     "Amici: non si vede più chi è online, e puoi invitare qualsiasi amico in una stanza (se non entra, l’invito scade da solo dopo 3 minuti).",
+     "Amigos: não dá mais para ver quem está online, e você pode convidar qualquer amigo para uma sala (se ele não entrar, o convite expira sozinho em 3 minutos).",
+     "好友：不再显示谁在线，你可以邀请任何好友进入房间（如果对方没有加入，邀请会在 3 分钟后自动失效）。",
+     "好友：不再顯示誰在線上，你可以邀請任何好友進入房間（如果對方沒有加入，邀請會在 3 分鐘後自動失效）。"],
+    ["Aún no tienes amigos añadidos.", "Tu n’as pas encore ajouté d’amis.", "Non hai ancora aggiunto amici.", "Você ainda não adicionou amigos.", "你还没有添加好友。", "你還沒有新增好友。"],
+    ["Guardado en la nube: ahora la partida sólo se sube a la nube cuando pulsas el botón Guardar de arriba (y antes de una actualización del juego). En este navegador se sigue guardando todo al momento. Si juegas en otro aparato o vas a borrar los datos del navegador, pulsa Guardar antes.",
+     "Sauvegarde en ligne : ta partie n’est maintenant envoyée dans le cloud que quand tu appuies sur le bouton Enregistrer en haut (et avant une mise à jour du jeu). Tout reste enregistré tout de suite dans ce navigateur. Si tu joues sur un autre appareil ou si tu vas effacer les données du navigateur, appuie d’abord sur Enregistrer.",
+     "Salvataggio nel cloud: ora la partita viene caricata nel cloud solo quando premi il pulsante Salva in alto (e prima di un aggiornamento del gioco). In questo browser si salva comunque tutto subito. Se giochi su un altro dispositivo o stai per cancellare i dati del browser, premi prima Salva.",
+     "Salvamento na nuvem: agora a partida só vai para a nuvem quando você aperta o botão Salvar lá em cima (e antes de uma atualização do jogo). Neste navegador tudo continua sendo salvo na hora. Se for jogar em outro aparelho ou apagar os dados do navegador, aperte Salvar antes.",
+     "云端存档：现在只有在你点击上方的“保存”按钮时（以及游戏更新前）才会把进度上传到云端。在这个浏览器里仍会即时保存一切。如果你要在其他设备上玩，或要清除浏览器数据，请先点“保存”。",
+     "雲端存檔：現在只有在你點擊上方的「儲存」按鈕時（以及遊戲更新前）才會把進度上傳到雲端。在這個瀏覽器裡仍會即時儲存一切。如果你要在其他裝置上玩，或要清除瀏覽器資料，請先點「儲存」。"],
+    ["Las solicitudes de amistad nuevas se ven al abrir Amigos.", "Les nouvelles demandes d’ami apparaissent quand tu ouvres Amis.", "Le nuove richieste di amicizia si vedono aprendo Amici.", "Os novos pedidos de amizade aparecem ao abrir Amigos.", "打开“好友”时会看到新的好友申请。", "打開「好友」時會看到新的好友申請。"],
+    ["Sin guardar en la nube: pulsa Guardar", "Pas sauvegardé en ligne : appuie sur Enregistrer", "Non salvato nel cloud: premi Salva", "Não salvo na nuvem: aperte Salvar", "未保存到云端：请点“保存”", "未儲存到雲端：請點「儲存」"],
+    ["Sin conexión: pulsa Guardar cuando vuelva", "Hors ligne : appuie sur Enregistrer quand la connexion revient", "Offline: premi Salva quando torna la connessione", "Sem conexão: aperte Salvar quando voltar", "离线：恢复连接后请点“保存”", "離線：恢復連線後請點「儲存」"],
   ];
   languages.forEach((lang, i) => G.I18n.add(Object.fromEntries(rows.map(r => [r[0], r[i + 1]])), lang));
   G.I18n.add({

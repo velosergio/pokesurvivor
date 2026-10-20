@@ -1,7 +1,7 @@
 /* ============ ranking-ui.js — pantalla del ranking ============
  * Pestañas Solo / Grupo / Diario, periodo (diario ... histórico), todos o sólo amigos,
  * filtro por Pokémon (sólo en el histórico) y tu puesto abajo aunque no salgas
- * en el top. Lo leído se guarda 30 min (ver ranking.js).
+ * en el top. Lo leído se guarda 2 h (ver ranking.js).
  * Cada marca enseña su build (movimientos y objeto); al tocarla, el detalle.
  * Diario = el Desafío diario: hoy o ayer, con el Pokémon de ese día arriba.
  */

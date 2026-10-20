@@ -33,8 +33,10 @@ service cloud.firestore {
     // (ban = true; el campo viejo "sus" ya no cuenta para nada). El jugador no
     // puede quitarse el baneo: si está, sus guardados tienen que llevarlo.
     match /saves/{uid} {
-      allow read, delete: if signedIn() && me() == uid;
+      allow read: if signedIn() && me() == uid;
       allow read: if admin();
+      // (Baneado no: sin documento, validEntry da por hecho que no hay baneo.)
+      allow delete: if signedIn() && me() == uid && resource.data.get('ban', false) == false;
 
       allow create: if signedIn() && me() == uid && validSaveDoc() && saneSave(request.resource.data.save)
         && request.resource.data.get('ban', false) == false;
@@ -182,17 +184,19 @@ service cloud.firestore {
     //     Arceus acaba las partidas hacia el minuto 31-32; 1 h por si alguien
     //     muy bueno aguanta mucho más)
     //   - nivel y derrotados con margen de sobra (un grupo de 10 muy bueno)
-    //   - la cuenta no puede estar baneada por el admin (saves/{uid}.ban)
+    //   - la cuenta no puede estar baneada por el admin (saves/{uid}.ban; si aún
+    //     no ha guardado nunca en la nube, no tiene documento y no está baneada)
     // b (opcional): la build (Player.buildCode), un texto corto por jugador.
     function validEntry(board, id) {
       let d = request.resource.data;
       let run = get(/databases/$(database)/documents/runs/$(me())).data;
+      let sv = /databases/$(database)/documents/saves/$(me());
       return d.keys().hasOnly(['t', 'uids', 'names', 'dex', 'shiny', 'lv', 'kills', 'b', 'at'])
         && d.t is int && d.t > 0 && d.t <= 3600
         && d.t <= (request.time - run.startedAt).seconds() + 30
         && d.lv is int && d.lv >= 1 && d.lv <= 10 + d.t / 4
         && d.kills is int && d.kills >= 0 && d.kills <= 100 + d.t * 12
-        && get(/databases/$(database)/documents/saves/$(me())).data.get('ban', false) == false
+        && (!exists(sv) || get(sv).data.get('ban', false) == false)
         && d.uids is list && me() in d.uids
         && d.names is list && d.names.size() == d.uids.size()
         && d.dex is list && d.dex.size() == d.uids.size()
