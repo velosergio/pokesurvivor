@@ -21,6 +21,28 @@ G.RunUI = (() => {
   }
   const guarded = () => performance.now() < guardUntil;
 
+  /*
+   * Elegir con el dedo (26-10-2026). El navegador no manda «click» si hay otro
+   * dedo en la pantalla: con un pulgar en el joystick y el otro en la carta, la
+   * carta no se elegía, las cartas se quedaban abiertas y parecía que el
+   * joystick se había atascado. Con el dedo se elige al levantarlo sobre la
+   * misma carta (y el click que venga detrás no repite); ratón y teclado, como
+   * siempre.
+   */
+  function onTap(el, fn) {
+    let id = null, at = 0, fired = -1e9;
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { id = e.pointerId; at = performance.now(); } });
+    el.addEventListener('pointercancel', e => { if (e.pointerId === id) id = null; });
+    el.addEventListener('pointerup', e => {
+      if (e.pointerId !== id) return;
+      id = null;
+      if (performance.now() - at > 1500) return;          // (dejar el dedo encima un rato no cuenta)
+      fired = performance.now();
+      fn();
+    });
+    el.onclick = () => { if (performance.now() - fired > 700) fn(); };
+  }
+
   /**
    * @param coop      en grupo: tras elegir, se queda esperando a los demás
    * @param onReroll  en grupo: las cartas nuevas las saca el servidor (llega otro showLevelUp)
@@ -32,7 +54,7 @@ G.RunUI = (() => {
     $('lvl-wait').classList.toggle('hidden', !coop);
     $('cards').classList.remove('done');
     renderCards(list);
-    $('lvl-reroll').onclick = reroll;
+    if (!$('lvl-reroll').dataset.tap) { $('lvl-reroll').dataset.tap = 1; onTap($('lvl-reroll'), reroll); }
     G.UI.show('scr-levelup');
     guard($('cards'));
   }
@@ -63,8 +85,8 @@ G.RunUI = (() => {
     const left = rerollsLeft();
     $('lvl-rr-n').textContent = left;
     $('lvl-reroll').classList.toggle('hidden', left <= 0 || unlearn);
-    $('lvl-sub').innerHTML = (unlearn ? '¿Qué movimiento olvidas? · ' : 'Elige una recompensa · ')
-      + list.map((c, i) => `<kbd>${i + 1}</kbd>`).join(' ');
+    $('lvl-sub').innerHTML = (unlearn ? '¿Qué movimiento olvidas?' : 'Elige una recompensa')
+      + '<span class="kbd-hint"> · ' + list.map((c, i) => `<kbd>${i + 1}</kbd>`).join(' ') + '</span>';
     const box = $('cards');
     box.innerHTML = '';
     list.forEach((c, i) => {
@@ -81,7 +103,7 @@ G.RunUI = (() => {
          <div class="txt"><div class="nm">${c.title} ${tag}</div><div class="ds">${c.desc}</div></div>
          <div class="key">${i + 1}</div>`;
       el.dataset.sfx = 'none';             // el juego pone su propio sonido al elegir
-      el.onclick = () => pick(i);
+      onTap(el, () => pick(i));
       box.appendChild(el);
     });
   }
@@ -224,8 +246,8 @@ G.RunUI = (() => {
       <div><span>Nivel</span><b>${r.level}</b></div>
       <div><span>Derrotados</span><b>${r.kills}</b></div>
       <div><span>Jefes</span><b>${r.bosses}</b></div>
-      ${r.judge ? `<div style="grid-column:1/-1"><span>Ante Arceus</span><b class="gold">${G.U.mmss(r.judge.time)} · ${r.judge.bosses} ${r.judge.bosses === 1 ? 'legendario' : 'legendarios'}</b></div>
-        <div style="grid-column:1/-1"><span>Daño a Arceus</span><b class="gold">${(r.judge.dmg || 0).toLocaleString(G.I18n.locale)}</b></div>` : ''}
+      ${r.judge ? `<div style="grid-column:1/-1"><span>${r.judge.gengar ? 'Ante el gran Gengar' : 'Ante Arceus'}</span><b class="gold">${G.U.mmss(r.judge.time)} · ${r.judge.bosses} ${r.judge.bosses === 1 ? 'legendario' : 'legendarios'}</b></div>
+        <div style="grid-column:1/-1"><span>${r.judge.gengar ? 'Daño a Gengar' : 'Daño a Arceus'}</span><b class="gold">${(r.judge.dmg || 0).toLocaleString(G.I18n.locale)}</b></div>` : ''}
       <div style="grid-column:1/-1"><span>Pokémonedas ganadas</span>
         <b class="gold"><span class="coin"></span> +${r.coins}</b>
         <div style="font-size:12px;color:var(--muted)">${r.breakdown}</div></div>
@@ -233,6 +255,7 @@ G.RunUI = (() => {
         ${G.Icons.html('ticket', 22)} +${r.bonus.t1}</b><div style="font-size:12px;color:var(--muted)">Por aguantar. El premio por puesto llega mañana.</div></div>` : ''}
       ${r.t1 || r.t10 ? `<div style="grid-column:1/-1"><span>Tickets del gacha</span><b>
         ${r.t1 ? G.Icons.html('ticket', 22) + ' +' + r.t1 + ' ' : ''}${r.t10 ? G.Icons.html('ticket10', 22) + ' +' + r.t10 + ' ×10' : ''}</b></div>` : ''}
+      ${r.candy ? `<div style="grid-column:1/-1"><span>Caramelos de Halloween</span><b>${G.Icons.html('candy', 22)} +${r.candy}</b></div>` : ''}
       <div style="grid-column:1/-1"><span>Movimientos</span><b style="font-size:15px">
         ${r.moves.map(m => `${G.Icons.html('move:' + m.id, 16)} ${G.T(m.name, 'move')} Nv.${m.lvl}`).join(' · ') || '—'}</b></div>
       ${crewHtml(r.crew)}
@@ -300,7 +323,7 @@ G.RunUI = (() => {
       el.innerHTML = `<div class="ico">${G.Icons.html(id, 36)}</div>
         <div class="txt"><div class="nm">${verb} ${it.name}</div><div class="ds">${it.desc}</div></div>
         <div class="key">${i + 1}</div>`;
-      el.onclick = () => { if (guarded()) return; G.UI.hide('scr-item'); cb(id); };
+      onTap(el, () => { if (guarded() || !G.UI.isOpen('scr-item')) return; G.UI.hide('scr-item'); cb(id); });
       box.appendChild(el);
     });
     G.UI.show('scr-item');
@@ -317,7 +340,7 @@ G.RunUI = (() => {
    */
   function showBond(opt, cb) {
     bond = { opt, cb, first: null, list: [] };
-    $('bond-back').onclick = bondBack;
+    if (!$('bond-back').dataset.tap) { $('bond-back').dataset.tap = 1; onTap($('bond-back'), bondBack); }
     renderBond();
     G.UI.show('scr-bond');
     guard($('bond-cards'));
@@ -345,7 +368,7 @@ G.RunUI = (() => {
          <div class="txt"><div class="nm">${G.T(m.name, 'move')} <span class="tag-chip" style="background:${col}">Nv.${m.lvl}</span></div><div class="ds">${desc}</div></div>
          <div class="key">${i + 1}</div>`;
       el.dataset.sfx = 'none';
-      el.onclick = () => pickBond(i);
+      onTap(el, () => pickBond(i));
       box.appendChild(el);
     });
   }
@@ -369,7 +392,7 @@ G.RunUI = (() => {
          <div class="txt"><div class="nm">${o.name}</div><div class="ds">Nv. ${(o.lv || []).join(' + ')}</div></div>
          <div class="key">${i + 1}</div>`;
       el.dataset.sfx = 'none';
-      el.onclick = () => pickBond(i);
+      onTap(el, () => pickBond(i));
       box.appendChild(el);
     });
     G.UI.show('scr-bond');
@@ -451,8 +474,8 @@ G.RunUI = (() => {
       ['Vida', n(pl.hp) + ' / ' + n(pl.maxHp)],
       ['Ataque', k2(pl.atkFor({ cat: 'physical' }))],
       ['At. Esp.', k2(pl.atkFor({ cat: 'special' }))],
-      ['Defensa', mon.df + ' <small>' + guard(fis) + ' físico</small>'],
-      ['Def. Esp.', mon.sd + ' <small>' + guard(esp) + ' especial</small>'],
+      ['Defensa', n(mon.df) + ' <small>' + guard(fis) + ' físico</small>'],
+      ['Def. Esp.', n(mon.sd) + ' <small>' + guard(esp) + ' especial</small>'],
       ['Velocidad', n(pl.spd)],
       ['Crítico', pct(pl.critChance || 0)],
       ['Reducción de daño', pct(pl.reduction)],

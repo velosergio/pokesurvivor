@@ -444,8 +444,6 @@ G.Ranking = (() => {
     }
     return inflight.get(b);
   }
-  /** El top 50 de tiempo de una tabla. */
-  async function summary(b) { return (await sumOf(b)).top; }
 
   /*
    * Lo que se enseña de una tabla: su resumen y, encima, lo que este navegador

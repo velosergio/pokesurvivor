@@ -98,12 +98,10 @@ G.Coop = (() => {
 
   // ---------------- lista de jugadores ----------------
 
-  function players() {
-    const out = [local];
-    for (const m of mates.values()) if (m.connected) out.push(m.pl);
-    return out;
-  }
+  /** Los Pokémon de los compañeros conectados. */
   function puppets() { const out = []; for (const m of mates.values()) if (m.connected) out.push(m.pl); return out; }
+  /** Todos: tú primero. */
+  function players() { return [local, ...puppets()]; }
 
   // ---------------- cada fotograma ----------------
 

@@ -6,6 +6,29 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-26', title: ["Halloween se acerca", "Halloween is coming"], new: [
+    ["Evento de Halloween del 30 de octubre al 1 de noviembre (hora de España). Lo que trae, lo descubrirás jugando.",
+     "Halloween event from October 30 to November 1 (Spain time). What it brings, you will find out by playing."],
+    ["En la pantalla principal, una cuenta atrás: desde dos semanas antes, cuánto falta para Halloween; durante el evento, cuánto queda.",
+     "On the main screen, a countdown: from two weeks before, how long until Halloween; during the event, how long is left."]
+  ], fix: [
+    ["Móvil: al entrar con tu usuario, el teclado ya no lo corrige ni le pone mayúsculas por su cuenta (con un nombre poco común, el autocorrector lo cambiaba y salía «Usuario o contraseña incorrectos»).",
+     "Mobile: when you log in with your username, the keyboard no longer autocorrects it or adds capitals on its own (with an unusual name, autocorrect changed it and you got \"Wrong username or password\")."],
+    ["Móvil: el joystick ya no se atasca al subir de nivel. Si tocabas una carta con un dedo mientras sujetabas el joystick con el otro, la carta no se elegía y todo se quedaba parado con las cartas abiertas. Ahora se elige al levantar el dedo sobre ella, haya otro dedo en la pantalla o no (también las de objeto y vínculo). Y si el móvil no se entera de que has soltado el dedo, el joystick se suelta solo en cuanto no queda ningún dedo en la pantalla.",
+     "Mobile: the joystick no longer gets stuck when you level up. If you tapped a card with one finger while holding the joystick with the other, the card was not chosen and everything stayed frozen with the cards open. Now it is chosen when you lift your finger on it, whether or not another finger is on the screen (item and bond cards too). And if the phone misses that you lifted your finger, the joystick lets go by itself as soon as no finger is left on the screen."],
+    ["La barra de arriba (monedas, tickets, caramelos, tu nombre y los botones) cabe en cualquier pantalla. Antes, con todo puesto, en muchas pantallas (también tabletas) las monedas y los tickets se salían por la izquierda y los botones se partían en dos líneas. Ahora, si no hay sitio, los botones se quedan sólo con su icono, tu nombre se recorta y las cantidades muy grandes salen en corto (10 M).",
+     "The top bar (coins, tickets, candy, your name and the buttons) fits on any screen. Before, with everything showing, on many screens (tablets too) the coins and tickets went off the left edge and the buttons split into two lines. Now, when space is short, the buttons keep only their icon, your name is shortened and very large amounts are shown short (10M)."],
+    ["Móvil: el botón «atrás» (o el gesto de volver) ya no te saca del juego. En plena partida la pausa, en una pantalla del menú vuelve al menú y sólo en el menú principal sale de la web. Y si bajas la cortina de avisos u otra app se pone por encima, la partida también se pausa (jugando solo).",
+     "Mobile: the \"back\" button (or the back gesture) no longer takes you out of the game. During a run it pauses, on a menu screen it goes back to the menu, and only on the main menu does it leave the site. And if you pull down the notification shade or another app opens on top, the run also pauses (when playing solo)."],
+    ["Móvil: los avisos del centro de la pantalla (los de las esferas, por ejemplo) se salían por los dos lados y no se podían leer. Ahora se parten en líneas y caben.",
+     "Mobile: the messages in the middle of the screen (the orb ones, for example) went off both sides and could not be read. Now they wrap and fit."],
+    ["Móvil: los avisos de abajo (logros y mensajes) ya no se quedan con los toques. Mientras se veían, tapaban los ataques y no se podía cambiar de ataque.",
+     "Mobile: the notices at the bottom (achievements and messages) no longer catch your taps. While they were showing, they covered your moves and you could not switch moves."],
+    ["En la pausa, la Defensa y la Defensa Especial de los Pokémon con naturaleza salían con decimales de más (55.00000000000001).",
+     "In the pause screen, Defense and Special Defense of Pokémon with a nature showed extra decimals (55.00000000000001)."],
+    ["Móvil: en las cartas de nivel y de objeto ya no queda un «·» suelto al final (era el de las teclas, que en el móvil no salen). En horizontal, la frase del título ya no tapa el botón Jugar, y en la ficha de la colección los botones de Menta, Cápsula y MT vuelven a su tamaño.",
+     "Mobile: the level-up and item cards no longer end with a stray \"·\" (it belonged to the keyboard keys, which are not shown on mobile). In landscape, the title tagline no longer covers the Play button, and in the collection page the Mint, Capsule and TM buttons are back to their size."]
+  ]},
   { d: '2026-10-25', title: ['Tickets y Pokémon iguales en todos tus aparatos', 'The same tickets and Pokémon on all your devices'], new: [
     ['Grupo: ya salen las esferas de Mundo Misterioso, como en solitario. Cada uno tiene su bolsa y su recarga; las mejoras (Focosfera, Rapidosfera, Luminosfera) llegan también a los compañeros que tengas cerca, y con la Luminosfera ves venir a los enemigos desde más lejos.',
      'Group: Mystery Dungeon orbs now drop, like in solo. Each player has their own bag and cooldown; the boosts (Focus Orb, Quick Orb, Luminous Orb) also reach the teammates near you, and with the Luminous Orb you see enemies coming from further away.'],
@@ -35,6 +58,10 @@ G.CHANGELOG = [
      'Gacha with a controller: you can now select "Skip" and "Continue" during a pull (B also continues).'],
     ['Esferas con mando: en cada casilla pone X (usar la elegida) o Y (pasar a otra) en vez de las teclas 5-8 del teclado.',
      'Orbs with a controller: each slot now shows X (use the selected one) or Y (switch) instead of the keyboard keys 5-8.'],
+    ['Guardado en la nube: si pulsabas Guardar poco después de otro Guardar, el juego decía «Se guarda en la nube en X s» y, si salías antes de ese tiempo, no se subía nunca (en el otro aparato no estaban los tickets). Ahora la espera es mucho más corta y, si sales del juego con un Guardar pendiente, se sube al salir.',
+     'Cloud save: if you pressed Save shortly after another Save, the game said "Saving to the cloud in X s" and, if you left before that, it was never uploaded (your tickets were missing on the other device). Now the wait is much shorter and, if you leave the game with a pending Save, it is uploaded as you leave.'],
+    ['Móvil: al minimizar el juego, la música seguía sonando, y distorsionada. Ahora se para y vuelve al volver al juego.',
+     'Mobile: when you minimized the game, the music kept playing, and distorted. Now it stops and comes back when you return to the game.'],
     ['Guardado en la nube: si conseguías tickets, monedas o Pokémon en un aparato y mientras tanto guardabas en otro, al volver al primero el juego creía que ya estaba todo guardado («Ya está todo guardado en la nube») y no lo subía: en el otro aparato no aparecían. Ahora se mira lo que falta de verdad y Guardar lo sube.',
      'Cloud save: if you got tickets, coins or Pokémon on one device and saved on another one in the meantime, back on the first one the game thought everything was already saved ("Everything is already saved in the cloud") and did not upload it, so it never showed up on the other device. Now it checks what is really missing and Save uploads it.'],
     ['Guardado en la nube: después de gastar en un aparato tickets o monedas que ya se habían gastado en otro, los tickets podían ir creciendo solos cada vez que guardabas, y luego bajar de golpe en el otro aparato. Ahora el saldo es el mismo en todos, y lo que ganes después no se descuenta.',

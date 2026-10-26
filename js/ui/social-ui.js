@@ -1,7 +1,7 @@
 /* ============ social-ui.js — apodo, amigos, sala e invitaciones ============ */
 (() => {
   const $ = G.UI.$;
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = G.U.esc;
 
   /** ¿Se puede usar lo online? Si no, explica por qué. */
   function needOnline() {

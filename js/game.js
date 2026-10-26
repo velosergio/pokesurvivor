@@ -43,8 +43,21 @@ G.Game = (() => {
     G.Touch.init(cv);
     // En móvil: al cambiar de app o girarlo en vertical, la partida se pausa.
     document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+    // En el móvil, bajar la cortina de avisos o abrir otra app por encima a veces
+    // sólo quita el foco a la página (sin ocultarla): también se pausa.
+    addEventListener('blur', () => { if (G.Touch.active) autoPause(); });
     G.RunUI.wirePause(() => { state = 'playing'; G.UI.hideAll(); }, quitRun);
     Backdrop.init();
+    // Halloween empieza o acaba con el juego abierto (o llega la hora de la web, al
+    // abrir): en los menús, el mundo de fondo y la música cambian al momento. (Una
+    // partida sigue como empezó: systems/halloween.js, runStart.)
+    G.Halloween.onChange(() => {
+      if (state !== 'ui') return;
+      Backdrop.restore();
+      const t = G.Audio.track;
+      if (t) { G.Audio.music(null); G.Audio.music(t); }
+      if (G.UI.isOpen('scr-menu')) G.MenuUI.open();
+    });
     last = performance.now();
     requestAnimationFrame(loop);
   }
@@ -70,6 +83,42 @@ G.Game = (() => {
     resizeTs = [100, 350, 800].map(ms => setTimeout(resize, ms));
   }
 
+  /*
+   * Botón «atrás» del móvil (o el gesto de volver, también en el iPhone). Antes
+   * te sacaba de la web: en plena partida se perdían sus monedas y no contaba
+   * para el ranking. Mientras juegas o estás en una pantalla del menú hay una
+   * entrada de más en el historial (needsTrap); «atrás» la gasta y aquí se
+   * decide: en partida, pausa; en una pantalla del menú, vuelve al menú (o
+   * cierra la ventana de encima). En el menú principal no hay entrada de más:
+   * «atrás» sale de la web, como siempre.
+   */
+  const BACK_SCREENS = ['scr-dex', 'scr-upgrades', 'scr-shop', 'scr-bag', 'scr-gacha', 'scr-friends', 'scr-rank', 'scr-goals', 'scr-lobby', 'scr-mod', 'scr-debug'];
+  const shown = id => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden'); };
+  let trapped = false;
+  function needsTrap() {
+    if (state !== 'ui') return true;
+    return BACK_SCREENS.some(shown) || ['scr-settings', 'scr-news', 'scr-support', 'scr-profile', 'pull-fx'].some(shown);
+  }
+  function ensureTrap() {
+    if (trapped || !needsTrap() || !window.history || !history.pushState) return;
+    try { history.pushState({ ps: 1 }, ''); trapped = true; } catch (e) { /* nada */ }
+  }
+  addEventListener('popstate', () => {
+    trapped = false;                          // (en cuanto haga falta, el bucle vuelve a poner otra)
+    if (state !== 'ui') {
+      // En partida: pausa (en grupo abre la pausa sin parar a los demás). Con las
+      // cartas, la pausa o el resumen abiertos, no pasa nada: te quedas donde estás.
+      if (state === 'playing' && !G.Judgment.cinematic && !G.UI.isOpen('scr-pause')) togglePause();
+      return;
+    }
+    if (shown('pull-fx')) return;                                  // la tirada del gacha
+    if (shown('scr-profile')) { document.getElementById('scr-profile').classList.add('hidden'); return; }
+    if (G.SettingsUI.isOpen) { G.SettingsUI.close(); return; }
+    if (shown('scr-news')) { G.NewsUI.close(); return; }
+    if (shown('scr-support')) { G.SupportUI.close(); return; }
+    if (BACK_SCREENS.some(shown) && G.DB.save && G.DB.save.partner) G.MenuUI.open();
+  });
+
   /** Móvil en vertical: aviso de girarlo (y pausa). */
   function checkOrientation() {
     const portrait = G.Touch.active && innerHeight > innerWidth;
@@ -86,9 +135,9 @@ G.Game = (() => {
     if (state === 'playing' && !G.Coop.active) { state = 'paused'; G.RunUI.showPause(); }
   }
 
-  /** Pausa/continúa (tecla Esc o P, o el botón de pausa del móvil). */
   let waitBy = [];                   // grupo: quién está eligiendo (todo parado)
 
+  /** Pausa/continúa (tecla Esc o P, o el botón de pausa del móvil). */
   function togglePause() {
     // En grupo la pausa no para el juego (los demás siguen jugando).
     if (G.Coop.active) {
@@ -110,6 +159,10 @@ G.Game = (() => {
    */
   function startRun(coop = null, solo = G.Modes.get('classic')) {
     waitBy = []; awayBy = null; crew = null; teamSum = null;
+    // Halloween (systems/halloween.js): lo que sea al empezar vale toda la partida.
+    // En grupo lo decide el servidor (hw en `started`; si no lo manda, no lo es:
+    // su mapa y sus enemigos tienen que ser los mismos que los tuyos).
+    G.Halloween.runStart(coop ? !!coop.hw : undefined);
     const save = G.DB.save;
     mode = coop ? null : solo;
     const hero = coop ? coopHero(save, coop) : mode.hero(save);
@@ -135,7 +188,7 @@ G.Game = (() => {
     G.Path.clear();
     G.Hazards.clear();
     G.World.reset(seed);
-    G.World.setBiome(0, true);
+    G.World.setBiome(G.Tiles.runBiome(0), true);
     biome = 0;
     time = 0; pendingLevels = 0;
     runReal = performance.now(); tampered = false;
@@ -143,7 +196,9 @@ G.Game = (() => {
     pl = new G.Player(mon, perks, hero.shiny);
     G.Orbs.reset();
     if (hero.ability) pl.setAbility(hero.ability);
-    banked = { t1: 0, t10: 0 };
+    pl.anim.skin = G.Skins.worn(save, mon.dex) || null;      // su disfraz (core/skins.js)
+    pl.candy = 0;
+    banked = { t1: 0, t10: 0, cn: 0 };
     caught = [];
     // Atajos: movimientos con hueco fijo (save.pbind[dex] = [id del 1, id del 2, ...]),
     // antes de aprender nada: addMove ya los coloca.
@@ -161,7 +216,7 @@ G.Game = (() => {
     }
     G.Camera.x = pl.x; G.Camera.y = pl.y; G.Camera.shake = 0;
     // Hojas de sprites locales: el compañero y los primeros enemigos.
-    G.Sprites.preload([mon.dex], 8000, pl.shiny);
+    G.Sprites.preload([mon.dex], 8000, pl.shiny, pl.anim.skin || '');
     G.Audio.music(G.BIOME_MUSIC[0]);
     // (Lo que el ranking apunta al empezar lo hace el modo en begin(); el de
     //  grupo, el servidor del cooperativo con su propio reloj.)
@@ -214,17 +269,20 @@ G.Game = (() => {
   /**
    * Los tickets recogidos se guardan en cuanto los coges (como los shinies):
    * antes sólo al acabar, y si la pestaña se cerraba de golpe se perdían.
-   * `banked` = los de esta partida que ya están en la partida guardada.
+   * `banked` = los de esta partida que ya están en la partida guardada
+   * (también los caramelos de Halloween, cn).
    */
-  let banked = { t1: 0, t10: 0 };
+  let banked = { t1: 0, t10: 0, cn: 0 };
   function bankTickets(save_ = true) {
     const sv = G.DB.save;
     if (!sv || !pl) return;
     sv.tickets = sv.tickets || { t1: 0, t10: 0 };
-    const d1 = Math.max(0, pl.t1 - banked.t1), d10 = Math.max(0, pl.t10 - banked.t10);
-    if (!d1 && !d10) return;
+    const d1 = Math.max(0, pl.t1 - banked.t1), d10 = Math.max(0, pl.t10 - banked.t10), dc = Math.max(0, (pl.candy || 0) - banked.cn);
+    if (!d1 && !d10 && !dc) return;
     sv.tickets.t1 += d1; sv.tickets.t10 += d10;
-    banked = { t1: pl.t1, t10: pl.t10 };
+    // Caramelos de Halloween: a la Mochila (bag.candy), como los tickets, en cuanto se cogen.
+    if (dc) { sv.bag = sv.bag || {}; sv.bag.candy = (sv.bag.candy || 0) + dc; }
+    banked = { t1: pl.t1, t10: pl.t10, cn: pl.candy || 0 };
     if (save_) G.DB.commit('run');
   }
 
@@ -381,6 +439,7 @@ G.Game = (() => {
     // Premios propios del modo (el Desafío diario da tickets por aguantar).
     const bonus = mode ? mode.finish({ t: Math.floor(time) }) : null;
     if (bonus) G.Progress.grant(bonus);
+    G.Halloween.runEnd();
     save.stats.runs++;
     save.pused = save.pused || {};
     save.pused[pl.dex] = (+save.pused[pl.dex] || 0) + 1;     // para "más usados" en la colección
@@ -406,7 +465,7 @@ G.Game = (() => {
     if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
 
     G.RunUI.showOver({
-      dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge, bonus,
+      dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, candy: pl.candy || 0, judge, bonus,
       mode: mode ? mode.id : 'group',
       // Resumen de los ataques con su daño: en grupo, el de cada uno (del servidor); solo, el tuyo.
       team: coop ? teamSum || [] : [{ name: '', me: true, sum: mySum() }],
@@ -567,6 +626,13 @@ G.Game = (() => {
       G.Orbs.got(pl, p.value);
       return;
     }
+    if (p.kind === 'candy') {
+      pl.candy = (pl.candy || 0) + (p.value || 1);
+      bankTickets();
+      G.FX.dmgText(who.x, who.y - who.bodyH - 8, '+' + (p.value || 1) + (p.value > 1 ? ' caramelos' : ' caramelo'), '#ff9a3d', true);
+      G.FX.ring(who.x, who.y, 6, 44, '#ff8a2a', 0.4, 3);
+      return;
+    }
     if (p.kind === 'ticket' || p.kind === 'ticket10') {
       if (p.kind === 'ticket') pl.t1++; else pl.t10++;
       bankTickets();
@@ -674,7 +740,7 @@ G.Game = (() => {
     G.Audio.sfx('click');
   }
 
-  let frameDt = 0, speedK = 1;
+  let frameDt = 0, speedK = 1, trapT = 0;
   let fpsShown = 60, fpsAcc = 0, fpsN = 0;
   // El siguiente fotograma se pide ANTES de nada: si algo falla a mitad, el
   // juego sigue (antes se quedaba congelado para siempre y había que recargar;
@@ -710,6 +776,7 @@ G.Game = (() => {
 
     G.Pad.poll(real);
     handleKeys();
+    if ((trapT -= real) <= 0) { trapT = 0.5; ensureTrap(); }
 
     // El telón de la grieta se abre aunque el juego esté parado: al volver se
     // abre el vínculo o las cartas en el mismo fotograma y, si sólo avanzaba
@@ -759,7 +826,7 @@ G.Game = (() => {
     const b = Math.floor(time / 240);
     if (b !== biome && !G.Rift.inArena && !G.Judgment.active) {
       biome = b;
-      G.World.setBiome(b);
+      G.World.setBiome(G.Tiles.runBiome(b));
       G.Audio.sfx('biome');
       G.Spawner.say('— ' + G.World.biomeName() + ' —', 3);
       G.FX.ring(pl.x, pl.y, 10, G.Camera.outerRadius(), '#ffffff', 0.7, 6);
@@ -925,12 +992,15 @@ G.Game = (() => {
   const Backdrop = (() => {
     let wanderers = [], t = 0, ready = false, biomeT = 0, bi = 0;
     const CAST = [1, 4, 7, 25, 133, 52, 39, 35, 16, 43, 60, 69, 74, 92, 129, 147, 113, 143, 54, 79];
+    // Halloween: paseando por la noche, sobre todo Fantasma.
+    const CAST_HW = [92, 93, 94, 200, 355, 353, 425, 429, 442, 479, 562, 592, 607, 708, 710, 778, 25, 197, 302, 351];
+    const cast = () => (G.Halloween.on ? CAST_HW : CAST).filter(d => G.SPRITE_META[d]);
 
     function init() {
-      G.World.reset(4242);
-      G.World.setBiome(0, true);
+      G.World.reset(G.World.MENU_SEED);
+      G.World.setBiome(G.Tiles.runBiome(0), true);
       G.Camera.x = 0; G.Camera.y = 0;
-      wanderers = CAST.map(dex => spawn(dex, true));
+      wanderers = cast().map(dex => spawn(dex, true));
       ready = true;
     }
 
@@ -958,7 +1028,7 @@ G.Game = (() => {
       G.Camera.follow(G.Camera.x, G.Camera.y, dt);
 
       biomeT += dt;
-      if (biomeT > 30) { biomeT = 0; bi = (bi + 1) % 3; G.World.setBiome(bi); }
+      if (biomeT > 30) { biomeT = 0; bi = (bi + 1) % 3; G.World.setBiome(G.Tiles.runBiome(bi)); }
 
       for (const wd of wanderers) {
         wd.t -= dt;
@@ -995,15 +1065,16 @@ G.Game = (() => {
       G.Camera.apply(ctx);
       drawScene(G.Camera, wanderers);
       ctx.restore();
+      if (G.Halloween.on) G.World.drawNight(ctx, w, h, G.Camera, t);
       G.World.drawVignette(ctx, w, h);
     }
 
     /** Al volver de una run, recupera el mundo del menú. */
     function restore() {
-      G.World.reset(4242);
-      G.World.setBiome(bi, true);
+      G.World.reset(G.World.MENU_SEED);
+      G.World.setBiome(G.Tiles.runBiome(bi), true);
       G.FX.clear(); G.Projectiles.clear(); G.Combat.clearFields(); G.EnemyMgr.clear(); G.Pickups.clear();
-      wanderers = CAST.map(dex => spawn(dex, true));
+      wanderers = cast().map(dex => spawn(dex, true));
     }
 
     return { init, render, restore };
@@ -1013,6 +1084,13 @@ G.Game = (() => {
     init, startRun, everyone, levelXp, flash, curtain, offerBond,
     /** Para pruebas: salta el reloj de la run. */
     debugTime(t) { tampered = true; time = t; },
+    /** Halloween: caramelos de golpe (al llegar al gran Gengar; en grupo, los da el anfitrión a todos). */
+    addCandy(n) {
+      if (!pl || !(n > 0)) return;
+      pl.candy = (pl.candy || 0) + n;
+      bankTickets();
+      G.FX.dmgText(pl.x, pl.y - pl.bodyH - 14, '+' + n + ' caramelos', '#ff9a3d', true);
+    },
     /** Para grabar vídeos: cámara lenta (0,5 = mitad de velocidad). */
     debugSpeed(k) { if (k > 1) tampered = true; speedK = k; },
     togglePause, cycleWatch,

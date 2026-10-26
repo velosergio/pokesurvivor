@@ -117,6 +117,8 @@ G.LoginUI = (() => {
       ? 'Abierto desde un archivo: la partida sólo se guarda en este navegador. Para guardar en la nube, juega en la versión publicada.'
       : G.DB.localReason === 'host'
         ? 'Esta no es la web de esta copia: la partida sólo se guarda en este navegador. Las cuentas están en ' + siteHost() + '.'
+      : G.DB.localReason === 'dev'
+        ? 'Versión de pruebas: la partida sólo se guarda en este navegador. El juego de verdad está en ' + siteHost() + '.'
       : G.DB.localReason === 'config'
         ? 'Nube sin configurar: la partida sólo se guarda en este navegador.'
         : 'No se pudo conectar con la nube: la partida sólo se guarda en este navegador.';

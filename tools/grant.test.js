@@ -58,8 +58,8 @@ test('la partida nueva y la subida usan la libreta', () => {
   const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'dev.html'), 'utf8');
   assert.match(db, /grantedCoins: 0/);
   assert.match(db, /grantedT10: 0/);
-  assert.match(db, /s\.grantedCoins = n\(s\.grantedCoins\)/);
-  assert.match(db, /s\.grantedT10 = n\(s\.grantedT10\)/);
+  assert.match(db, /s\.grantedCoins = num\(s\.grantedCoins\)/);
+  assert.match(db, /s\.grantedT10 = num\(s\.grantedT10\)/);
   const uses = db.split('G.Grant.applyGrant').length - 1;
   assert.equal(uses, 3);
   assert.ok(html.indexOf('js/core/grant.js') < html.indexOf('js/core/db.js'));

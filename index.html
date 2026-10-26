@@ -77,8 +77,8 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=502e83ca21">
-<script src="js/core/locales.js?v=364ac5a61d"></script>
+<link rel="stylesheet" href="css/style.css?v=56bb86405b">
+<script src="js/core/locales.js?v=bd945c6979"></script>
 <script src="js/noframe.js"></script>
 </head>
 <body>
@@ -104,7 +104,7 @@
     </div>
     <form id="login-form" autocomplete="off">
       <label for="f-user">Nombre</label>
-      <input id="f-user" class="field" maxlength="16" spellcheck="false">
+      <input id="f-user" class="field" maxlength="16" spellcheck="false" autocomplete="username" autocapitalize="none" autocorrect="off">
       <label for="f-pass">Contraseña</label>
       <input id="f-pass" class="field" type="password" maxlength="64">
       <p id="login-err" class="err"></p>
@@ -172,6 +172,7 @@
     <div class="logo">
       <div class="t1">PokéSurvivor</div>
       <div class="t2">Mundo Misterioso</div>
+      <div id="menu-hw" class="hw-count hidden"></div>
     </div>
     <div class="partner-card">
       <canvas id="menu-partner" class="stage" width="260" height="200"></canvas>
@@ -606,9 +607,9 @@
 <section id="scr-levelup" class="scr dim hidden">
   <div class="box center">
     <h2>¡Nivel <span id="lvl-num">2</span>!</h2>
-    <p id="lvl-sub" class="sub">Elige una recompensa · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+    <p id="lvl-sub" class="sub">Elige una recompensa<span class="kbd-hint"> · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
     <div id="cards" class="cards"></div>
-    <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>) · <kbd>R</kbd></button>
+    <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>)<span class="kbd-hint"> · <kbd>R</kbd></span></button>
     <p id="lvl-wait" class="note hidden"></p>
   </div>
 </section>
@@ -626,7 +627,7 @@
 <section id="scr-item" class="scr dim hidden">
   <div class="box center">
     <h2>¡Un objeto!</h2>
-    <p class="sub">Sólo puedes llevar uno · <kbd>1</kbd> <kbd>2</kbd></p>
+    <p class="sub">Sólo puedes llevar uno<span class="kbd-hint"> · <kbd>1</kbd> <kbd>2</kbd></span></p>
     <div id="item-cards" class="cards"></div>
   </div>
 </section>
@@ -657,6 +658,6 @@
 </section>
 
 <!-- datos generados -->
-<script defer src="js/app.min.js?v=45d61bf7c8"></script>
+<script defer src="js/app.min.js?v=bbae218db2"></script>
 </body>
 </html>
