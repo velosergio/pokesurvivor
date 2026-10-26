@@ -109,12 +109,10 @@ G.Game = (() => {
    *              decide el Pokémon y la semilla. En grupo, tu compañero y la sala.
    */
   function startRun(coop = null, solo = G.Modes.get('classic')) {
-    waitBy = []; awayBy = null; crew = null;
+    waitBy = []; awayBy = null; crew = null; teamSum = null;
     const save = G.DB.save;
     mode = coop ? null : solo;
-    // En grupo, el Pokémon tal cual: el servidor del cooperativo aún no conoce
-    // naturalezas ni habilidades (y es él quien manda en la partida).
-    const hero = coop ? G.Modes.get('classic').hero(save, true) : mode.hero(save);
+    const hero = coop ? coopHero(save, coop) : mode.hero(save);
     const mon = hero.mon;
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
 
@@ -150,18 +148,12 @@ G.Game = (() => {
     // Atajos: movimientos con hueco fijo (save.pbind[dex] = [id del 1, id del 2, ...]),
     // antes de aprender nada: addMove ya los coloca.
     (save.pbind && save.pbind[mon.dex] || []).forEach((id, i) => { if (id) pl.bind[id] = i; });
-    pl.addMove(G.startMoveOf(mon.dex));
     // Mejora "Veto": movimientos que no quieres que te salgan.
     pl.banned = new Set((save.pban && save.pban[mon.dex] || []).slice(0, perks.bans));
-    // Mejora "Repertorio": un segundo movimiento de ataque, el elegido con
-    // "Segundo movimiento inicial" o, si no, al azar.
-    if (perks.startMoves >= 2) {
-      const pick2 = G.startMove2Of(mon.dex);
-      const pool = G.Moves.poolFor(mon).filter(id => !pl.hasMove(id) && !pl.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
-      if (pick2 && !pl.hasMove(pick2)) pl.addMove(pick2);
-      else if (pool.length) pl.addMove(G.RNG.stream('run').pick(pool));
-      pl.setActive(0);
-    }
+    // El movimiento inicial y, con "Repertorio", un segundo de ataque: el elegido
+    // con "Segundo movimiento inicial" o, si no, al azar. (En grupo los manda el servidor: kit.)
+    const [first, second] = G.savedStartPicks(mon.dex);
+    pl.learnStart(first, second, perks.startMoves, l => G.RNG.stream('run').pick(l));
 
     if (coop) {
       G.Coop.begin(coop, pl, coopApi);
@@ -176,6 +168,19 @@ G.Game = (() => {
     deathT = 0;
 
     state = 'playing';
+  }
+
+  /**
+   * Tu Pokémon en grupo: con la naturaleza y la habilidad con las que te deja
+   * jugar el servidor (las de tu partida guardada en la nube: `started`, ver
+   * server/room.js heroOf). Si no llegan, tal cual.
+   */
+  function coopHero(save, coop) {
+    const me = (coop.members || []).find(m => m.uid === G.Social.uid) || {};
+    const dex = save.partner, shiny = !!save.partnerShiny && G.DB.ownsShiny(dex);
+    if (typeof me.nat !== 'string') return { mon: G.DEX_BY[dex], shiny, ability: '' };
+    const { mon, ability } = G.Mons.loadout(dex, G.Mons.saveOf(dex, me));
+    return { mon, shiny, ability };
   }
 
   function quitRun() {
@@ -203,8 +208,7 @@ G.Game = (() => {
   /** Tu resumen para el final de la partida: ataques con su daño, objeto... */
   function mySum() {
     if (!pl) return null;
-    return { dex: pl.dex, sh: !!pl.shiny, lv: pl.level, t: Math.floor(time), it: pl.item || null,
-             mv: pl.moves.slice(0, 8).map(m => [m.id, m.lvl, Math.round(m.dealt || 0), Math.round(m.since || 0), m.evolved ? 1 : 0]) };
+    return pl.runSum(pl.level, time);
   }
 
   /**
@@ -269,7 +273,7 @@ G.Game = (() => {
       const others = waitBy.filter(n => n !== (G.Social.me && G.Social.me.name));
       if (state === 'held' && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
     },
-    /** Tu Pokémon según el servidor: movimientos, objeto, vínculos y velocidad. */
+    /** Tu Pokémon según el servidor: movimientos, objeto, vínculos y velocidad (la de su habilidad incluida). */
     kit(ev) {
       const [, slots, act, item, bonds, st] = ev;
       const had = pl.slots.length;
@@ -288,13 +292,16 @@ G.Game = (() => {
       if (pl.slots.length !== had || pl.active >= pl.slots.length) pl.active = Math.max(0, Math.min(act | 0, pl.slots.length - 1));
       pl.item = item || null;
       pl.bonds = bonds | 0;
-      if (st) { pl.spdMul = st[0] || pl.spdMul; pl.magnet = st[1] || pl.magnet; }
+      if (st) { pl.spdMul = st[0] || pl.spdMul; pl.magnet = st[1] || pl.magnet; pl.netAbSpd = st[2] || 0; }
     },
     /** Fin (te llega tu resumen del servidor). */
     over(r) {
       Object.assign(pl, { kills: r.ki | 0, bosses: r.bo | 0, coins: r.co | 0, level: Math.max(pl.level, r.lv | 0), t1: r.t1 | 0, t10: r.t10 | 0 });
       if (r.t) time = r.t;
       crew = Array.isArray(r.crew) ? r.crew.map(c => Object.assign({}, c, { me: c.uid === r.uid })) : null;
+      // Resumen de ataques de cada uno, del servidor (tú primero).
+      teamSum = Array.isArray(r.team) ? r.team.filter(m => m && m.sum).map(m => ({ name: m.name, me: m.uid === r.uid, sum: m.sum }))
+        .sort((a, b) => b.me - a.me) : null;
       if (r.why === 'error') G.UI.toast('La partida ha fallado en el servidor: se guarda lo conseguido', 3600);
       endRun(r.why === 'down');
     },
@@ -313,7 +320,7 @@ G.Game = (() => {
   };
   let awayBy = null;
   /** Grupo: lo que hizo cada uno según el servidor (`over`), para el resumen. */
-  let crew = null;
+  let crew = null, teamSum = null;   // en grupo: la tabla y el resumen de ataques de cada uno (del servidor)
 
   /** Has llevado a casa a un Pokémon perdido y se une a ti (events.js). */
   G.onRescue = (dex, name) => {
@@ -400,8 +407,8 @@ G.Game = (() => {
     G.RunUI.showOver({
       dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge, bonus,
       mode: mode ? mode.id : 'group',
-      // Resumen de tus ataques con su daño (en grupo, la tabla del servidor: crew).
-      team: coop ? [] : [{ name: '', me: true, sum: mySum() }],
+      // Resumen de los ataques con su daño: en grupo, el de cada uno (del servidor); solo, el tuyo.
+      team: coop ? teamSum || [] : [{ name: '', me: true, sum: mySum() }],
       moves: pl.moves, caught,
       // Resumen por personaje: en grupo, el del servidor; solo, el tuyo.
       crew: crew || [{ me: true, name: (G.Social.me && G.Social.me.name) || '', dex: pl.dex, shiny: pl.shiny, ki: pl.kills,
@@ -644,19 +651,25 @@ G.Game = (() => {
 
   let deathT = 0;
 
-  // Caído en grupo: en el original se puede mirar a un compañero vivo (el
-  // anfitrión manda los enemigos de allí). Aquí el servidor sólo manda los de
-  // cerca de tu cuerpo, así que de momento no se mira a otro (watch siempre null).
+  // Caído en grupo: se puede mirar a un compañero vivo. El servidor manda
+  // entonces los enemigos de cerca de él (mensaje `watch`, server/room.js focusOf).
   let watch = null;
   /** El compañero al que miras, o null si miras tu cuerpo. */
   function watched() {
-    return (watch = null);
+    if (!pl || !pl.dead || !G.Coop.active) return setWatch(null);
+    if (watch && (watch.dead || !G.Coop.puppets().includes(watch))) setWatch(G.Coop.puppets().find(p => !p.dead) || null);
+    return watch;
+  }
+  /** Cambia a quién miras y, si es otro, se lo dice al servidor. */
+  function setWatch(p) {
+    if (p !== watch && G.Coop.active) G.Coop.watch(p ? p.uid : '');
+    return (watch = p);
   }
   /** Cambia a quién miras: tú → cada compañero vivo → tú. */
   function cycleWatch(dir) {
     const list = [null, ...G.Coop.puppets().filter(p => !p.dead)];
     if (list.length < 2) return;
-    watch = list[(list.indexOf(watched()) + dir + list.length) % list.length];
+    setWatch(list[(list.indexOf(watched()) + dir + list.length) % list.length]);
     G.Audio.sfx('click');
   }
 
@@ -759,9 +772,12 @@ G.Game = (() => {
       for (const p of [pl, ...G.Coop.puppets()]) { if (p !== pl) p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
       reviveTick(dt);
     }
-    // (En grupo, la cámara sigue a tu Pokémon donde se dibuja: ver netOff en net/coop.js.)
-    G.Camera.follow(pl.x + (pl.netOffX || 0), pl.y + (pl.netOffY || 0), dt);
-    veil.lock(G.Camera, pl);
+    // (En grupo, la cámara sigue a tu Pokémon donde se dibuja: ver netOff en net/coop.js;
+    // caído, al compañero que miras.)
+    const view = watched();
+    if (view) G.Camera.follow(view.x, view.y, dt);
+    else G.Camera.follow(pl.x + (pl.netOffX || 0), pl.y + (pl.netOffY || 0), dt);
+    veil.lock(G.Camera, view || pl);
     G.Step.world(dt, time, everyone(), pl, !coop, onCollect);
     G.FX.update(dt);
 

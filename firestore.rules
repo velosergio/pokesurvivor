@@ -380,6 +380,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Regalo a todos (botón del regalo en Debug): totales que se suman a la libreta de
+    // cada cuenta (js/core/grant.js withAll). Cada escritura, +500 monedas y +500 tickets ×10.
+    match /gifts/{id} {
+      allow read: if signedIn();
+      allow create: if admin() && id == 'all'
+        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
+        && request.resource.data.coins == 500
+        && request.resource.data.t10 == 500
+        && request.resource.data.at == request.time;
+      allow update: if admin() && id == 'all'
+        && request.resource.data.keys().hasOnly(['coins', 't10', 'at'])
+        && request.resource.data.coins == resource.data.coins + 500
+        && request.resource.data.t10 == resource.data.t10 + 500
+        && request.resource.data.at == request.time;
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

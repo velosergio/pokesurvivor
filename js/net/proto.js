@@ -6,6 +6,7 @@
  * Mensajes de texto (JSON con el tipo en el campo `t`):
  *   navegador -> servidor: hello{token,proto,name,dex,shiny} create join{code} leave
  *                          open{v} rules{v} start pick{choice} reroll hold{on}
+ *                          watch{uid} (caído: miras a ese compañero vivo; '' = a ti)
  *                          back (volver a la partida de la que te fuiste: ver `away`)
  *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open,rules}
  *                          started{seed,members} ev{list:[...]} level{kind,options,left}
@@ -36,11 +37,11 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 9;
+  const VERSION = 10;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
-  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'rules', 'start', 'pick', 'reroll', 'hold', 'back',
+  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'rules', 'start', 'pick', 'reroll', 'hold', 'watch', 'back',
     'hi', 'away', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
   const IN_LEN = 16;
 

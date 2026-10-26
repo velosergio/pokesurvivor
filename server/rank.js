@@ -311,29 +311,36 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
    *         (si la nube va atrasada, como mucho juegas sin la última compra)
    *   ok    el Pokémon (y el shiny, si lo lleva) es suyo y la cuenta no está
    *         baneada ni marcada; si no, la partida no sube al ranking de grupo
+   *   saved lo que decide su naturaleza, su habilidad y sus MT en ese Pokémon
+   *         ({ created, pnat, pabil, ptm }, la forma de la partida guardada que
+   *         lee G.Mons): room.js juega con eso y no con lo que diga el navegador.
+   *         null si no tiene partida guardada.
    * Si no se puede leer, lanza (lobby.js: la partida se juega, sin ranking).
    * @param {{uid:string, dex:number, shiny:boolean, up:object}[]} players
-   * @returns {Promise<Map<string, {up:object, ok:boolean}>>}
+   * @returns {Promise<Map<string, {up:object, ok:boolean, saved:object|null}>>}
    */
   async function checkKits(players) {
     const ps = players.filter(p => p && typeof p.uid === 'string' && p.uid && !p.uid.includes('/'));
     const saves = await getAll(ps.map(p => 'saves/' + p.uid),
-      { mask: { fieldPaths: ['save.pupg', 'save.owned', 'save.shiny', 'ban', 'sus'] } });
+      { mask: { fieldPaths: ['save.pupg', 'save.owned', 'save.shiny', 'save.created', 'save.pnat', 'save.pabil', 'save.ptm', 'ban', 'sus'] } });
     const out = new Map();
     for (const p of ps) {
       const f = saves.get('saves/' + p.uid);
       const sv = f && f.save ? fromFs(f.save) || {} : {};
       const has = (o, k) => !!(o && typeof o === 'object' && o[k]);
-      const saved = (sv.pupg && sv.pupg[p.dex]) || {};
+      const bought = (sv.pupg && sv.pupg[p.dex]) || {};
       const up = {};
       for (const [k, n] of Object.entries(p.up || {})) {
-        const lim = Number.isInteger(saved[k]) ? saved[k] : 0;
+        const lim = Number.isInteger(bought[k]) ? bought[k] : 0;
         const v = Math.min(n | 0, lim);
         if (v > 0) up[k] = v;
       }
       const ok = !!f && has(sv.owned, p.dex) && (!p.shiny || has(sv.shiny, p.dex))
         && fromFs(f.ban) !== true && fromFs(f.sus) !== true;
-      out.set(p.uid, { up, ok });
+      // Sólo lo de su Pokémon.
+      const only = o => (o && typeof o === 'object' && p.dex in o ? { [p.dex]: o[p.dex] } : {});
+      const saved = f ? { created: Number(sv.created) || 0, pnat: only(sv.pnat), pabil: only(sv.pabil), ptm: only(sv.ptm) } : null;
+      out.set(p.uid, { up, ok, saved });
     }
     return out;
   }

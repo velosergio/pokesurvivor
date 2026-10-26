@@ -7,10 +7,16 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-25', title: ['Tickets y Pokémon iguales en todos tus aparatos', 'The same tickets and Pokémon on all your devices'], new: [
-    ['Al acabar una partida en solitario sale el resumen: cada ataque con el daño que ha hecho y su daño por segundo, el daño total y tu objeto. (En grupo sigue saliendo la tabla con los números de cada jugador.)',
-     'When a solo run ends you get the summary: each move with the damage it dealt and its damage per second, your total damage and your item. (In a group you still get the table with each player’s numbers.)'],
+    ['Al acabar la partida, sola o en grupo, sale el resumen: cada ataque con el daño que ha hecho y su daño por segundo, el daño total y tu objeto. En grupo, también el de cada compañero, con una pestaña por jugador (además de la tabla con los números de cada uno).',
+     'When a run ends, solo or in a group, you get the summary: each move with the damage it dealt and its damage per second, your total damage and your item. In a group, also each teammate’s, with one tab per player (on top of the table with each player’s numbers).'],
     ['Móvil: vuelve «Apuntar a mano» (Ajustes → Accesibilidad), ahora con un segundo joystick: el dedo en la mitad derecha de la pantalla apunta tus ataques y el de la izquierda te mueve. Al soltarlo, vuelven a apuntar solos.',
-     'Mobile: "Manual aim" is back (Settings → Accessibility), now with a second joystick: your finger on the right half of the screen aims your moves and the one on the left moves you. When you lift it, they aim on their own again.']
+     'Mobile: "Manual aim" is back (Settings → Accessibility), now with a second joystick: your finger on the right half of the screen aims your moves and the one on the left moves you. When you lift it, they aim on their own again.'],
+    ['Grupo: al caer puedes mirar a un compañero vivo mientras esperas a que te levanten (botón «Ver a un compañero», Q / E o LB / RB) y ves a los enemigos de su alrededor. Al levantarte, o si él cae, vuelves a ti.',
+     'Group: when you are down you can watch a teammate who is still standing while you wait to be revived ("Watch a teammate" button, Q / E or LB / RB) and you see the enemies around them. When you get back up, or if they go down, you are back on yourself.'],
+    ['Mejoras: botón «Mejorar todo» arriba a la derecha, que dice cuántas Pokémonedas cuesta subir al máximo todas las mejoras del Pokémon elegido y las compra de una vez.',
+     'Upgrades: "Upgrade all" button at the top right, which shows how many PokéCoins it costs to max out every upgrade of the selected Pokémon and buys them all at once.'],
+    ['Grupo: tu Pokémon juega con su naturaleza, su habilidad (también la oculta), sus MT (salen en las cartas y de movimiento inicial) y el segundo movimiento inicial que hayas elegido, como en solitario. Se toman de tu partida guardada en la nube. Los avisos como «¡Esquiva!» o «¡Robustez!» se ven también en grupo.',
+     'Group: your Pokémon plays with its nature, its ability (the hidden one too), its TMs (they show up in the cards and as a starting move) and the second starting move you chose, like in solo. They come from your cloud save. Notices like "Dodge!" or "Sturdy!" also show in a group.']
   ], chg: [
     ['Ranking por Pokémon: ahora cuentan las partidas de 10 minutos o más (antes 5). Los demás rankings siguen desde 2 minutos.',
      'Per-Pokémon ranking: runs now count from 10 minutes (it was 5). The other rankings still count from 2 minutes.'],

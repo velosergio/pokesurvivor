@@ -6,15 +6,16 @@ const { createLobby, BACK_MS } = require('../lobby.js');
 
 /** Partida falsa: apunta las llamadas. */
 function fakeRooms() {
-  const made = [];
+  const made = [], heroes = {};
   const createRoom = opts => {
     const calls = [];
     const g = { opts, calls };
-    for (const k of ['input', 'pick', 'hold', 'drop', 'back', 'start', 'stop']) g[k] = (...a) => calls.push([k, ...a]);
+    for (const k of ['input', 'pick', 'hold', 'watch', 'drop', 'back', 'start', 'stop']) g[k] = (...a) => calls.push([k, ...a]);
+    g.hero = uid => heroes[uid] || {};
     made.push(g);
     return g;
   };
-  return { made, createRoom };
+  return { made, createRoom, heroes };
 }
 
 /** Temporizadores falsos: avanzar el reloj a mano. */
@@ -137,7 +138,7 @@ test('start crea la partida y manda started a todos', () => {
   assert.deepStrictEqual(b.last(), { t: 'level', options: [1] });
 });
 
-test('reenvía in/pick/hold a la partida', () => {
+test('reenvía in/pick/hold/watch a la partida', () => {
   const s = setup();
   const { cs: [a, b] } = room(s, 'a', 'b');
   s.lobby.message(a, { t: 'in', seq: 1, x: 2, y: 3, dx: 0, dy: 1, move: true }); // sin partida: nada
@@ -147,7 +148,8 @@ test('reenvía in/pick/hold a la partida', () => {
   s.lobby.message(b, m);
   s.lobby.message(a, { t: 'pick', choice: 2 });
   s.lobby.message(b, { t: 'hold', on: 1 });
-  assert.deepStrictEqual(g.calls.slice(1), [['input', 'b', m], ['pick', 'a', 2], ['hold', 'b', true]]);
+  s.lobby.message(a, { t: 'watch', uid: 'b' });
+  assert.deepStrictEqual(g.calls.slice(1), [['input', 'b', m], ['pick', 'a', 2], ['hold', 'b', true], ['watch', 'a', 'b']]);
 });
 
 test('corte en partida: vuelve antes de 1 min y recupera su sitio', () => {
@@ -433,6 +435,20 @@ test('con checkKits: espera a la partida guardada, usa sus mejoras y ranked seg�
   assert.strictEqual(g.opts.ranked, true);
   assert.strictEqual(a.last().t, 'started');
   assert.strictEqual(s.clk.pending, 0);
+});
+
+test('con checkKits: lo guardado (saved) pasa a la sala y `started` cuenta naturaleza y habilidad de cada uno (hero)', async () => {
+  const saved = { created: 1, pnat: { 25: ['bold', 1] }, pabil: {}, ptm: {} };
+  const s = setup({ checkKits: async () => new Map([['a', { up: {}, ok: true, saved }], ['b', { up: {}, ok: true, saved: null }]]) });
+  const { cs: [a] } = room(s, 'a', 'b');
+  Object.assign(s.fr.heroes, { a: { nat: 'bold', ab: 1 }, b: { nat: 'hardy', ab: 0 } });
+  s.lobby.message(a, { t: 'start' });
+  await new Promise(r => setImmediate(r));
+  const g = s.fr.made[0];
+  assert.deepStrictEqual(g.opts.members.map(m => m.kit.saved), [saved, null]);
+  const st = a.last();
+  assert.strictEqual(st.t, 'started');
+  assert.deepStrictEqual(st.members.map(m => [m.uid, m.nat, m.ab]), [['a', 'bold', 1], ['b', 'hardy', 0]]);
 });
 
 test('con checkKits: si algo no cuadra o falla la lectura, se juega sin ranking', async () => {

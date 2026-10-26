@@ -52,6 +52,10 @@ G.Icons = (() => {
     flag: { pal: { r: '#ff5f6d', w: '#c9cfdc' }, rows: [
       '.kk.........', '.kwkkkkkk...', '.kwkrrrrrk..', '.kwkrrrrrrk.', '.kwkrrrrrk..', '.kwkrrrrk...',
       '.kwkkkkk....', '.kwk........', '.kwk........', '.kwk........', 'kkwkk.......', 'kkkkk.......'] },
+    // Regalo (Debug: regalo a todos los jugadores).
+    gift: { pal: { r: '#ff5f6d', d: '#b8283a', w: '#ffd3d8', y: '#ffd23f' }, rows: [
+      '..kk....kk..', '.kyyk..kyyk.', '..kyykkyyk..', 'kkkkkyykkkkk', 'krwrryyrrrrk', 'kkkkkyykkkkk',
+      '.krrryyrrrk.', '.krwryyrrrk.', '.krrryyrrdk.', '.krrryyrrdk.', '.kdddyydddk.', '.kkkkkkkkkk.'] },
     // Prohibido (Veto: movimiento bloqueado).
     ban: { pal: { r: '#ff5f6d' }, rows: [
       '...kkkkkk...', '..krrrrrrk..', '.krrkkkkrrk.', 'krrk..krrrrk', 'krk..krrkkrk', 'krk.krrk.krk',

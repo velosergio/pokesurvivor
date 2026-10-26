@@ -14,6 +14,7 @@
  *   pick   {choice}  elige carta de nivel, objeto o fusión (índice).
  *   reroll           cambia las cartas de nivel (1 por partida + Mejoras → Cambio de cartas).
  *   hold   {on}      pausa mientras el navegador elige algo por su cuenta.
+ *   watch  {uid}     caído: mira a ese compañero vivo ('' = a ti mismo).
  *
  * Experiencia y nivel son del equipo (como en js/net/coop.js). Al subir, cada
  * jugador vivo recibe `level` y la partida se para hasta que eligen todos los
@@ -21,7 +22,8 @@
  * desconectado se le elige la primera al momento.
  *
  * Cada 2 pasos, a cada jugador: `ev` (si hay eventos) y `snap` (binario,
- * proto.encSnap) con los enemigos a ≤ 950 px de ÉL como cambios desde el último
+ * proto.encSnap) con los enemigos a ≤ 950 px de ÉL (o, caído, del compañero
+ * al que mira: focusOf) como cambios desde el último
  * snap (se lleva lo que sabe cada uno) y como mucho ~3 KB: si no cabe todo, van
  * los más cercanos y el resto en el siguiente.
  *
@@ -46,12 +48,19 @@
  *   bd [id, dex] jefe vencido · sh [dex] shiny · rw [dex] Pokémon rescatado
  *   bomb [x, y] · mag · heal [jugador] · bio [bioma] · ja [x, y, anim, dir] Arceus
  *   wait [nombres] quién está eligiendo (vacía = sigue)
- *   kit [huecos, activo, objeto, vínculos, [velocidad, imán]] tu Pokémon (sólo a ti, al cambiar)
+ *   kit [huecos, activo, objeto, vínculos, [velocidad, imán, × de la habilidad]] tu Pokémon (sólo a ti, al cambiar)
+ *   tx [jugador, texto, color, grande, alto] aviso sobre un jugador («¡Esquiva!», «¡Robustez!»: Player.notice)
  *
  * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda,
- * bind: atajos, ban: vetados, start: movimiento inicial elegido }. Con la cuenta de servicio, lobby.js deja en `up`
- * lo menos entre eso y la partida guardada (rank.js checkKits); perks() además
- * recorta cada una a su máximo.
+ * bind: atajos, ban: vetados, start / start2: movimientos iniciales elegidos,
+ * nat / ab / tms: naturaleza, hueco de la habilidad y MT }. Con la cuenta de
+ * servicio, lobby.js deja en `up` lo menos entre eso y la partida guardada
+ * (rank.js checkKits) y en `saved` lo guardado que decide naturaleza,
+ * habilidad y MT, que manda sobre nat / ab / tms (heroOf); perks() además
+ * recorta cada mejora a su máximo. Con qué naturaleza y habilidad juega cada
+ * uno se le cuenta en `started` (hero(uid)), para que su navegador lo lleve igual.
+ * Clima de habilidad (Sequía, Llovizna...): como en solitario, cada jugador lo
+ * pone al empezar y cada 3 min si no hay otro; con varios, el primero que toque.
  *
  * Altares, cofres y trampas los decide el servidor (interact.js); a los navegadores les llegan
  * `alt` (quién se lleva el poder), `chs` (cómo va la apertura de un cofre) y `pb` (roto/abierto/saltó).
@@ -111,7 +120,7 @@ const str = v => (v == null ? '' : String(v));
  * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada, o condiciones a medida)
  * @param {object} [o.rules]  condiciones a medida de la sala (proto.RULES): ×enemigos, ×grietas, ×monedas, ×tickets
  * @param {{error: Function, warn: Function}} [o.logger=console]
- * @returns {{ input, pick, hold, drop, back, start, stop, tick, debug }}
+ * @returns {{ input, pick, hold, watch, drop, back, hero, start, stop, tick, debug }}
  */
 function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rules = null, logger = console } = {}) {
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
@@ -135,23 +144,35 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   let died = new Set();
   let lastWait = '';
 
+  /**
+   * Con qué Pokémon juega un miembro (G.Mons.loadout): naturaleza, habilidad y
+   * MT de su partida guardada en la nube (kit.saved) si se ha leído; si no (en
+   * local, o no se pudo leer: la partida no sube al ranking), lo que pide su
+   * navegador, quedándose sólo con lo que puede tener ese Pokémon.
+   */
+  function heroOf(dex, kit) {
+    return G.Mons.loadout(dex, kit.saved && typeof kit.saved === 'object' ? kit.saved : G.Mons.saveOf(dex, kit));
+  }
+
   /** Un jugador de la sala. */
   const seats = members.map((m, i) => {
-    const mon = G.DEX_BY[m.dex] && G.SPRITE_META[m.dex] ? G.DEX_BY[m.dex] : G.DEX_BY[25];
+    const dex = G.DEX_BY[m.dex] && G.SPRITE_META[m.dex] ? m.dex : 25;
     // Mejoras de la tienda (kit.up): perks() ya recorta cada una a su máximo.
     const kit = m.kit || {};
     const perks = G.Upgrades.perks(kit.up || {});
-    const pl = new G.Player(mon, perks, !!m.shiny);
+    const hero = heroOf(dex, kit);
+    const pl = new G.Player(hero.mon, perks, !!m.shiny);
+    if (hero.ability) pl.setAbility(hero.ability);
     pl.uid = m.uid; pl.tag = str(m.name);
     // Atajos (huecos fijos) y Veto, como en game.js startRun.
     (Array.isArray(kit.bind) ? kit.bind : []).forEach((id, j) => { if (id && G.Moves.BY_ID[id]) pl.bind[id] = j; });
     pl.banned = new Set((Array.isArray(kit.ban) ? kit.ban : []).filter(id => G.Moves.BY_ID[id]).slice(0, perks.bans));
     return {
-      id: i, uid: m.uid, name: str(m.name), pl, perks, kit,
+      id: i, uid: m.uid, name: str(m.name), pl, perks, kit, hero: { nat: hero.mon.nature, ab: hero.slot },
       on: true, gone: false, offT: 0,
       in: null, inAt: -1, ack: 0, lastMove: -1, axis: [0, 0],
       accX: 0, accY: 0, accT: 0, tpT: -99,
-      queue: [], holdOn: false, holdT: 0,
+      queue: [], holdOn: false, holdT: 0, watch: '',
       known: new Map(), pk: new Set(), ev: [], evCos: 0, kitSig: '', rr: 0,
       shinies: [], rescued: []
     };
@@ -162,6 +183,18 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   const players = () => active().map(s => s.pl);
   const anchor = () => { const ps = players(); return ps.find(p => !p.dead) || ps[0] || seats[0].pl; };
   const seatOf = pl => seats.find(s => s.pl === pl);
+  /**
+   * Dónde mira un jugador (de dónde se le mandan enemigos, disparos y objetos):
+   * su Pokémon o, si está caído, el compañero vivo que haya elegido con `watch`.
+   * Al levantarse, o si el elegido cae o se va, vuelve a sí mismo.
+   */
+  function focusOf(s) {
+    if (!s.watch) return s.pl;
+    const w = s.pl.dead ? byUid.get(s.watch) : null;
+    if (w && w !== s && !w.gone && !w.pl.dead) return w.pl;
+    s.watch = '';
+    return s.pl;
+  }
 
   // ---------------- el juego dentro de la simulación ----------------
 
@@ -202,6 +235,11 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     levelXp() { return Math.ceil((team.xpNext - team.xp + 1) / xpK()); },
     flash() {},
     curtain() {},
+    /** Aviso sobre un jugador (Player.notice): a los navegadores, que no lo ven pasar aquí. */
+    notice(p, text, color, big, dy) {
+      const s = seatOf(p);
+      if (s) pushAll(['tx', s.id, str(text), str(color), big ? 1 : 0, dy | 0], true);
+    },
     offerBond() { offerBonds(); },
     get state() { return over ? 'over' : 'playing'; }
   };
@@ -224,7 +262,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     hurtShown(e, d, color) {
       if (!(e.boss || d >= 100)) return;
       for (const s of active()) {
-        if (s.on && G.U.dist2(s.pl.x, s.pl.y, e.x, e.y) <= 700 * 700) pushTo(s, ['hn', e.id, d, color], true);
+        const f = focusOf(s);
+        if (s.on && G.U.dist2(f.x, f.y, e.x, e.y) <= 700 * 700) pushTo(s, ['hn', e.id, d, color], true);
       }
     },
     enemyGone(e, wasKilled) {
@@ -265,15 +304,11 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     const p = s.pl;
     p.x = (i - (seats.length - 1) / 2) * 34; p.y = 0;
     G.World.collide(p);
-    // Movimiento inicial (Mejoras): el elegido si tiene la mejora y es de los suyos; si no, el de serie.
-    const pick = s.kit.start, up = s.kit.up || {};
-    p.addMove(pick && up.start && G.startChoices(p.dex).includes(pick) ? pick : G.baseStartOf(p.dex));
-    // Mejora "Repertorio": un segundo movimiento de ataque al azar (game.js startRun).
-    if (s.perks.startMoves >= 2) {
-      const pool = G.Moves.poolFor(p.mon).filter(id => !p.hasMove(id) && !p.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
-      if (pool.length) p.addMove(G.U.pick(pool));
-      p.setActive(0);
-    }
+    // Movimientos iniciales (Mejoras), como en game.js startRun: los elegidos si
+    // tiene las mejoras y son de los suyos (con sus MT); si no, el de serie y,
+    // con Repertorio, uno al azar.
+    const [first, second] = G.startPicks(p.dex, { start: s.kit.start, start2: s.kit.start2, up: s.kit.up || {}, mon: p.mon });
+    p.learnStart(first, second, s.perks.startMoves, l => G.U.pick(l));
     s.accX = p.x; s.accY = p.y;
   });
   syncLevel();
@@ -566,7 +601,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
 
   /** La instantánea de un jugador (y lo que sabe pasa a ser lo enviado). */
   function snapFor(s, pmap, shotsAll) {
-    const me = s.pl;
+    const me = focusOf(s);
     const d2 = (x, y) => G.U.dist2(x, y, me.x, me.y);
     let size = 33 + seats.length * 19;
     const out = { ack: s.ack, t: time, lv: team.level, xp: team.xp, xpNext: team.xpNext, players: [],
@@ -638,7 +673,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   function kitOf(s) {
     const p = s.pl;
     return [p.slots.map(g => g.map(m => [m.id, m.lvl, m.evolved ? 1 : 0])), p.active, str(p.item), p.bonds | 0,
-            [r2(p.spdMul), r1(p.magnet)]];
+            [r2(p.spdMul), r1(p.magnet), r2(p.abilSpeed())]];
   }
 
   /** Manda a cada conectado sus eventos y su instantánea. */
@@ -672,8 +707,16 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       uid: s.uid, why, t: time, lv: team.level, ki: p.kills, bo: p.bosses,
       kt: seats.reduce((a, o) => a + o.pl.kills, 0), co: team.coins, t1: team.t1, t10: team.t10,
       dead: p.dead, judge: G.Judgment.summary(), shinies: s.shinies.slice(), rescued: s.rescued.slice(),
-      crew: crewSummary()
+      crew: crewSummary(), team: teamSums()
     };
+  }
+
+  /**
+   * El resumen de ataques de cada uno (la pestaña por jugador del final, ver
+   * Player.runSum): [{ uid, name, sum }]. (m.since sale del reloj de la sala: G.Game.st.time.)
+   */
+  function teamSums() {
+    return seats.map(o => ({ uid: o.uid, name: o.name, sum: o.pl.runSum(team.level, time) }));
   }
 
   /**
@@ -761,6 +804,17 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       // El tope de 20 s cuenta desde que empieza: repetir hold:true no lo alarga.
       if (on && !s.holdOn) s.holdT = 0;
       s.holdOn = !!on;
+    },
+    /** Con qué naturaleza y hueco de habilidad juega uid ({ nat, ab }; ver heroOf), para `started`. */
+    hero(uid) {
+      const s = byUid.get(uid);
+      return s ? Object.assign({}, s.hero) : {};
+    },
+    /** Caído: mira al compañero `target` (uid; '' = a sí mismo). Ver focusOf. */
+    watch(uid, target) {
+      const s = byUid.get(uid);
+      if (!s || over) return;
+      s.watch = typeof target === 'string' ? target.slice(0, 128) : '';
     },
     /** Se ha cortado: quieto, y no se le espera. */
     drop(uid) {

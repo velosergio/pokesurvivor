@@ -48,34 +48,39 @@ G.baseStartOf = dex => {
 /**
  * Ataques que se pueden elegir para empezar (Mejoras → Movimiento inicial): los suyos, sin potenciadores,
  * y siempre el de serie (aunque no sea de su tipo, como Confusión en Psyduck), para poder volver a él.
+ * `mon`: el Pokémon con sus MT (G.Mons.monFor); por defecto, el de G.DEX_BY con las de tu partida guardada.
  */
-G.startChoices = dex => {
-  const ids = G.Moves.poolFor(G.DEX_BY[dex]).filter(id => G.Moves.BY_ID[id].kind !== 'buff');
+G.startChoices = (dex, mon = G.DEX_BY[dex]) => {
+  const ids = G.Moves.poolFor(mon).filter(id => G.Moves.BY_ID[id].kind !== 'buff');
   const base = G.baseStartOf(dex);
   if (!ids.includes(base)) ids.push(base);
   return ids;
 };
 
 /**
- * Movimiento con el que empieza: el elegido con la mejora Movimiento inicial
- * (si la tiene comprada para ese Pokémon y sigue siendo de los suyos) o el de serie.
+ * Con qué movimientos empieza: [primero, segundo o null]. El primero, el elegido
+ * (start) si tiene la mejora Movimiento inicial (up.start) y sigue siendo de los
+ * suyos, o el de serie. El segundo, el elegido (start2) si tiene Segundo
+ * movimiento inicial y Repertorio (up.start2, up.moves); null = al azar como siempre.
+ * Lo usan startMoveOf / startMove2Of (tu partida guardada) y server/room.js (lo de cada jugador).
  */
-G.startMoveOf = dex => {
-  const s = G.DB && G.DB.save, pick = s && s.pstart && s.pstart[dex];
-  if (pick && s.pupg && s.pupg[dex] && s.pupg[dex].start && G.startChoices(dex).includes(pick)) return pick;
-  return G.baseStartOf(dex);
+G.startPicks = (dex, { start = '', start2 = '', up = {}, mon } = {}) => {
+  const ok = id => !!id && G.startChoices(dex, mon).includes(id);
+  const first = up.start && ok(start) ? start : G.baseStartOf(dex);
+  const second = up.start2 && up.moves && start2 !== first && ok(start2) ? start2 : null;
+  return [first, second];
+};
+/** Lo elegido en tu partida guardada para ese Pokémon (G.startPicks). */
+G.savedStartPicks = dex => {
+  const s = (G.DB && G.DB.save) || {};
+  return G.startPicks(dex, { start: s.pstart && s.pstart[dex], start2: s.pstart2 && s.pstart2[dex], up: (s.pupg && s.pupg[dex]) || {} });
 };
 
-/**
- * Segundo movimiento con el que empieza (Mejoras → Segundo movimiento inicial,
- * con Repertorio comprado), o null si toca al azar como siempre.
- */
-G.startMove2Of = dex => {
-  const s = G.DB && G.DB.save, pick = s && s.pstart2 && s.pstart2[dex], up = s && s.pupg && s.pupg[dex];
-  if (!pick || !up || !up.start2 || !up.moves) return null;
-  if (pick === G.startMoveOf(dex) || !G.startChoices(dex).includes(pick)) return null;
-  return pick;
-};
+/** Movimiento con el que empieza (ver G.startPicks). */
+G.startMoveOf = dex => G.savedStartPicks(dex)[0];
+
+/** Segundo movimiento con el que empieza, o null si toca al azar (ver G.startPicks). */
+G.startMove2Of = dex => G.savedStartPicks(dex)[1];
 
 /** Descripción corta de cada rasgo, para la pantalla de resultado. */
 G.TRAIT_TEXT = {

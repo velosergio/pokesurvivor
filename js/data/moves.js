@@ -644,12 +644,15 @@
 
   /**
    * Movimientos que este Pokémon puede aprender (sus tipos + normal) y, salvo
-   * con `natural`, los que ha aprendido con MT (Tienda Kecleon, ver G.Mons).
+   * con `natural`, los que ha aprendido con MT (Tienda Kecleon, ver G.Mons): las
+   * que lleva (mon.tms, de G.Mons.monFor: las de cada jugador en el cooperativo)
+   * o, si es el de G.DEX_BY, las de tu partida guardada.
    */
   function poolFor(mon, natural) {
     const ids = new Set(POOL.normal);
     for (const t of mon.types) for (const id of (POOL[t] || [])) ids.add(id);
-    if (!natural && G.Mons && mon.dex) for (const id of G.Mons.taught(mon.dex)) ids.add(id);
+    const tms = natural ? [] : Array.isArray(mon.tms) ? mon.tms : G.Mons && mon.dex ? G.Mons.taught(mon.dex) : [];
+    for (const id of tms) ids.add(id);
     return [...ids];
   }
 

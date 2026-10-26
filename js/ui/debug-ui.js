@@ -16,6 +16,46 @@ G.DebugUI = (() => {
     $('dbg-t10').onclick = () => give('t10');
     $('dbg-mon-form').onsubmit = e => { e.preventDefault(); giveMon(); };
     $('dbg-mon-list').innerHTML = G.DEX.map(p => '<option value="' + esc(p.name) + ' #' + p.dex + '">').join('');
+    $('dbg-all').innerHTML = G.Icons.html('gift', 24);
+    $('dbg-all').onclick = giveAll;
+  }
+
+  // Regalo a todos: gifts/all (totales). Cada cuenta lo suma al sincronizar (grant.js withAll).
+  const ALL = 500;
+  async function showAll() {
+    const db = store();
+    if (!db) return;
+    try {
+      const snap = await db.collection('gifts').doc('all').get();
+      const g = snap.exists ? snap.data() : { coins: 0, t10: 0 };
+      $('dbg-all-info').textContent = 'Regalo a todos: ' + ALL + ' monedas y ' + ALL + ' tickets ×10 (dado hasta ahora: '
+        + (g.coins || 0).toLocaleString('es') + ' monedas · ' + (g.t10 || 0).toLocaleString('es') + ' tickets ×10)';
+    } catch (e) { /* se queda el texto de siempre */ }
+  }
+
+  async function giveAll() {
+    if (!G.Ranking.isAdmin()) return;
+    const db = store();
+    if (!db) { G.UI.toast('Hace falta una cuenta en la nube.'); return; }
+    if (!confirm('¿Dar ' + ALL + ' monedas y ' + ALL + ' tickets ×10 a TODOS los jugadores?')) return;
+    $('dbg-all').disabled = true;
+    try {
+      const ref = db.collection('gifts').doc('all');
+      await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        const d = snap.exists ? snap.data() : { coins: 0, t10: 0 };
+        tx.set(ref, {
+          coins: (d.coins || 0) + ALL,
+          t10: (d.t10 || 0) + ALL,
+          at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+      G.UI.toast('Regalo a todos anotado. Cada uno lo verá al sincronizar.');
+      showAll();
+    } catch (e) {
+      G.UI.toast('No se pudo: ' + (e.code || e.message));
+    }
+    $('dbg-all').disabled = false;
   }
 
   // «Pikachu #25», «Pikachu» o «25» -> entrada del Pokédex (o null).
@@ -34,6 +74,7 @@ G.DebugUI = (() => {
   function open() {
     if (!G.Ranking.isAdmin()) return;
     G.UI.show('scr-debug', true);
+    showAll();
   }
 
   function clearCard() {

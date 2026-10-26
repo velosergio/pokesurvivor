@@ -605,6 +605,28 @@ G.MenuUI = (() => {
       if (u.id === 'start2' && lvl > 0 && start2Open) box.appendChild(start2Picker());
     }
     box.appendChild(bindPanel());
+    renderBuyAll();
+  }
+
+  // Mejorar todo: sube al máximo todas las mejoras del Pokémon elegido de una vez.
+  function renderBuyAll() {
+    const btn = $('upg-all'), total = G.Upgrades.costToMax(G.DB.upgradesOf(upgDex));
+    btn.disabled = !total || G.DB.save.coins < total;
+    btn.classList.toggle('gold', !!total);
+    btn.title = total && btn.disabled ? G.T('No tienes Pokémonedas suficientes.') : '';
+    btn.innerHTML = total ? `${G.T('Mejorar todo')} <span class="coin"></span> ${total}` : G.T('Todo al máximo');
+    btn.onclick = () => {
+      // Se vuelve a leer todo al pulsar (la partida puede haber cambiado desde que se dibujó).
+      const sv = G.DB.save, lv = G.DB.upgradesOf(upgDex), price = G.Upgrades.costToMax(lv);
+      if (!price || sv.coins < price) { renderUpgrades(); return; }
+      sv.coins -= price;
+      for (const u of G.Upgrades.LIST) lv[u.id] = u.max;
+      G.DB.commit(true);
+      G.Audio.sfx('buy');
+      G.UI.refreshCoins();
+      G.UI.toast(G.I18n.f('{x}: todas las mejoras al máximo', G.DEX_BY[upgDex].name));
+      renderUpgrades();
+    };
   }
 
   // ---------------- atajos: hueco fijo para cada movimiento ----------------

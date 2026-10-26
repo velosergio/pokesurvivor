@@ -28,13 +28,12 @@ G.Modes = (() => {
   }
 
   /** El de siempre: tu compañero, semilla al azar y el ranking normal.
-   *  Con su naturaleza y su habilidad (systems/mons.js), salvo con `plain` (en grupo). */
+   *  Con su naturaleza, su habilidad y sus MT (systems/mons.js). */
   add({
     id: 'classic',
-    hero(save, plain = false) {
-      const shiny = !!save.partnerShiny && G.DB.ownsShiny(save.partner);
-      if (plain) return { mon: G.DEX_BY[save.partner], shiny, ability: '' };
-      return { mon: G.Mons.monFor(save.partner), shiny, ability: G.Mons.abilityOf(save.partner).id };
+    hero(save) {
+      const { mon, ability } = G.Mons.loadout(save.partner, save);
+      return { mon, shiny: !!save.partnerShiny && G.DB.ownsShiny(save.partner), ability };
     },
     seed() { return Math.floor(Math.random() * 1e6); },
     async availability() { return { ok: true }; },

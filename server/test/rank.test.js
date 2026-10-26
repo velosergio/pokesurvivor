@@ -359,14 +359,25 @@ test('checkKits: mejoras = lo menos entre navegador y partida guardada; ok si el
     { uid: 'dd', dex: 1, shiny: false, up: { hp: 1 } },
     { uid: 'aa2', dex: 25, shiny: true, up: {} }
   ]);
-  assert.deepStrictEqual(res.get('aa'), { up: { hp: 3, spd: 1 }, ok: true });
-  assert.deepStrictEqual(res.get('bb'), { up: {}, ok: true });
-  assert.deepStrictEqual(res.get('cc'), { up: { atk: 5 }, ok: false }, 'baneada');
-  assert.deepStrictEqual(res.get('dd'), { up: {}, ok: false }, 'sin partida guardada');
+  const pick = ({ up, ok }) => ({ up, ok });
+  assert.deepStrictEqual(pick(res.get('aa')), { up: { hp: 3, spd: 1 }, ok: true });
+  assert.deepStrictEqual(pick(res.get('bb')), { up: {}, ok: true });
+  assert.deepStrictEqual(pick(res.get('cc')), { up: { atk: 5 }, ok: false }, 'baneada');
+  assert.deepStrictEqual(res.get('dd'), { up: {}, ok: false, saved: null }, 'sin partida guardada');
   assert.strictEqual(res.get('aa2').ok, false);
   // Sólo se piden esas ramas (no la partida entera).
   const body = fs.calls.filter(u => u.endsWith(':batchGet')).length;
   assert.strictEqual(body, 1);
+});
+
+test('checkKits: saved = lo guardado que decide naturaleza, habilidad y MT, sólo de ese Pokémon', async () => {
+  const fs = fakeFirestore();
+  fs.set('saves/aa', { save: { owned: { 25: { at: 1 } }, created: 1700000000000,
+    pnat: { 25: ['jolly', 5], 4: ['bold', 6] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'], 7: ['surf'] } } });
+  fs.set('saves/bb', { save: { owned: { 4: { at: 1 } } } });
+  const res = await rankOf(fs).checkKits([{ uid: 'aa', dex: 25, shiny: false, up: {} }, { uid: 'bb', dex: 4, shiny: false, up: {} }]);
+  assert.deepStrictEqual(res.get('aa').saved, { created: 1700000000000, pnat: { 25: ['jolly', 5] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'] } });
+  assert.deepStrictEqual(res.get('bb').saved, { created: 0, pnat: {}, pabil: {}, ptm: {} });
 });
 
 test('sin cuenta de servicio no hay checkKits', () => {

@@ -24,5 +24,17 @@
     for (const d of dexes(grant.shinies)) { give('owned', d); give('shiny', d); }
     return { dc: dc, dt: dt, dm: dm };
   }
+  /*
+   * Regalo a todos (gifts/all, botón del regalo en Debug): sus totales se suman a los
+   * de la libreta propia. Como ambos sólo crecen, grantedCoins / grantedT10 siguen
+   * valiendo: lo de gifts/all se da una vez por cuenta (también a las que se creen después).
+   */
+  function withAll(grant, all) {
+    const g = Object.assign({}, grant || {});
+    g.coins = num(g.coins) + num(all && all.coins);
+    g.t10 = num(g.t10) + num(all && all.t10);
+    return g;
+  }
   root.applyGrant = applyGrant;
+  root.withAll = withAll;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (G.Grant = G.Grant || {}));

@@ -57,11 +57,15 @@ G.Net = (() => {
     handlers.forEach(fn => { try { fn(msg); } catch (e) { console.error('[Net] mensaje:', e); } });
   }
 
-  /** Lo que el servidor necesita saber de tu Pokémon (mejoras de la tienda, atajos, vetos, movimiento inicial). */
+  /**
+   * Lo que el servidor necesita saber de tu Pokémon: mejoras de la tienda, atajos,
+   * vetos, movimientos iniciales y naturaleza, hueco de la habilidad y MT
+   * (G.Mons.picksOf). Con la nube, el servidor lo comprueba con tu partida guardada.
+   */
   function kit() {
     const s = G.DB.save, dex = s.partner;
-    return { up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5),
-             start: (s.pstart && s.pstart[dex]) || '' };
+    return Object.assign({ up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5),
+             start: (s.pstart && s.pstart[dex]) || '', start2: (s.pstart2 && s.pstart2[dex]) || '' }, G.Mons.picksOf(dex));
   }
 
   async function hello(sock, fresh) {

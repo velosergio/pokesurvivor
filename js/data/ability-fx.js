@@ -220,7 +220,7 @@ G.AbilityFX = (() => {
     'friend-guard': { d: 'Recibe un 6 % menos de daño.', plus: true, inMul: () => 0.94 },
     'stench': { d: 'Sus golpes a veces frenan (1 de cada 10).', plus: true, hit: (pl, e) => { if (G.RNG.stream('combat').next() < 0.1) e.applySlow(0.35, 1.5); } },
     'anger-point': { d: 'La primera vez que baja de la mitad de vida se enfurece: +25 % de daño el resto de la partida.',
-      tick: pl => { if (!pl.angry && half(pl)) { pl.angry = true; G.FX.dmgText(pl.x, pl.y - pl.bodyH - 16, '¡Irascible!', '#ff6b4d', true); } },
+      tick: pl => { if (!pl.angry && half(pl)) { pl.angry = true; pl.notice('¡Irascible!', '#ff6b4d', true, 16); } },
       out: pl => (pl.angry ? 1.25 : 1) },
     'justified': { d: '+15 % de daño a los Pokémon de tipo Siniestro.', plus: true, out: (pl, m, e) => (e && (e.types || []).includes('dark') ? 1.15 : 1) },
     'cursed-body': contact((pl, e) => { if (G.RNG.stream('combat').next() < 0.3) e.applySlow(0.5, 2); }, 'A veces frena a quien le golpea cuerpo a cuerpo.'),

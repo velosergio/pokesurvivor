@@ -54,7 +54,7 @@ test('mensajes de texto: ida y vuelta', () => {
   const msgs = [
     ['hello', { token: 'abc.def.ghi', proto: P.VERSION, name: 'Ash', dex: 25, shiny: true }],
     ['create', {}], ['join', { code: 'K7Q2ZP' }], ['leave', {}], ['open', { v: false }], ['start', {}],
-    ['pick', { choice: 2 }], ['hold', { on: true }],
+    ['pick', { choice: 2 }], ['hold', { on: true }], ['watch', { uid: 'uid2' }],
     ['room', { code: 'K7Q2ZP', leader: 'uid1', members: [{ uid: 'uid1', name: 'Ash', dex: 25 }], open: true }],
     ['started', { seed: 987654, members: ['uid1', 'uid2'] }],
     ['level', { options: [{ id: 'ember' }, { id: 'hp' }] }],

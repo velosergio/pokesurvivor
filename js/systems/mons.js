@@ -16,6 +16,13 @@
  * Pokédex), así todos los aparatos de la misma cuenta ven lo mismo y también los
  * Pokémon que ya tenías antes de esto tienen la suya. Lo cambiado con Menta o
  * Cápsula sí se guarda (save.pnat / save.pabil, con la fecha para fusionar).
+ *
+ * Todo lo que lee la partida guardada acepta otra (`sv`, con created, pnat, pabil
+ * y ptm): el servidor del cooperativo calcula así lo de cada jugador (la suya,
+ * leída de la nube, o la que sale de lo que pide su navegador: saveOf).
+ *   picksOf(dex)        → { nat, ab, tms }  lo que tiene (lo que se manda al servidor)
+ *   saveOf(dex, picks)  → una partida guardada con sólo eso
+ *   loadout(dex, sv)    → { mon, ability, slot }  con lo que juega
  */
 G.Mons = (() => {
   const HIDDEN_RATE = 1 / 20;
@@ -35,16 +42,16 @@ G.Mons = (() => {
     h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
     return (h >>> 0) / 4294967296;
   }
-  const roll = (dex, salt) => hash(((save() && save().created) || 0) + ':' + dex + ':' + salt);
+  const roll = (dex, salt, sv) => hash(((sv && sv.created) || 0) + ':' + dex + ':' + salt);
 
   // ---------------- naturaleza ----------------
 
   /** La que le tocó (sin Menta). */
-  function rolledNature(dex) { return G.NATURES[Math.floor(roll(dex, 'nat') * G.NATURES.length)]; }
+  function rolledNature(dex, sv = save()) { return G.NATURES[Math.floor(roll(dex, 'nat', sv) * G.NATURES.length)]; }
   /** La que tiene ahora: la de la Menta o la que le tocó. */
-  function natureOf(dex) {
-    const s = save(), p = s && s.pnat && s.pnat[dex];
-    return (p && G.NATURE_BY[p[0]]) || rolledNature(dex);
+  function natureOf(dex, sv = save()) {
+    const p = sv && sv.pnat && sv.pnat[dex];
+    return (Array.isArray(p) && G.NATURE_BY[p[0]]) || rolledNature(dex, sv);
   }
   function setNature(dex, id) {
     const s = save();
@@ -56,15 +63,17 @@ G.Mons = (() => {
   /**
    * El Pokémon con su naturaleza aplicada (una copia: G.DEX_BY no se toca).
    * pa/sa: daño de sus ataques físicos/especiales · df/sd: defensas · spd: velocidad.
+   * Lleva también sus MT (tms: las cartas de nivel y G.Moves.poolFor salen de ahí).
    */
-  function monFor(dex) {
+  function monFor(dex, sv = save()) {
     const base = G.DEX_BY[dex];
     if (!base) return base;
-    const n = natureOf(dex), m = Object.assign({}, base);
+    const n = natureOf(dex, sv), m = Object.assign({}, base);
     if (n.up) m[n.up] = base[n.up] * 1.1;
     if (n.down) m[n.down] = base[n.down] * 0.9;
     m.atk = Math.max(m.pa, m.sa);
     m.nature = n.id;
+    m.tms = taught(dex, sv);
     return m;
   }
 
@@ -73,15 +82,15 @@ G.Mons = (() => {
   /** [habilidad 1, habilidad 2 o 0, oculta o 0] */
   const slots = dex => (G.DEX_ABIL && G.DEX_ABIL[dex]) || [0, 0, 0];
   /** Hueco que le tocó: 2 (oculta) 1 de cada 20 si tiene; si no, 0 o 1. */
-  function rolledSlot(dex) {
+  function rolledSlot(dex, sv) {
     const l = slots(dex);
-    if (l[2] && roll(dex, 'hid') < HIDDEN_RATE) return 2;
-    return l[1] && roll(dex, 'abil') < 0.5 ? 1 : 0;
+    if (l[2] && roll(dex, 'hid', sv) < HIDDEN_RATE) return 2;
+    return l[1] && roll(dex, 'abil', sv) < 0.5 ? 1 : 0;
   }
   /** { id, slot }: la de la Cápsula o la que le tocó. */
-  function abilityOf(dex) {
-    const s = save(), p = s && s.pabil && s.pabil[dex], l = slots(dex);
-    let slot = p && l[p[0]] ? p[0] : rolledSlot(dex);
+  function abilityOf(dex, sv = save()) {
+    const p = sv && sv.pabil && sv.pabil[dex], l = slots(dex);
+    let slot = Array.isArray(p) && [0, 1, 2].includes(p[0]) && l[p[0]] ? p[0] : rolledSlot(dex, sv);
     if (!l[slot]) slot = 0;
     return { id: l[slot] || '', slot };
   }
@@ -100,10 +109,10 @@ G.Mons = (() => {
 
   // ---------------- MT ----------------
 
-  /** Movimientos que ha aprendido con MT. */
-  function taught(dex) {
-    const s = save(), l = s && s.ptm && s.ptm[dex];
-    return Array.isArray(l) ? l.filter(id => G.Moves.BY_ID[id]) : [];
+  /** Movimientos que ha aprendido con MT (sólo los que son MT suyas). */
+  function taught(dex, sv = save()) {
+    const l = sv && sv.ptm && sv.ptm[dex];
+    return Array.isArray(l) ? l.filter((id, i) => G.Moves.BY_ID[id] && l.indexOf(id) === i && G.TM_OF(dex).includes(id)) : [];
   }
   /** ¿Ya lo sabe sin MT (es de sus tipos)? */
   const natural = (dex, id) => G.Moves.poolFor(G.DEX_BY[dex], true).includes(id);
@@ -119,6 +128,23 @@ G.Mons = (() => {
     return true;
   }
 
-  return { name, natureOf, setNature, rolledNature, monFor, abilityOf, abilityChoices, setAbility, abilityName,
+  // ---------------- todo junto (el cooperativo) ----------------
+
+  /** Lo que tiene: naturaleza, hueco de la habilidad y MT. */
+  function picksOf(dex, sv = save()) {
+    return { nat: natureOf(dex, sv).id, ab: abilityOf(dex, sv).slot, tms: taught(dex, sv) };
+  }
+  /** Una partida guardada con sólo eso (lo que falte o no valga, como si no lo hubiera). */
+  function saveOf(dex, p) {
+    const k = p || {};
+    return { pnat: { [dex]: [k.nat] }, pabil: { [dex]: [k.ab] }, ptm: { [dex]: Array.isArray(k.tms) ? k.tms : [] } };
+  }
+  /** Con lo que juega: el Pokémon con su naturaleza y sus MT, y su habilidad. */
+  function loadout(dex, sv = save()) {
+    const a = abilityOf(dex, sv);
+    return { mon: monFor(dex, sv), ability: a.id, slot: a.slot };
+  }
+
+  return { name, natureOf, picksOf, saveOf, loadout, setNature, rolledNature, monFor, abilityOf, abilityChoices, setAbility, abilityName,
            slots, taught, learnable, canLearn, teach, natural };
 })();

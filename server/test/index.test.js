@@ -325,10 +325,21 @@ test('un ping sin respuesta cierra la conexión', async () => {
 
 test('cleanKit: sólo niveles enteros e ids con forma de movimiento', () => {
   const { cleanKit } = require('../index');
-  assert.deepStrictEqual(cleanKit(null), { up: {}, bind: [], ban: [], start: '' });
+  const none = { start2: '', nat: '', ab: 0, tms: [] };
+  assert.deepStrictEqual(cleanKit(null), Object.assign({ up: {}, bind: [], ban: [], start: '' }, none));
   assert.deepStrictEqual(cleanKit({ up: { hp: 3, atk: 1.5, spd: -1, ['__proto__']: 4, LARGO: 2, xp: 500 }, bind: ['quick-attack', 7, 'a b'], ban: ['x', 'y', 'z', 'w', 'v', 'u'] }),
-    { up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w', 'v'], start: '' });
+    Object.assign({ up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w', 'v'], start: '' }, none));
   assert.strictEqual(cleanKit({ start: 'ember' }).start, 'ember');
   assert.strictEqual(cleanKit({ start: 'a b' }).start, '');
   assert.strictEqual(cleanKit({ start: 7 }).start, '');
+});
+
+test('cleanKit: naturaleza, hueco de la habilidad, MT y segundo movimiento con su forma', () => {
+  const { cleanKit } = require('../index');
+  const k = cleanKit({ nat: 'jolly', ab: 2, tms: ['toxic', 'a b', 7, 'u-turn'], start2: 'ember' });
+  assert.deepStrictEqual([k.nat, k.ab, k.tms, k.start2], ['jolly', 2, ['toxic', 'u-turn'], 'ember']);
+  const bad = cleanKit({ nat: 'Jolly!', ab: 3, tms: 'toxic', start2: ['x'] });
+  assert.deepStrictEqual([bad.nat, bad.ab, bad.tms, bad.start2], ['', 0, [], '']);
+  assert.strictEqual(cleanKit({ ab: 1.5 }).ab, 0);
+  assert.strictEqual(cleanKit({ tms: Array(100).fill('toxic') }).tms.length, 64);
 });

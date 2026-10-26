@@ -29,6 +29,14 @@ G.Upgrades = (() => {
     return Math.round(u.base * Math.pow(u.grow, lvl) / 10) * 10;
   }
 
+  /** Lo que cuesta subir todas las mejoras al máximo desde `levels` (las que necesitan otra
+   *  también: esa otra se sube en la misma compra). */
+  function costToMax(levels = {}) {
+    let total = 0;
+    for (const u of LIST) for (let l = levels[u.id] || 0; l < u.max; l++) total += cost(u.id, l);
+    return total;
+  }
+
   /** Niveles comprados -> modificadores para G.Player. */
   function perks(levels = {}) {
     // Nunca por encima del máximo (una partida editada a mano no da más poder).
@@ -50,5 +58,5 @@ G.Upgrades = (() => {
     };
   }
 
-  return { LIST, BY, cost, perks };
+  return { LIST, BY, cost, costToMax, perks };
 })();

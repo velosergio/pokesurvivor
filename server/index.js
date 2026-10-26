@@ -27,6 +27,8 @@ const MAX_RATE = 40;
 const MAX_BUFFERED = 256 * 1024;
 /** Largo máximo del nombre que se enseña a los demás. */
 const NAME_MAX = 16;
+/** MT de un Pokémon que se aceptan en el kit (el que más puede aprender, 56). */
+const MAX_TMS = 64;
 
 /** Nombre limpio: sin caracteres de control ni de formato (bidi, ancho cero), recortado a 16 (sin partir emojis). */
 function cleanName(v) {
@@ -40,7 +42,8 @@ function cleanDex(v) {
 }
 
 /**
- * Lo que el navegador cuenta de su Pokémon: { up: {mejora: nivel}, bind: [ids], ban: [ids] }.
+ * Lo que el navegador cuenta de su Pokémon: { up: {mejora: nivel}, bind: [ids], ban: [ids],
+ * start, start2, nat, ab, tms } (movimientos iniciales, naturaleza, hueco de la habilidad y MT).
  * Sólo claves cortas, niveles enteros 0-99 e ids de texto; room.js lo recorta con los datos del juego.
  */
 function cleanKit(v) {
@@ -53,7 +56,10 @@ function cleanKit(v) {
     }
   }
   const ids = (a, max) => (Array.isArray(a) ? a.slice(0, max).map(x => (typeof x === 'string' && /^[a-z0-9_-]{1,24}$/.test(x) ? x : '')) : []);
-  return { up, bind: ids(k.bind, 4), ban: ids(k.ban, 5).filter(Boolean), start: ids([k.start], 1)[0] || '' };
+  // Naturaleza, hueco de la habilidad (0, 1 o 2: la oculta) y MT (G.Mons.picksOf; las comprueba room.js heroOf).
+  return { up, bind: ids(k.bind, 4), ban: ids(k.ban, 5).filter(Boolean), start: ids([k.start], 1)[0] || '', start2: ids([k.start2], 1)[0] || '',
+           nat: typeof k.nat === 'string' && /^[a-z]{1,12}$/.test(k.nat) ? k.nat : '', ab: [0, 1, 2].includes(k.ab) ? k.ab : 0,
+           tms: ids(k.tms, MAX_TMS).filter(Boolean) };
 }
 
 /** ¿Se acepta este Origin? Lista vacía = cualquiera (en local). */

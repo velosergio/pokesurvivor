@@ -325,6 +325,7 @@ G.Coop = (() => {
       case 'alt': G.Interact.netAltar(ev[1], ev[2], ev[3], ev[4], me, local); break;
       case 'chs': G.Interact.netChest(ev[1], ev[2], ev[3]); break;
       case 'say': G.Spawner.say(ev[1], ev[2]); break;
+      case 'tx': { const p = bySeat[ev[1]]; if (p) G.FX.dmgText(p.x + (p.netOffX || 0), p.y + (p.netOffY || 0) - p.bodyH - (ev[5] | 0), ev[2], ev[3], !!ev[4]); break; }
       case 'rift': case 'riftx': case 'arena': case 'aw': case 'al': G.Rift.onEvent(ev); break;
       case 'jd': case 'jk': G.Judgment.onEvent(ev); break;
       case 'wx': G.Weather.onEvent(ev); break;
@@ -339,10 +340,12 @@ G.Coop = (() => {
   function pick(i) { G.Net.send('pick', { choice: i | 0 }); }
   /** Pides otras cartas de nivel (el servidor decide si te quedan cambios). */
   function reroll() { G.Net.send('reroll'); }
+  /** Caído: los enemigos que te lleguen serán los de cerca de este compañero ('' = de ti). */
+  function watch(uid) { if (active) G.Net.send('watch', { uid: uid || '' }); }
 
   const noop = () => {};
   return {
-    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll, selfMoved,
+    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll, watch, selfMoved,
     // En el navegador ya no se reparte nada: lo hace el servidor.
     xpFactor: () => 1,
     cast: noop, hit: noop, status: noop, hurtShown: noop, enemyAdded: noop, enemyGone: noop, enemyShot: noop,

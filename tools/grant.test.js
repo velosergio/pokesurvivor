@@ -89,3 +89,18 @@ test('ignora claves raras en la libreta de Pokémon', () => {
   assert.deepEqual(applyGrant(s, { mons: { abc: true, '-3': true, '07': true, 9: false } }), { dc: 0, dt: 0, dm: 0 });
   assert.deepEqual(s.owned, {});
 });
+
+test('regalo a todos: se suma a la libreta propia y se da una vez', () => {
+  const { withAll } = require('../js/core/grant.js');
+  const s = base();
+  const own = { coins: 100000, t10: 0, mons: { 25: true } };
+  assert.deepEqual(applyGrant(s, withAll(own, { coins: 500, t10: 500 })), { dc: 100500, dt: 500, dm: 1 });
+  assert.equal(s.tickets.t10, 502);
+  // Otra vez lo mismo: nada. Si no se pudo leer gifts/all, tampoco se quita nada.
+  assert.deepEqual(applyGrant(s, withAll(own, { coins: 500, t10: 500 })), { dc: 0, dt: 0, dm: 0 });
+  assert.deepEqual(applyGrant(s, withAll(own, null)), { dc: 0, dt: 0, dm: 0 });
+  // Un segundo regalo a todos: sólo lo nuevo.
+  assert.deepEqual(applyGrant(s, withAll(own, { coins: 1000, t10: 1000 })), { dc: 500, dt: 500, dm: 0 });
+  assert.equal(s.coins, 10 + 101000);
+  assert.deepEqual(withAll(null, null), { coins: 0, t10: 0 });
+});

@@ -95,6 +95,29 @@ G.Player = class Player {
     if (this.abil.start) this.abil.start(this);
   }
 
+  /**
+   * Movimientos con los que empieza: `first` y, con Repertorio (startMoves ≥ 2),
+   * `second` o, si es null, uno de ataque al azar (`pick`: elige de una lista).
+   * Lo usan game.js y server/room.js (con G.startPicks). Antes, los atajos y el Veto.
+   */
+  learnStart(first, second, startMoves, pick) {
+    this.addMove(first);
+    if (startMoves < 2) return;
+    const pool = G.Moves.poolFor(this.mon).filter(id => !this.hasMove(id) && !this.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
+    if (second && !this.hasMove(second)) this.addMove(second);
+    else if (pool.length) this.addMove(pick(pool));
+    this.setActive(0);
+  }
+
+  /**
+   * Un aviso sobre él («¡Esquiva!», «¡Robustez!»...). En el servidor del
+   * cooperativo no hay pantalla: G.Game.notice se lo manda a los navegadores.
+   */
+  notice(text, color, big = false, dy = 4) {
+    if (G.Game && G.Game.notice) G.Game.notice(this, text, color, big, dy);
+    else G.FX.dmgText(this.x, this.y - this.bodyH - dy, text, color, big);
+  }
+
   /** Segundos que hay que estar junto a un compañero caído para levantarlo. */
   static get REVIVE_TIME() { return 3; }
 
@@ -118,10 +141,19 @@ G.Player = class Player {
   /** Monotipo (19-10-2026): los de un solo tipo pegan un +20 % con los ataques de su tipo (tienen menos variedad). */
   static get MONO_K() { return 1.2; }
   monoType(type) { return this.mon.types.length === 1 && type === this.mon.types[0]; }
+  /**
+   * × a la velocidad por su habilidad (speed(), ver data/ability-fx.js). En grupo,
+   * el de tu Pokémon lo calcula el servidor (Nado Rápido, Impulso...) y llega en
+   * `kit` (netAbSpd): así el navegador se mueve igual que allí.
+   */
+  abilSpeed() {
+    if (this.netAbSpd) return this.netAbSpd;
+    return this.abil && this.abil.speed ? this.abil.speed(this) : 1;
+  }
   get spd() {
-    // (Habilidades: "steady" no se frena; speed() multiplica, ver data/ability-fx.js.)
+    // (Habilidades: "steady" no se frena.)
     const ab = this.abil || {}, stuck = this.slowT > 0 && !ab.steady;
-    const s = this.baseSpd * this.spdMul * (1 + this.buffs.spd.n * this.buffs.spd.amount) * (stuck ? 0.5 : 1) * (ab.speed ? ab.speed(this) : 1);
+    const s = this.baseSpd * this.spdMul * (1 + this.buffs.spd.n * this.buffs.spd.amount) * (stuck ? 0.5 : 1) * this.abilSpeed();
     const w = G.Weather.speedFor(this.mon.types);
     const slow = this.inLiquid && !ab.steady ? G.World.liquidEffect(this.mon.types).slow || 1 : 1;
     return G.Judgment && G.Judgment.active ? G.Judgment.capSpd(s * slow * w) : s * slow * w;
@@ -247,6 +279,16 @@ G.Player = class Player {
   activeMove() { return this.activeGroup()[0]; }
 
   /**
+   * Su resumen de la partida (la pestaña de cada jugador al final): Pokémon,
+   * nivel, tiempo, objeto y cada ataque [id, nivel, daño hecho, desde cuándo, evolucionado].
+   * Lo usan game.js (solitario) y server/room.js (cada jugador del grupo).
+   */
+  runSum(level, time) {
+    return { dex: this.dex, sh: !!this.shiny, lv: level, t: Math.floor(time), it: this.item || null,
+             mv: this.moves.slice(0, 8).map(m => [m.id, m.lvl, Math.round(m.dealt || 0), Math.round(m.since || 0), m.evolved ? 1 : 0]) };
+  }
+
+  /**
    * La build en texto corto, para el ranking (ranking.js y server/rank.js; la
    * lee ranking-ui.js): huecos separados con "|", movimientos fusionados con
    * "+", cada uno "id.nivel" (con "*" si ha evolucionado); luego ";objeto" y
@@ -304,7 +346,7 @@ G.Player = class Player {
       }
       if (ab.dodge && G.RNG.stream('combat').next() < ab.dodge(this, type, cls)) {
         this.invuln = 0.3;
-        G.FX.dmgText(this.x, this.y - this.bodyH - 4, '¡Esquiva!', '#bfe8ff');
+        this.notice('¡Esquiva!', '#bfe8ff');
         return;
       }
       if (ab.inMul) amount *= ab.inMul(this, type, cls);
@@ -333,14 +375,14 @@ G.Player = class Player {
     if (this.hp <= 0 && this.hasItem('focussash') && performance.now() - this.sashT > 60000) {
       this.sashT = performance.now();
       this.hp = 1; this.invuln = 1.2;
-      G.FX.dmgText(this.x, this.y - this.bodyH - 16, '¡Banda Focus!', '#ff9a3d', true);
+      this.notice('¡Banda Focus!', '#ff9a3d', true, 16);
       G.FX.ring(this.x, this.y, 6, 70, '#ff9a3d', 0.5, 4);
     }
     // Robustez (habilidad): lo mismo, una vez cada 90 s.
     if (this.hp <= 0 && ab && ab.sturdy && performance.now() - this.sturdyAt > 90000) {
       this.sturdyAt = performance.now();
       this.hp = 1; this.invuln = 1.2;
-      G.FX.dmgText(this.x, this.y - this.bodyH - 16, '¡Robustez!', '#c9b48a', true);
+      this.notice('¡Robustez!', '#c9b48a', true, 16);
       G.FX.ring(this.x, this.y, 6, 70, '#c9b48a', 0.5, 4);
     }
     if (ab && ab.hurt && this.hp > 0) ab.hurt(this, type, cls);
@@ -425,12 +467,13 @@ G.Player = class Player {
     if (this.bellHeal > 0) { const h = Math.min(this.bellHeal, 4 * dt); this.hp = Math.min(this.maxHp, this.hp + h); this.bellHeal -= h; }
     if (this.power && (this.power.t -= dt) <= 0) { this.power.def.off(this); this.power = null; }
     if (this.regen > 0) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
-    if (this.abil && this.abil.tick) this.abil.tick(this, dt);
-    // Sequía, Llovizna...: su clima al empezar y cada 3 min, si no hay otro. En
-    // grupo lo pone el anfitrión, que es quien manda el clima a todos: el de un
-    // invitado se lo pide (coop.js, 'wxq'; antes del 25-10-2026 el clima de los
-    // invitados no salía nunca).
-    if (this.abil && this.abil.summon && !this.remote && (this.sumT = (this.sumT || 0) - dt) <= 0) {
+    // (Tu Pokémon en grupo, netHp: su habilidad la lleva el servidor, que manda
+    // los avisos, el clima y la velocidad que salen de ella.)
+    if (this.abil && this.abil.tick && !this.netHp) this.abil.tick(this, dt);
+    // Sequía, Llovizna...: su clima al empezar y cada 3 min, si no hay otro (dura
+    // 1 min). En grupo lo pone el servidor, que es el anfitrión: con varios, el
+    // primero que toque y, mientras dure, ninguno más.
+    if (this.abil && this.abil.summon && !this.remote && !this.netHp && (this.sumT = (this.sumT || 0) - dt) <= 0) {
       this.sumT = 180;
       if (G.Weather.current) { /* ya hay uno */ }
       else if (!G.Coop.active || G.Coop.isHost) G.Weather.debugStart(this.abil.summon, 60);

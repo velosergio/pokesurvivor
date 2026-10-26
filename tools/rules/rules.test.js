@@ -153,6 +153,19 @@ test('libreta: un jugador no se regala Pokémon', async () => {
   await assertFails(db.doc('grants/ana').set(gift({ mons: { 25: true } })));
 });
 
+test('regalo a todos: sólo el moderador, de 500 en 500', async () => {
+  const db = env.authenticatedContext(ADMIN).firestore();
+  await assertFails(db.doc('gifts/all').set({ coins: 1000, t10: 500, at: ts() }));
+  await assertSucceeds(db.doc('gifts/all').set({ coins: 500, t10: 500, at: ts() }));
+  await assertSucceeds(db.doc('gifts/all').set({ coins: 1000, t10: 1000, at: ts() }));
+  await assertFails(db.doc('gifts/all').set({ coins: 500, t10: 500, at: ts() }));
+  await assertFails(db.doc('gifts/otro').set({ coins: 500, t10: 500, at: ts() }));
+  const ana = env.authenticatedContext('ana').firestore();
+  await assertSucceeds(ana.doc('gifts/all').get());
+  await assertFails(ana.doc('gifts/all').set({ coins: 1500, t10: 1500, at: ts() }));
+  await assertFails(env.unauthenticatedContext().firestore().doc('gifts/all').get());
+});
+
 // ---------- Desafío diario (js/net/daily-net.js) ----------
 /** 'AAAAMMDD' de una fecha en hora de Colombia (UTC-5, sin cambio de hora). */
 const colDay = (ms = Date.now()) => new Date(ms - 5 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');

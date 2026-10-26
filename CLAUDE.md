@@ -8,6 +8,15 @@ CC BY-NC: sin uso comercial). Los datos de esta instalación (dominio `site`, Fi
 apoyo, contacto) están en `js/config.js` y en ningún otro sitio: el resto de archivos
 los citan (`G.Config.site`, `{{SITE}}` en `dev.html`), no los repiten.
 
+## Cambios y features
+Todo cambio o feature nuevo sigue SOLID y DRY:
+- **S** — una sola responsabilidad por módulo o función.
+- **O** — se extiende el comportamiento sin reescribir lo que ya funciona.
+- **L** — quien sustituye un comportamiento cumple el mismo contrato.
+- **I** — cada pieza expone sólo lo que quien la usa necesita.
+- **D** — la lógica depende de contratos, no de un detalle concreto.
+- **DRY** — no se duplica lógica ni datos: se extrae y se reutiliza.
+
 ## Publicar una versión
 1. Se edita `dev.html` (nunca `index.html`, que se genera).
 2. `node tools/build.js && node tools/export_data.js && python tools/make_seo_pages.py`

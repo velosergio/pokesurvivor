@@ -24,7 +24,8 @@
  *
  * Al empezar, si hay checkKits (rank.js, con la cuenta de servicio), se leen
  * antes las partidas guardadas de los miembros (5 s como mucho): las mejoras de
- * cada uno son lo menos entre lo que dice su navegador y lo guardado, y si algo
+ * cada uno son lo menos entre lo que dice su navegador y lo guardado, su
+ * naturaleza, habilidad y MT las de lo guardado (kit.saved, ver room.js heroOf), y si algo
  * no cuadra (Pokémon o shiny que no es suyo, cuenta baneada) o no se puede
  * leer, la partida se juega pero no sube al ranking de grupo (ranked: false).
  *
@@ -50,7 +51,7 @@ const BACK_MS = 60000;
  * Crea el lobby.
  * @param {object} o
  * @param {Function} o.createRoom  ({members, seed, send, onOver, ranked, rules}) → partida
- * @param {Function} [o.checkKits]  (jugadores) → Promise<Map uid → {up, ok}> (ver arriba)
+ * @param {Function} [o.checkKits]  (jugadores) → Promise<Map uid → {up, ok, saved}> (ver arriba)
  * @param {number} [o.maxRooms=30] salas a la vez como mucho
  * @param {Function} [o.setTimer]  (fn, ms) → id   (por defecto setTimeout)
  * @param {Function} [o.clearTimer] (id)           (por defecto clearTimeout)
@@ -91,7 +92,13 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     for (const m of r.members) if (m.on) { const c = conns.get(m.uid); if (c) c.send(msg); }
   }
 
-  const started = r => ({ t: 'started', seed: r.seed, members: r.members.map(m => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny })) });
+  /**
+   * La partida empieza (o se vuelve a ella): semilla y jugadores, cada uno con la
+   * naturaleza y el hueco de la habilidad con que juega (nat, ab: room.js hero),
+   * para que su navegador lleve el mismo Pokémon que el servidor.
+   */
+  const started = r => ({ t: 'started', seed: r.seed, members: r.members.map(m => Object.assign(
+    { uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny }, r.game && r.game.hero ? r.game.hero(m.uid) : {})) });
 
   /** Borra la sala (para la partida si la hay). */
   function destroy(r) {
@@ -178,7 +185,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
   }
 
   /**
-   * Crea la partida. res: lo leído de las partidas guardadas (Map uid → {up, ok})
+   * Crea la partida. res: lo leído de las partidas guardadas (Map uid → {up, ok, saved})
    * o null (sin comprobación configurada, o no se pudo leer).
    */
   function launch(r, res) {
@@ -186,7 +193,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     const members = r.members.map(m => {
       const v = res && res.get(m.uid);
       const kit = Object.assign({}, m.kit || {});
-      if (res) kit.up = v ? v.up : {};
+      if (res) { kit.up = v ? v.up : {}; kit.saved = (v && v.saved) || null; }
       return { uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny, kit };
     });
     // Sin comprobación configurada (local) sube como siempre; con ella, sólo si todo cuadra.
@@ -289,6 +296,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     pick(conn, msg, r) { if (r && r.game) r.game.pick(conn.uid, msg.choice); },
     reroll(conn, msg, r) { if (r && r.game && r.game.reroll) r.game.reroll(conn.uid); },
     hold(conn, msg, r) { if (r && r.game) r.game.hold(conn.uid, !!msg.on); },
+    watch(conn, msg, r) { if (r && r.game && r.game.watch) r.game.watch(conn.uid, msg.uid); },
 
     /** «Reconectar»: vuelve a la partida que sigue sin él (si ya acabó, no hay nada). */
     back(conn, msg, r) {

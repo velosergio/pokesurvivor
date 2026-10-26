@@ -190,3 +190,31 @@ test('lo que cae dentro de una pared o en la lava sale a un sitio alcanzable; en
   o = dropAt(find((x, y) => around(x, y, W.isLiquid)));
   assert.ok(reach(o.x, o.y), 'sigue en la lava');
 });
+
+test('G.Mons con otra partida guardada: picksOf → saveOf → loadout da lo mismo (lo del cooperativo)', () => {
+  const { G } = createSim();
+  const tm = G.TM_OF(25).find(id => G.Moves.BY_ID[id] && !G.Mons.natural(25, id));
+  const sv = { created: 1234567, pnat: { 25: ['jolly', 9] }, pabil: { 25: [2, 9] }, ptm: { 25: [tm, tm, 'no-existe'] } };
+  const picks = G.Mons.picksOf(25, sv);
+  assert.strictEqual(picks.nat, 'jolly');
+  assert.strictEqual(picks.ab, 2);
+  assert.strictEqual(JSON.stringify(picks.tms), JSON.stringify([tm]), 'sin repetidas ni inventadas');
+  const a = G.Mons.loadout(25, sv), b = G.Mons.loadout(25, G.Mons.saveOf(25, picks));
+  assert.strictEqual(JSON.stringify(a), JSON.stringify(b));
+  assert.strictEqual(a.ability, G.Mons.slots(25)[2]);
+  assert.ok(G.Moves.poolFor(a.mon).includes(tm) && !G.Moves.poolFor(a.mon, true).includes(tm));
+  // Lo que le tocó depende de su partida (created), no de la del navegador.
+  const n = new Set([1, 2, 3, 4, 5, 6, 7, 8].map(c => G.Mons.natureOf(25, { created: c }).id));
+  assert.ok(n.size > 1, 'la naturaleza que toca cambia con la cuenta');
+});
+
+test('G.startPicks: los elegidos sólo con su mejora, el segundo distinto del primero y con Repertorio', () => {
+  const { G } = createSim();
+  const base = G.baseStartOf(25), other = G.startChoices(25).find(id => id !== base);
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start: other, start2: base })), [base, null]);
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start: other, up: { start: 1 } })), [other, null]);
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start2: other, up: { start2: 1 } })), [base, null], 'sin Repertorio');
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start2: other, up: { start2: 1, moves: 1 } })), [base, other]);
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start: other, start2: other, up: { start: 1, start2: 1, moves: 1 } })), [other, null]);
+  assert.deepStrictEqual(Array.from(G.startPicks(25, { start: 'hydro-pump', up: { start: 1 } })), [base, null], 'no es de los suyos');
+});

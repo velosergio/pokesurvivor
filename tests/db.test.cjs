@@ -18,7 +18,7 @@ const ref = {
     cloud = Object.assign(clone(d), { updatedAt: NOW }); writes++;
   }
 };
-// Regalos del moderador (grants/{uid}): en estas pruebas no hay.
+// Regalos del moderador (grants/{uid} y gifts/all): en estas pruebas no hay.
 const grants = { async get() { if (down) throw { code: 'unavailable' }; return { exists: false, data: () => null }; } };
 async function runTransaction(fn) {
   let out = null;
@@ -35,10 +35,10 @@ function tab(store) {
     removeItem: k => store.delete(k), key: i => [...store.keys()][i], get length() { return store.size; }
   };
   const auth = { setPersistence: async () => {}, useEmulator() {}, onAuthStateChanged: cb => { Promise.resolve().then(() => cb({ uid: 'U1', displayName: 'Ash' })); return () => {}; } };
-  const db = { useEmulator() {}, settings() {}, collection: c => ({ doc: () => (c === 'grants' ? grants : ref) }), runTransaction };
+  const db = { useEmulator() {}, settings() {}, collection: c => ({ doc: () => (c === 'grants' || c === 'gifts' ? grants : ref) }), runTransaction };
   const cfg = { apiKey: 'x', projectId: 'p', emulator: true };
   const G = { FIREBASE_CONFIG: cfg, Config: { site: 'https://localhost/', firebase: cfg },
-              Grant: { applyGrant: () => ({ dc: 0, dt: 0, dm: 0 }) } };
+              Grant: { applyGrant: () => ({ dc: 0, dt: 0, dm: 0 }), withAll: g => g } };
   const ctx = {
     G, localStorage, console: { warn() {}, log: console.log }, TextEncoder, setTimeout: fn => timers.push(fn), clearTimeout() {},
     firebase: { initializeApp() {}, auth: Object.assign(() => auth, { Auth: { Persistence: { LOCAL: 1 } } }),

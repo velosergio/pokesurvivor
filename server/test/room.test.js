@@ -326,6 +326,13 @@ test('caídos todos: fin, over para cada uno y sin ranking antes de 2 min', () =
     assert.strictEqual(crew.length, 2);
     for (const c of crew) for (const k of ['uid', 'name', 'dex', 'ki', 'dmg', 'hit', 'ch', 'rv']) assert.ok(k in c, 'crew sin ' + k);
     assert.ok(crew.every(c => c.hit > 0), 'el daño recibido no se cuenta');
+    // Y el resumen de ataques de cada uno (una pestaña por jugador al final).
+    const team = o[0].results.team;
+    assert.deepStrictEqual(team.map(x => x.uid), r.members.map(x => x.uid));
+    for (const x of team) {
+      for (const k of ['dex', 'sh', 'lv', 't', 'it', 'mv']) assert.ok(k in x.sum, 'team sin ' + k);
+      assert.ok(x.sum.mv.length >= 1 && x.sum.mv.every(m => typeof m[0] === 'string' && Number.isInteger(m[2])), 'ataques raros');
+    }
   }
   assert.strictEqual(ranked, 0);
 });
@@ -355,6 +362,54 @@ test('la marca de grupo se sube al acabar si el tiempo cuenta (sin esperar a que
   assert.ok(got.t >= 120 && got.members.length === 2 && got.lv >= 1 && got.kills >= 0);
   // La build de cada uno (Player.buildCode): al menos el movimiento con el que empieza.
   for (const m of got.members) assert.match(m.b, /^[a-z-]+\.\d+/, m.b);
+});
+
+test('caído, mira a un compañero vivo y le llegan los enemigos de allí; al levantarse, los suyos', () => {
+  const r = makeRoom({ n: 2 });
+  r.room.tick();
+  const { G } = r;
+  calm(G);
+  G.Spawner.update = () => {};
+  const [a, b] = r.members.map(m => r.pl(m.uid));
+  b.x = a.x + 3000; b.y = a.y;
+  // Jefes: los demás, lejos de todo vivo, vuelven a salir junto a uno (enemy.js update).
+  const foe = (x, y) => {
+    const e = new G.Enemy({ dex: 19, name: 'Rattata', hp: 1e6, spd: 0, dmg: 0, xp: 1, behavior: 'chase' }, x, y, { hp: 1, spd: 1, dmg: 1 });
+    e.boss = true;
+    G.EnemyMgr.add(e);
+    return e.id;
+  };
+  const nearA = foe(a.x + 200, a.y), nearB = foe(b.x + 200, b.y);
+  /** Lo que le ha llegado a u0 en los últimos pasos: enemigos nuevos e idos. */
+  const got = () => {
+    const out = { add: new Set(), gone: new Set() };
+    for (const m of of(r.sent, 'u0', 'snap')) {
+      const s = proto.decode(m.bin);
+      for (const e of s.enemies.add) out.add.add(e.id);
+      for (const id of s.enemies.gone) out.gone.add(id);
+    }
+    return out;
+  };
+  const run = () => { r.sent.length = 0; for (let i = 0; i < 4; i++) { b.hp = b.maxHp; b.invuln = 9; r.room.tick(); } };
+  run();
+  assert.ok(got().add.has(nearA) && !got().add.has(nearB), 'vivo, sólo le llegan los suyos');
+  a.invuln = 0; a.hurt(1e9);
+  assert.ok(a.dead);
+  r.room.watch('u0', 'u1');
+  run();
+  assert.ok(got().add.has(nearB), 'no le llegan los enemigos de su compañero');
+  assert.ok(got().gone.has(nearA), 'los de su cuerpo no se quitan');
+  // El compañero cae: vuelve a su cuerpo.
+  r.sent.length = 0;
+  b.invuln = 0; b.hurt(1e9);
+  r.room.tick(); r.room.tick();
+  assert.ok(got().add.has(nearA), 'si el elegido cae no vuelve a sí mismo');
+  b.revive(1);
+  // Al levantarse, aunque pida mirar a otro, lo suyo.
+  r.room.watch('u0', 'u1');
+  a.revive(1);
+  run();
+  assert.ok(!got().add.has(nearB), 'vivo, le siguen llegando los del otro');
 });
 
 test('un snap no pasa de 3 KB con muchos enemigos, y acaban llegando todos', () => {
@@ -483,6 +538,75 @@ test('mejoras de la tienda, Repertorio y veto del kit; `kit` a cada uno al empez
   room.pick('a', 0); room.pick('b', 0);
   room.tick(); room.tick();
   assert.ok(kitOf('a').length >= 1 || kitOf('b').length >= 1, 'tras la carta llega el kit nuevo');
+});
+
+/** Sala de 2 con el kit de 'a' (Pikachu) y 'b' (Charmander, sin kit). */
+function kitRoom(kit, dex = 25) {
+  const members = [{ uid: 'a', name: 'A', dex, shiny: false, kit }, { uid: 'b', name: 'B', dex: 4, shiny: false }];
+  const sent = [];
+  const room = createRoom({ members, seed: 3, logger: quiet, send: (uid, m) => sent.push({ uid, m }) });
+  return { room, sent, G: room.debug.G, a: room.debug.player('a') };
+}
+/** Una MT de ese Pokémon que no sea ya de sus tipos (G.Mons.learnable sin partida guardada). */
+const tmOf = (G, dex) => G.TM_OF(dex).find(id => G.Moves.BY_ID[id] && !G.Mons.natural(dex, id) && G.Moves.BY_ID[id].kind !== 'buff');
+
+test('naturaleza, habilidad (también la oculta), MT y segundo movimiento del kit; `started` los cuenta con hero()', () => {
+  const probe = kitRoom({});
+  const tm = tmOf(probe.G, 25);
+  assert.ok(tm, 'Pikachu no tiene MT que probar');
+  const r = kitRoom({ nat: 'timid', ab: 2, tms: [tm], start2: tm, up: { moves: 1, start2: 1 } });
+  const { G, a } = r;
+  assert.strictEqual(a.mon.nature, 'timid');
+  assert.ok(Math.abs(a.baseSpd - G.DEX_BY[25].spd * 1.1) < 1e-9, 'Miedosa: +10 % de velocidad');
+  assert.strictEqual(a.abilId, G.Mons.slots(25)[2], 'la oculta');
+  assert.ok(G.Moves.poolFor(a.mon).includes(tm), 'la MT sale en sus cartas');
+  assert.ok(!G.Moves.poolFor(probe.a.mon).includes(tm), 'y no en las de otro sin ella');
+  assert.deepStrictEqual(Array.from(a.slots, g => g[0].id), [G.baseStartOf(25), tm], 'segundo movimiento elegido (una MT)');
+  assert.deepStrictEqual(r.room.hero('a'), { nat: 'timid', ab: 2 });
+  assert.deepStrictEqual(Object.keys(r.room.hero('b')).sort(), ['ab', 'nat']);
+  assert.deepStrictEqual(r.room.hero('zz'), {});
+});
+
+test('kit: lo que no puede tener ese Pokémon no vale (naturaleza rara, MT ajena, hueco vacío, segundo sin Repertorio)', () => {
+  const probe = kitRoom({});
+  const foreign = Object.keys(probe.G.TM_MOVES).find(id => !probe.G.TM_OF(25).includes(id) && probe.G.Moves.BY_ID[id]);
+  const slots = probe.G.Mons.slots(25);
+  const empty = [0, 1, 2].find(i => !slots[i]);
+  const r = kitRoom({ nat: 'zzz', ab: empty === undefined ? 0 : empty, tms: [foreign], start2: 'thunderbolt', up: { start2: 1 } });
+  const { G, a } = r;
+  assert.ok(G.NATURE_BY[a.mon.nature], 'una naturaleza de verdad');
+  assert.ok(G.Mons.slots(25).includes(a.abilId), 'una habilidad suya');
+  assert.strictEqual(a.mon.tms.length, 0);
+  assert.ok(!G.Moves.poolFor(a.mon).includes(foreign));
+  assert.strictEqual(a.slots.length, 1, 'sin Repertorio no hay segundo');
+});
+
+test('kit.saved (la partida guardada, de checkKits) manda sobre lo que pide el navegador', () => {
+  const probe = kitRoom({});
+  const tm = tmOf(probe.G, 25);
+  const r = kitRoom({ nat: 'timid', ab: 2, tms: [tm], saved: { created: 5, pnat: { 25: ['brave', 1] }, pabil: { 25: [0, 1] }, ptm: {} } });
+  const { G, a } = r;
+  assert.strictEqual(a.mon.nature, 'brave');
+  assert.strictEqual(a.abilId, G.Mons.slots(25)[0]);
+  assert.ok(!G.Moves.poolFor(a.mon).includes(tm), 'la MT que no tiene guardada no sale');
+  assert.deepStrictEqual(r.room.hero('a'), { nat: 'brave', ab: 0 });
+});
+
+test('kit lleva el × de velocidad de la habilidad; los avisos sobre un jugador llegan como `tx`', () => {
+  const probe = kitRoom({});
+  const dex = Object.keys(probe.G.DEX_ABIL).map(Number).find(d => probe.G.SPRITE_META[d] && probe.G.Mons.slots(d)[0] === 'run-away');
+  assert.ok(dex, 'nadie con Fuga');
+  const r = kitRoom({ ab: 0 }, dex);
+  calm(r.G);
+  r.room.tick(); r.room.tick();
+  const kits = of(r.sent, 'a', 'ev').flatMap(m => m.list).filter(ev => ev[0] === 'kit');
+  assert.strictEqual(kits[0][5][2], 1.08);
+  assert.ok(Math.abs(r.a.spd - r.a.baseSpd * r.a.spdMul * 1.08) < 1e-6 || r.a.inLiquid, 'Fuga: +8 %');
+  r.sent.length = 0;
+  r.a.notice('¡Esquiva!', '#bfe8ff');
+  r.room.tick(); r.room.tick();
+  const tx = of(r.sent, 'b', 'ev').flatMap(m => m.list).filter(ev => ev[0] === 'tx');
+  assert.deepStrictEqual(tx[0], ['tx', 0, '¡Esquiva!', '#bfe8ff', 0, 4]);
 });
 
 test('ranked: false (algo no cuadra con la partida guardada): no sube la marca aunque el tiempo cuente', () => {

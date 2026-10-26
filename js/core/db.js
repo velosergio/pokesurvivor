@@ -694,8 +694,8 @@ G.DB = (() => {
     let grantDue = false;
     if (online) {
       try {
-        const g = await fs.collection('grants').doc(uid).get();
-        const d = G.Grant.applyGrant(save, g.exists ? g.data() : null);
+        const [g, all] = await Promise.all([fs.collection('grants').doc(uid).get(), giftAll()]);
+        const d = G.Grant.applyGrant(save, G.Grant.withAll(g.exists ? g.data() : null, all));
         grantDue = d.dc > 0 || d.dt > 0 || d.dm > 0;
       } catch (e) { /* sin red: la próxima subida lo lee dentro de la transacción */ }
     }
@@ -761,6 +761,22 @@ G.DB = (() => {
   const K_OK = 'ps.cloudok.', MIN_GAP = 65000;
   const sinceOk = () => Date.now() - (+read(K_OK + uid) || 0);
 
+  /*
+   * Regalo a todos (gifts/all, grant.js withAll): se lee fuera de la transacción y vale
+   * 1 h (cambia muy de vez en cuando). Si no se puede leer, sirve lo último leído:
+   * quedarse corto nunca da de más, y lo que falte llega en la siguiente lectura.
+   */
+  let allGift = null, allAt = 0;
+  async function giftAll() {
+    if (allGift && Date.now() - allAt < 3600e3) return allGift;
+    try {
+      const snap = await fs.collection('gifts').doc('all').get();
+      allGift = snap.exists ? snap.data() : {};
+      allAt = Date.now();
+    } catch (e) { /* sin red (o reglas sin desplegar): lo último leído */ }
+    return allGift;
+  }
+
   /** Sube la partida fusionándola con lo que haya en la nube (transacción). */
   function pushNow(opts) {
     const force = !!(opts && opts.force);
@@ -788,12 +804,13 @@ G.DB = (() => {
     let merged = null, grantSnap = null, tried = '';
     const u = uid;
     const tr = fs.runTransaction(async tx => {
+      const all = await giftAll();
       const ref = docRef();
       const snap = await tx.get(ref);
       const gsnap = await tx.get(fs.collection('grants').doc(uid));
       const remote = snap.exists ? migrate(snap.data().save) : null;
       merged = remote ? merge(plain(fold(save)), remote) : plain(fold(save));
-      grantSnap = gsnap.exists ? gsnap.data() : null;
+      grantSnap = G.Grant.withAll(gsnap.exists ? gsnap.data() : null, all);
       G.Grant.applyGrant(merged, grantSnap);
       fold(merged);
       tried = sameKey(merged);
