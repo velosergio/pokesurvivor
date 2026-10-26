@@ -53,7 +53,7 @@ G.Coop = (() => {
   // ---------------- arranque / fin ----------------
 
   /**
-   * @param cfg  { seed, members: [{ uid, name, dex, shiny }] } (lo de `started`, en orden de asiento)
+   * @param cfg  { seed, hw, members: [{ uid, name, dex, shiny, sk }] } (lo de `started`, en orden de asiento)
    * @param pl   tu Player (ya creado)
    * @param cb   ganchos de game.js: syncTeam, choice, waiting, over, lost, shiny, kit
    */
@@ -75,10 +75,11 @@ G.Coop = (() => {
       }
       const mon = G.DEX_BY[m.dex] || G.DEX_BY[25];
       const p = new G.Player(mon, {}, !!m.shiny);
+      p.anim.skin = G.Skins.get(m.sk, mon.dex) ? m.sk : null;     // su disfraz de Halloween (lo comprueba el servidor)
       p.remote = true; p.uid = m.uid; p.tag = m.name; p.tagColor = COLORS[i]; p.revLabel = 'Quédate a su lado';
       p.x = x; p.y = y;
       p.net = { x, y, ang: Math.PI / 2, walk: 0, hp: p.maxHp, maxHp: p.maxHp, dead: 0, mv: G.baseStartOf(mon.dex), ml: 1, mag: 78, aim: Math.PI / 2 };
-      G.Sprites.preload([mon.dex], 8000, p.shiny);
+      G.Sprites.preload([mon.dex], 8000, p.shiny, p.anim.skin || '');
       bySeat[i] = p;
       mates.set(m.uid, { uid: m.uid, seat: i, name: m.name, color: COLORS[i], pl: p, connected: true });
     });

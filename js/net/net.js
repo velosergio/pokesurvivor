@@ -60,12 +60,13 @@ G.Net = (() => {
   /**
    * Lo que el servidor necesita saber de tu Pokémon: mejoras de la tienda, atajos,
    * vetos, movimientos iniciales y naturaleza, hueco de la habilidad y MT
-   * (G.Mons.picksOf). Con la nube, el servidor lo comprueba con tu partida guardada.
+   * (G.Mons.picksOf), y la skin que lleva (la ven los compañeros). Con la nube,
+   * el servidor lo comprueba con tu partida guardada.
    */
   function kit() {
     const s = G.DB.save, dex = s.partner;
     return Object.assign({ up: G.DB.upgradesOf(dex), bind: (s.pbind && s.pbind[dex] || []).slice(0, 4), ban: (s.pban && s.pban[dex] || []).slice(0, 5),
-             start: (s.pstart && s.pstart[dex]) || '', start2: (s.pstart2 && s.pstart2[dex]) || '' }, G.Mons.picksOf(dex));
+             start: (s.pstart && s.pstart[dex]) || '', start2: (s.pstart2 && s.pstart2[dex]) || '', sk: G.Skins.worn(s, dex) }, G.Mons.picksOf(dex));
   }
 
   async function hello(sock, fresh) {

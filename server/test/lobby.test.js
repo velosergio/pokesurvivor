@@ -6,16 +6,16 @@ const { createLobby, BACK_MS } = require('../lobby.js');
 
 /** Partida falsa: apunta las llamadas. */
 function fakeRooms() {
-  const made = [], heroes = {};
+  const made = [], heroes = {}, next = { hw: false };
   const createRoom = opts => {
     const calls = [];
-    const g = { opts, calls };
+    const g = { opts, calls, hw: next.hw };
     for (const k of ['input', 'pick', 'hold', 'watch', 'drop', 'back', 'start', 'stop']) g[k] = (...a) => calls.push([k, ...a]);
     g.hero = uid => heroes[uid] || {};
     made.push(g);
     return g;
   };
-  return { made, createRoom, heroes };
+  return { made, createRoom, heroes, next };
 }
 
 /** Temporizadores falsos: avanzar el reloj a mano. */
@@ -126,7 +126,7 @@ test('start crea la partida y manda started a todos', () => {
   // La partida recibe el kit de cada uno (mejoras de la tienda); los demás no lo ven.
   assert.deepStrictEqual(g.opts.members.map(m => m.kit), [a.kit, b.kit]);
   const pub = g.opts.members.map(({ kit, ...m }) => m);
-  for (const c of [a, b]) assert.deepStrictEqual(c.last(), { t: 'started', seed: g.opts.seed, members: pub });
+  for (const c of [a, b]) assert.deepStrictEqual(c.last(), { t: 'started', seed: g.opts.seed, hw: 0, members: pub });
   assert.deepStrictEqual(g.calls, [['start']]);
   s.lobby.message(a, { t: 'start' });
   assert.deepStrictEqual(a.last(), { t: 'err', reason: 'started' });
@@ -502,4 +502,13 @@ test('condiciones normales otra vez: vuelve el ranking', async () => {
   s.lobby.message(a, { t: 'start' });
   await new Promise(r => setImmediate(r));
   assert.strictEqual(s.fr.made[0].opts.ranked, true);
+});
+
+
+test('`started` dice si la partida es de Halloween (lo decide la sala: room.hw)', () => {
+  const s = setup();
+  s.fr.next.hw = true;
+  const { cs: [a, b] } = room(s, 'a', 'b');
+  s.lobby.message(a, { t: 'start' });
+  for (const c of [a, b]) assert.strictEqual(c.last('started').hw, 1);
 });

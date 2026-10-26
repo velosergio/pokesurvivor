@@ -43,7 +43,7 @@ function cleanDex(v) {
 
 /**
  * Lo que el navegador cuenta de su Pokémon: { up: {mejora: nivel}, bind: [ids], ban: [ids],
- * start, start2, nat, ab, tms } (movimientos iniciales, naturaleza, hueco de la habilidad y MT).
+ * start, start2, nat, ab, tms, sk } (movimientos iniciales, naturaleza, hueco de la habilidad, MT y skin).
  * Sólo claves cortas, niveles enteros 0-99 e ids de texto; room.js lo recorta con los datos del juego.
  */
 function cleanKit(v) {
@@ -59,7 +59,7 @@ function cleanKit(v) {
   // Naturaleza, hueco de la habilidad (0, 1 o 2: la oculta) y MT (G.Mons.picksOf; las comprueba room.js heroOf).
   return { up, bind: ids(k.bind, 4), ban: ids(k.ban, 5).filter(Boolean), start: ids([k.start], 1)[0] || '', start2: ids([k.start2], 1)[0] || '',
            nat: typeof k.nat === 'string' && /^[a-z]{1,12}$/.test(k.nat) ? k.nat : '', ab: [0, 1, 2].includes(k.ab) ? k.ab : 0,
-           tms: ids(k.tms, MAX_TMS).filter(Boolean) };
+           tms: ids(k.tms, MAX_TMS).filter(Boolean), sk: ids([k.sk], 1)[0] || '' };
 }
 
 /** ¿Se acepta este Origin? Lista vacía = cualquiera (en local). */
@@ -83,7 +83,7 @@ function parseOrigins(s) {
 }
 
 /** Lo que hacen falta si no se inyectan: los módulos reales del servidor. */
-function realDeps({ devAuth, maxRooms, serviceAccount, logger = console }) {
+function realDeps({ devAuth, maxRooms, serviceAccount, halloween = null, logger = console }) {
   if (devAuth && serviceAccount) {
     logger.warn('[game] DEV_AUTH: el ranking de grupo NO se escribe (los uid dev: nunca llegan a Firestore)');
     serviceAccount = null;
@@ -93,7 +93,7 @@ function realDeps({ devAuth, maxRooms, serviceAccount, logger = console }) {
   const rank = require('./rank').createRank({ serviceAccount });
   // room.js (y con él la simulación) se carga al crear la primera partida.
   // Con la cuenta de servicio, al empezar se comprueban las mejoras y el Pokémon con la partida guardada.
-  const lobby = require('./lobby').createLobby({ createRoom: o => require('./room').createRoom({ ...o, rank }), checkKits: rank.checkKits, maxRooms });
+  const lobby = require('./lobby').createLobby({ createRoom: o => require('./room').createRoom({ ...o, rank, hw: halloween == null ? undefined : halloween }), checkKits: rank.checkKits, maxRooms });
   return { auth, lobby, proto: require('./proto') };
 }
 
@@ -118,11 +118,11 @@ function realDeps({ devAuth, maxRooms, serviceAccount, logger = console }) {
  *          (drain y esperar a las salas); close = cerrar ya.
  */
 function start({
-  port = 8787, allowedOrigins = [], devAuth = false, maxRooms = 30, serviceAccount = null, deps = {},
+  port = 8787, allowedOrigins = [], devAuth = false, maxRooms = 30, serviceAccount = null, halloween = null, deps = {},
   helloTimeout = 10000, pingInterval = 20000, drainPoll = 5000, drainMax = 40 * 60 * 1000, closeGrace = 1000, logger = console
 } = {}) {
   const need = !deps.auth || !deps.lobby || !deps.proto;
-  const real = need ? realDeps({ devAuth, maxRooms, serviceAccount, logger }) : {};
+  const real = need ? realDeps({ devAuth, maxRooms, serviceAccount, halloween, logger }) : {};
   const auth = deps.auth || real.auth, lobby = deps.lobby || real.lobby, proto = deps.proto || real.proto;
   const origins = (allowedOrigins || []).map(x => String(x).replace(/\/+$/, ''));
 
@@ -362,12 +362,20 @@ if (require.main === module) {
   if (!origins.length && !devAuth) {
     console.warn('[game] AVISO: ALLOWED_ORIGINS vacío: cualquier página puede abrir /ws. En Easypanel ponlo al dominio de la web.');
   }
+  // HALLOWEEN=1 / 0: forzar el evento para probarlo otro día (sólo con DEV_AUTH, en local;
+  // si no, lo decide la fecha del servidor, room.js).
+  let halloween = null;
+  if (env.HALLOWEEN === '1' || env.HALLOWEEN === '0') {
+    if (devAuth) halloween = env.HALLOWEEN === '1';
+    else console.warn('[game] HALLOWEEN sólo vale con DEV_AUTH=1: se usa la fecha del servidor');
+  }
   const app = start({
     port: envInt('PORT', env.PORT, 8787, 0),
     allowedOrigins: origins,
     devAuth,
     maxRooms: envInt('MAX_ROOMS', env.MAX_ROOMS, 30, 1),
-    serviceAccount
+    serviceAccount,
+    halloween
   });
   app.ready.then(p => {
     console.log(`[game] escuchando en :${p} (proto ${proto.VERSION}, orígenes: ${origins.join(', ') || 'cualquiera'}${env.DEV_AUTH === '1' ? ', DEV_AUTH' : ''})`);

@@ -9,11 +9,12 @@ const DEX = [4, 7, 1, 25, 133, 39, 52, 54, 60, 63];
 const quiet = { error() {}, warn() {}, log() {} };
 
 /** Sala de n jugadores con un `send` falso que guarda todo. */
-function makeRoom({ n = 4, seed = 7, rank, ranked, rules, logger = quiet } = {}) {
-  const members = DEX.slice(0, n).map((dex, i) => ({ uid: 'u' + i, name: 'P' + i, dex, shiny: false }));
+function makeRoom({ n = 4, seed = 7, rank, ranked, rules, hw = false, dex = DEX, kits = [], logger = quiet } = {}) {
+  const members = dex.slice(0, n).map((d, i) => ({ uid: 'u' + i, name: 'P' + i, dex: d, shiny: false, kit: kits[i] }));
   const sent = [];
   const overs = [];
-  const room = createRoom({ members, seed, rank, ranked, rules, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
+  // hw: sin Halloween salvo que se pida (si no, las pruebas dependerían de la fecha).
+  const room = createRoom({ members, seed, rank, ranked, rules, hw, logger, send: (uid, m) => sent.push({ uid, m }), onOver: r => overs.push(r) });
   return { room, members, sent, overs, G: room.debug.G, pl: uid => room.debug.player(uid) };
 }
 
@@ -562,8 +563,8 @@ test('naturaleza, habilidad (también la oculta), MT y segundo movimiento del ki
   assert.ok(G.Moves.poolFor(a.mon).includes(tm), 'la MT sale en sus cartas');
   assert.ok(!G.Moves.poolFor(probe.a.mon).includes(tm), 'y no en las de otro sin ella');
   assert.deepStrictEqual(Array.from(a.slots, g => g[0].id), [G.baseStartOf(25), tm], 'segundo movimiento elegido (una MT)');
-  assert.deepStrictEqual(r.room.hero('a'), { nat: 'timid', ab: 2 });
-  assert.deepStrictEqual(Object.keys(r.room.hero('b')).sort(), ['ab', 'nat']);
+  assert.deepStrictEqual(r.room.hero('a'), { nat: 'timid', ab: 2, sk: '' });
+  assert.deepStrictEqual(Object.keys(r.room.hero('b')).sort(), ['ab', 'nat', 'sk']);
   assert.deepStrictEqual(r.room.hero('zz'), {});
 });
 
@@ -589,7 +590,7 @@ test('kit.saved (la partida guardada, de checkKits) manda sobre lo que pide el n
   assert.strictEqual(a.mon.nature, 'brave');
   assert.strictEqual(a.abilId, G.Mons.slots(25)[0]);
   assert.ok(!G.Moves.poolFor(a.mon).includes(tm), 'la MT que no tiene guardada no sale');
-  assert.deepStrictEqual(r.room.hero('a'), { nat: 'brave', ab: 0 });
+  assert.deepStrictEqual(r.room.hero('a'), { nat: 'brave', ab: 0, sk: '' });
 });
 
 test('kit lleva el × de velocidad de la habilidad; los avisos sobre un jugador llegan como `tx`', () => {
@@ -846,4 +847,62 @@ test('esferas: no se usan mientras la partida está parada', () => {
   r.room.hold('u1', true);
   r.room.orb('u0', 0);
   assert.deepStrictEqual(bagOf(G, a), [['focus', 1], 0, 0, 0]);
+});
+
+test('clima de habilidad: lo pone cualquiera del grupo, no sólo el primero (Llovizna de Kyogre en el segundo asiento)', () => {
+  const r = makeRoom({ n: 2, dex: [25, 382] });
+  assert.strictEqual(r.pl('u1').abil.summon, 'rain');
+  const step = bots(r);
+  steps(step, 2);
+  assert.strictEqual(r.G.Weather.current && r.G.Weather.current.kind, 'rain');
+  assert.ok(r.evs.has('wx'), 'no se ha avisado del clima a los navegadores');
+});
+
+test('Halloween: mapa de noche, caramelos del equipo y el gran Gengar en la Sentencia', () => {
+  const r = makeRoom({ n: 2, seed: 9, hw: true });
+  assert.strictEqual(r.room.hw, true);
+  assert.strictEqual(r.G.World.biomeName(), 'Huerto de Calabazas');
+  const step = bots(r);
+  steps(step, 3);
+  // Un caramelo en el suelo, al lado de u0: es del equipo.
+  const p = r.pl('u0');
+  r.G.Pickups.drop('candy', p.x, p.y, 1);
+  steps(step, 1);
+  assert.strictEqual(r.room.debug.team.cn, 1);
+  // La Sentencia: el gran Gengar, y al llegar, JUDGE caramelos para el equipo.
+  r.G.Judgment.debugStart();
+  let fight = false;
+  for (let i = 0; i < Math.round(40 / DT) && !fight; i++) { step(); if (r.G.Judgment.active && !r.G.Judgment.cinematic) fight = true; }
+  assert.ok(fight, 'no ha llegado a la pelea');
+  assert.strictEqual(r.G.Judgment.summary().gengar, true);
+  assert.strictEqual(r.room.debug.team.cn, 1 + r.G.Halloween.JUDGE);
+  r.room.debug.G.Game.player.dead = true;
+  for (const s of ['u0', 'u1']) { const q = r.pl(s); q.dead = true; q.hp = 0; }
+  const stepDown = bots(r, { god: false });
+  for (let i = 0; i < Math.round(30 / DT) && !r.over; i++) { for (const s of ['u0', 'u1']) { const q = r.pl(s); q.dead = true; q.hp = 0; } stepDown(); }
+  assert.ok(r.over, 'la partida no ha terminado');
+  assert.strictEqual(r.over.results.cn, 1 + r.G.Halloween.JUDGE);
+});
+
+test('Halloween: fuera del evento, ni mapa de noche ni Gengar (el reloj del servidor manda)', () => {
+  const r = makeRoom({ n: 2, seed: 9 });
+  assert.strictEqual(r.room.hw, false);
+  assert.notStrictEqual(r.G.World.biomeName(), 'Huerto de Calabazas');
+  const step = bots(r);
+  r.G.Judgment.debugStart();
+  let fight = false;
+  for (let i = 0; i < Math.round(40 / DT) && !fight; i++) { step(); if (r.G.Judgment.active && !r.G.Judgment.cinematic) fight = true; }
+  assert.strictEqual(r.G.Judgment.summary().gengar, false);
+  assert.strictEqual(r.room.debug.team.cn, 0);
+});
+
+test('skin: la de su Pokémon y, con la partida guardada leída, sólo si la compró', () => {
+  const kits = [
+    { sk: 'bruja-pikachu' },                                                     // sin comprobar (local): vale
+    { sk: 'bruja-pikachu' },                                                     // no es de Charmander
+    { sk: 'bruja-pikachu', saved: { created: 1, pnat: {}, pabil: {}, ptm: {}, skins: {} } },              // no la compró
+    { sk: 'bruja-pikachu', saved: { created: 1, pnat: {}, pabil: {}, ptm: {}, skins: { 'bruja-pikachu': 5 } } }
+  ];
+  const r = makeRoom({ n: 4, dex: [25, 4, 25, 25], kits });
+  assert.deepStrictEqual(['u0', 'u1', 'u2', 'u3'].map(u => r.room.hero(u).sk), ['bruja-pikachu', '', '', 'bruja-pikachu']);
 });

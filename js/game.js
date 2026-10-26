@@ -160,8 +160,8 @@ G.Game = (() => {
   function startRun(coop = null, solo = G.Modes.get('classic')) {
     waitBy = []; awayBy = null; crew = null; teamSum = null;
     // Halloween (systems/halloween.js): lo que sea al empezar vale toda la partida.
-    // En grupo lo decide el servidor (hw en `started`; si no lo manda, no lo es:
-    // su mapa y sus enemigos tienen que ser los mismos que los tuyos).
+    // En grupo lo decide el servidor con su reloj (hw en `started`): su mapa y sus
+    // enemigos tienen que ser los mismos que los tuyos.
     G.Halloween.runStart(coop ? !!coop.hw : undefined);
     const save = G.DB.save;
     mode = coop ? null : solo;
@@ -355,7 +355,8 @@ G.Game = (() => {
     },
     /** Fin (te llega tu resumen del servidor). */
     over(r) {
-      Object.assign(pl, { kills: r.ki | 0, bosses: r.bo | 0, coins: r.co | 0, level: Math.max(pl.level, r.lv | 0), t1: r.t1 | 0, t10: r.t10 | 0 });
+      Object.assign(pl, { kills: r.ki | 0, bosses: r.bo | 0, coins: r.co | 0, level: Math.max(pl.level, r.lv | 0), t1: r.t1 | 0, t10: r.t10 | 0,
+                          candy: Math.max(pl.candy || 0, r.cn | 0) });        // caramelos de Halloween del equipo
       if (r.t) time = r.t;
       crew = Array.isArray(r.crew) ? r.crew.map(c => Object.assign({}, c, { me: c.uid === r.uid })) : null;
       // Resumen de ataques de cada uno, del servidor (tú primero).

@@ -10,7 +10,9 @@ G.CHANGELOG = [
     ["Evento de Halloween del 30 de octubre al 1 de noviembre (hora de España). Lo que trae, lo descubrirás jugando.",
      "Halloween event from October 30 to November 1 (Spain time). What it brings, you will find out by playing."],
     ["En la pantalla principal, una cuenta atrás: desde dos semanas antes, cuánto falta para Halloween; durante el evento, cuánto queda.",
-     "On the main screen, a countdown: from two weeks before, how long until Halloween; during the event, how long is left."]
+     "On the main screen, a countdown: from two weeks before, how long until Halloween; during the event, how long is left."],
+    ["El evento de Halloween también se juega en grupo, igual que en solitario.",
+     "The Halloween event can also be played in a group, just like solo."]
   ], fix: [
     ["Móvil: al entrar con tu usuario, el teclado ya no lo corrige ni le pone mayúsculas por su cuenta (con un nombre poco común, el autocorrector lo cambiaba y salía «Usuario o contraseña incorrectos»).",
      "Mobile: when you log in with your username, the keyboard no longer autocorrects it or adds capitals on its own (with an unusual name, autocorrect changed it and you got \"Wrong username or password\")."],

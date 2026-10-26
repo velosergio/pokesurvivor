@@ -93,11 +93,12 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
   }
 
   /**
-   * La partida empieza (o se vuelve a ella): semilla y jugadores, cada uno con la
-   * naturaleza y el hueco de la habilidad con que juega (nat, ab: room.js hero),
-   * para que su navegador lleve el mismo Pokémon que el servidor.
+   * La partida empieza (o se vuelve a ella): semilla, si es de Halloween (hw) y
+   * jugadores, cada uno con la naturaleza, el hueco de la habilidad y la skin con
+   * que juega (nat, ab, sk: room.js hero), para que su navegador lleve el mismo
+   * Pokémon y el mismo mapa que el servidor.
    */
-  const started = r => ({ t: 'started', seed: r.seed, members: r.members.map(m => Object.assign(
+  const started = r => ({ t: 'started', seed: r.seed, hw: r.game && r.game.hw ? 1 : 0, members: r.members.map(m => Object.assign(
     { uid: m.uid, name: m.name, dex: m.dex, shiny: m.shiny }, r.game && r.game.hero ? r.game.hero(m.uid) : {})) });
 
   /** Borra la sala (para la partida si la hay). */

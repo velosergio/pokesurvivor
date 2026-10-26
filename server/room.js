@@ -64,7 +64,14 @@
  * recorta cada mejora a su máximo. Con qué naturaleza y habilidad juega cada
  * uno se le cuenta en `started` (hero(uid)), para que su navegador lo lleve igual.
  * Clima de habilidad (Sequía, Llovizna...): como en solitario, cada jugador lo
- * pone al empezar y cada 3 min si no hay otro; con varios, el primero que toque.
+ * pone al empezar y cada 3 min si no hay otro; con varios, el primero que toque
+ * (sea quien sea: aquí no hay anfitrión, todos los Pokémon los mueve el servidor).
+ *
+ * Halloween (systems/halloween.js): lo decide el reloj del servidor al crear la
+ * partida (o `hw`, para probar) y vale hasta que acaba; va en `started` (room.hw).
+ * Mapa de noche, caramelos y el gran Gengar salen de aquí; los caramelos son del
+ * equipo, como las monedas, y van en el resumen del final (cn). La skin de cada
+ * uno (kit.sk) se comprueba con su partida guardada y se cuenta en `started`.
  *
  * Altares, cofres y trampas los decide el servidor (interact.js); a los navegadores les llegan
  * `alt` (quién se lleva el poder), `chs` (cómo va la apertura de un cofre) y `pb` (roto/abierto/saltó).
@@ -121,10 +128,11 @@ const str = v => (v == null ? '' : String(v));
  * @param {{submitGroup: Function}} [o.rank]
  * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada, o condiciones a medida)
  * @param {object} [o.rules]  condiciones a medida de la sala (proto.RULES): ×enemigos, ×grietas, ×monedas, ×tickets
+ * @param {boolean} [o.hw]  ¿partida de Halloween? (si no se dice, la fecha de este servidor)
  * @param {{error: Function, warn: Function}} [o.logger=console]
  * @returns {{ input, pick, hold, watch, orb, drop, back, hero, start, stop, tick, debug }}
  */
-function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rules = null, logger = console } = {}) {
+function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rules = null, hw, logger = console } = {}) {
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
   const sim = createSim({ seed: seed >>> 0 });
   const { G, clock } = sim;
@@ -138,7 +146,10 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   let time = 0, biome = 0, steps = 0, downT = 0, pendingLevels = 0;
   let over = false, stopped = false, timer = null, lastReal = 0, acc = 0;
   /** Equipo: nivel y experiencia compartidos; monedas y tickets, de todos. */
-  const team = { level: 1, xp: 0, xpNext: G.Player.xpFor(1), coins: 0, t1: 0, t10: 0 };
+  const team = { level: 1, xp: 0, xpNext: G.Player.xpFor(1), coins: 0, t1: 0, t10: 0, cn: 0 };
+  // Halloween: antes de crear a los jugadores y el mapa (lo miran los dos).
+  hw = hw == null ? G.Halloween.isOn(new Date()) : !!hw;
+  G.Halloween.runStart(hw);
   /** Eventos para todos desde el último envío (y cuántos son de adorno). */
   let evAll = [], cosmetic = 0;
   /** Enemigos que han caído desde el último envío (para `die`). */
@@ -155,6 +166,17 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     return G.Mons.loadout(dex, kit.saved && typeof kit.saved === 'object' ? kit.saved : G.Mons.saveOf(dex, kit));
   }
 
+  /**
+   * La skin que lleva (kit.sk): de ese Pokémon y, si se ha leído su partida
+   * guardada (kit.saved), comprada. Sólo se ve: no cambia nada del juego.
+   */
+  function skinOf(dex, kit) {
+    const id = typeof kit.sk === 'string' ? kit.sk : '';
+    if (!id || !G.Skins.SKINS[id] || !G.Skins.get(id, dex)) return '';
+    const saved = kit.saved && typeof kit.saved === 'object' ? kit.saved : null;
+    return !saved || G.Skins.owns(saved, id) ? id : '';
+  }
+
   /** Un jugador de la sala. */
   const seats = members.map((m, i) => {
     const dex = G.DEX_BY[m.dex] && G.SPRITE_META[m.dex] ? m.dex : 25;
@@ -164,12 +186,13 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     const hero = heroOf(dex, kit);
     const pl = new G.Player(hero.mon, perks, !!m.shiny);
     if (hero.ability) pl.setAbility(hero.ability);
+    const sk = skinOf(dex, kit);
     pl.uid = m.uid; pl.tag = str(m.name);
     // Atajos (huecos fijos) y Veto, como en game.js startRun.
     (Array.isArray(kit.bind) ? kit.bind : []).forEach((id, j) => { if (id && G.Moves.BY_ID[id]) pl.bind[id] = j; });
     pl.banned = new Set((Array.isArray(kit.ban) ? kit.ban : []).filter(id => G.Moves.BY_ID[id]).slice(0, perks.bans));
     return {
-      id: i, uid: m.uid, name: str(m.name), pl, perks, kit, hero: { nat: hero.mon.nature, ab: hero.slot },
+      id: i, uid: m.uid, name: str(m.name), pl, perks, kit, hero: { nat: hero.mon.nature, ab: hero.slot, sk },
       on: true, gone: false, offT: 0,
       in: null, inAt: -1, ack: 0, lastMove: -1, axis: [0, 0],
       accX: 0, accY: 0, accT: 0, tpT: -99,
@@ -242,6 +265,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       if (s) pushAll(['tx', s.id, str(text), str(color), big ? 1 : 0, dy | 0], true);
     },
     offerBond() { offerBonds(); },
+    /** Halloween: caramelos de golpe (al llegar al gran Gengar, judgment.js), para el equipo. */
+    addCandy(n) { addCandy(n, null); },
     get state() { return over ? 'over' : 'playing'; }
   };
 
@@ -305,7 +330,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   G.Rift.setPace(pace.rift);
   G.Pickups.setRates(pace);
   G.World.reset(seed | 0 || 1);
-  G.World.setBiome(0, true);
+  G.World.setBiome(G.Tiles.runBiome(0), true);
   seats.forEach((s, i) => {
     const p = s.pl;
     p.x = (i - (seats.length - 1) / 2) * 34; p.y = 0;
@@ -322,6 +347,15 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
 
   // ---------------- recogida ----------------
 
+  /** Caramelos de Halloween para el equipo; el aviso, sobre quien los coge (s) o sobre todos. */
+  function addCandy(n, s) {
+    n = Math.max(0, Math.floor(n) || 0);
+    if (!n) return;
+    team.cn += n;
+    const text = '+' + n + (n > 1 ? ' caramelos' : ' caramelo');
+    for (const o of s ? [s] : active()) pushAll(['tx', o.id, text, '#ff9a3d', 1, 8], true);
+  }
+
   function collect(o, who) {
     who = who || anchor();
     const s = seatOf(who);
@@ -330,6 +364,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       case 'coin': team.coins += o.value; break;
       case 'ticket': team.t1++; break;
       case 'ticket10': team.t10++; break;
+      case 'candy': addCandy(o.value || 1, s); break;
       case 'heal': who.heal(who.maxHp * 0.3); if (s) pushAll(['heal', s.id]); break;
       case 'magnet': G.Pickups.pullAll(); pushAll(['mag']); break;
       case 'item': if (s) offerItem(s, o.value); break;
@@ -563,7 +598,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     }
     time += DT;
     const b = Math.floor(time / 240);
-    if (b !== biome && !G.Rift.inArena && !G.Judgment.active) { biome = b; G.World.setBiome(b); pushAll(['bio', b]); }
+    if (b !== biome && !G.Rift.inArena && !G.Judgment.active) { biome = b; G.World.setBiome(G.Tiles.runBiome(b)); pushAll(['bio', b]); }
     movePlayers(DT);
     reviveTick(DT);
     const cx = ps.reduce((a, p) => a + p.x, 0) / ps.length, cy = ps.reduce((a, p) => a + p.y, 0) / ps.length;
@@ -716,7 +751,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     const p = s.pl;
     return {
       uid: s.uid, why, t: time, lv: team.level, ki: p.kills, bo: p.bosses,
-      kt: seats.reduce((a, o) => a + o.pl.kills, 0), co: team.coins, t1: team.t1, t10: team.t10,
+      kt: seats.reduce((a, o) => a + o.pl.kills, 0), co: team.coins, t1: team.t1, t10: team.t10, cn: team.cn,
       dead: p.dead, judge: G.Judgment.summary(), shinies: s.shinies.slice(), rescued: s.rescued.slice(),
       crew: crewSummary(), team: teamSums()
     };
@@ -770,6 +805,8 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   }
 
   return {
+    /** ¿Partida de Halloween? (va en `started`: el navegador hace el mismo mapa) */
+    hw,
     /** Entrada de movimiento de uid ({seq,x,y,dx,dy,move}). */
     input(uid, m) {
       const s = byUid.get(uid);

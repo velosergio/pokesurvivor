@@ -373,11 +373,11 @@ test('checkKits: mejoras = lo menos entre navegador y partida guardada; ok si el
 test('checkKits: saved = lo guardado que decide naturaleza, habilidad y MT, sólo de ese Pokémon', async () => {
   const fs = fakeFirestore();
   fs.set('saves/aa', { save: { owned: { 25: { at: 1 } }, created: 1700000000000,
-    pnat: { 25: ['jolly', 5], 4: ['bold', 6] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'], 7: ['surf'] } } });
+    pnat: { 25: ['jolly', 5], 4: ['bold', 6] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'], 7: ['surf'] }, skins: { 'bruja-pikachu': 9 } } });
   fs.set('saves/bb', { save: { owned: { 4: { at: 1 } } } });
   const res = await rankOf(fs).checkKits([{ uid: 'aa', dex: 25, shiny: false, up: {} }, { uid: 'bb', dex: 4, shiny: false, up: {} }]);
-  assert.deepStrictEqual(res.get('aa').saved, { created: 1700000000000, pnat: { 25: ['jolly', 5] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'] } });
-  assert.deepStrictEqual(res.get('bb').saved, { created: 0, pnat: {}, pabil: {}, ptm: {} });
+  assert.deepStrictEqual(res.get('aa').saved, { created: 1700000000000, pnat: { 25: ['jolly', 5] }, pabil: { 25: [2, 7] }, ptm: { 25: ['toxic'] }, skins: { 'bruja-pikachu': 9 } });
+  assert.deepStrictEqual(res.get('bb').saved, { created: 0, pnat: {}, pabil: {}, ptm: {}, skins: {} });
 });
 
 test('sin cuenta de servicio no hay checkKits', () => {

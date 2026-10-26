@@ -39,7 +39,7 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 11;
+  const VERSION = 12;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
@@ -75,7 +75,7 @@
    * Objetos del suelo en el snap (kind). 'sphere' va la última: cada esfera
    * tiene su código, el de 'sphere' + su índice (sub: el de G.Orbs.LIST).
    */
-  const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item', 'sphere'];
+  const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item', 'candy', 'sphere'];
   const SPHERE = PICK_KINDS.length - 1;
   /** kind (y sub, si es una esfera) -> código del snap (lo que no está, 0). */
   function pickCode(kind, sub) {

@@ -311,8 +311,8 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
    *         (si la nube va atrasada, como mucho juegas sin la última compra)
    *   ok    el Pokémon (y el shiny, si lo lleva) es suyo y la cuenta no está
    *         baneada ni marcada; si no, la partida no sube al ranking de grupo
-   *   saved lo que decide su naturaleza, su habilidad y sus MT en ese Pokémon
-   *         ({ created, pnat, pabil, ptm }, la forma de la partida guardada que
+   *   saved lo que decide su naturaleza, su habilidad y sus MT en ese Pokémon,
+   *         y sus skins compradas ({ created, pnat, pabil, ptm, skins }, la forma de la partida guardada que
    *         lee G.Mons): room.js juega con eso y no con lo que diga el navegador.
    *         null si no tiene partida guardada.
    * Si no se puede leer, lanza (lobby.js: la partida se juega, sin ranking).
@@ -322,7 +322,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
   async function checkKits(players) {
     const ps = players.filter(p => p && typeof p.uid === 'string' && p.uid && !p.uid.includes('/'));
     const saves = await getAll(ps.map(p => 'saves/' + p.uid),
-      { mask: { fieldPaths: ['save.pupg', 'save.owned', 'save.shiny', 'save.created', 'save.pnat', 'save.pabil', 'save.ptm', 'ban', 'sus'] } });
+      { mask: { fieldPaths: ['save.pupg', 'save.owned', 'save.shiny', 'save.created', 'save.pnat', 'save.pabil', 'save.ptm', 'save.skins', 'ban', 'sus'] } });
     const out = new Map();
     for (const p of ps) {
       const f = saves.get('saves/' + p.uid);
@@ -339,7 +339,8 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
         && fromFs(f.ban) !== true && fromFs(f.sus) !== true;
       // Sólo lo de su Pokémon.
       const only = o => (o && typeof o === 'object' && p.dex in o ? { [p.dex]: o[p.dex] } : {});
-      const saved = f ? { created: Number(sv.created) || 0, pnat: only(sv.pnat), pabil: only(sv.pabil), ptm: only(sv.ptm) } : null;
+      const saved = f ? { created: Number(sv.created) || 0, pnat: only(sv.pnat), pabil: only(sv.pabil), ptm: only(sv.ptm),
+                          skins: sv.skins && typeof sv.skins === 'object' ? sv.skins : {} } : null;
       out.set(p.uid, { up, ok, saved });
     }
     return out;

@@ -325,7 +325,7 @@ test('un ping sin respuesta cierra la conexión', async () => {
 
 test('cleanKit: sólo niveles enteros e ids con forma de movimiento', () => {
   const { cleanKit } = require('../index');
-  const none = { start2: '', nat: '', ab: 0, tms: [] };
+  const none = { start2: '', nat: '', ab: 0, tms: [], sk: '' };
   assert.deepStrictEqual(cleanKit(null), Object.assign({ up: {}, bind: [], ban: [], start: '' }, none));
   assert.deepStrictEqual(cleanKit({ up: { hp: 3, atk: 1.5, spd: -1, ['__proto__']: 4, LARGO: 2, xp: 500 }, bind: ['quick-attack', 7, 'a b'], ban: ['x', 'y', 'z', 'w', 'v', 'u'] }),
     Object.assign({ up: { hp: 3 }, bind: ['quick-attack', '', ''], ban: ['x', 'y', 'z', 'w', 'v'], start: '' }, none));
@@ -342,4 +342,11 @@ test('cleanKit: naturaleza, hueco de la habilidad, MT y segundo movimiento con s
   assert.deepStrictEqual([bad.nat, bad.ab, bad.tms, bad.start2], ['', 0, [], '']);
   assert.strictEqual(cleanKit({ ab: 1.5 }).ab, 0);
   assert.strictEqual(cleanKit({ tms: Array(100).fill('toxic') }).tms.length, 64);
+});
+
+test('cleanKit: la skin, un id con su forma (la comprueba room.js)', () => {
+  const { cleanKit } = require('../index');
+  assert.strictEqual(cleanKit({ sk: 'bruja-pikachu' }).sk, 'bruja-pikachu');
+  assert.strictEqual(cleanKit({ sk: 'Bruja Pikachu' }).sk, '');
+  assert.strictEqual(cleanKit({ sk: ['bruja-pikachu'] }).sk, '');
 });
