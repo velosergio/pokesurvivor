@@ -406,13 +406,13 @@ G.HUD = (() => {
     if (orbs.some(Boolean) || buffs.length) {
       const OS = 40, OG = 6, ow = G.Orbs.SLOTS * OS + (G.Orbs.SLOTS - 1) * OG;
       const ox = sx + totalW / 2 - ow / 2, oy = sy - 30 - OS;
-      const cdF = G.U.clamp(G.Orbs.cd, 0, 1);
+      const cdF = G.U.clamp(G.Orbs.cdOf(pl) / G.Orbs.CD, 0, 1), sel = G.Orbs.selOf(pl);
       for (let i = 0; i < G.Orbs.SLOTS; i++) {
         const o = orbs[i], x = ox + i * (OS + OG);
         roundRect(ctx, x, oy, OS, OS, 9);
         ctx.fillStyle = o ? 'rgba(20,24,44,.88)' : 'rgba(10,16,28,.45)';
         ctx.fill();
-        const pick = o && !!G.Pad.name && i === G.Orbs.sel;      // con mando: la que usa X
+        const pick = o && !!G.Pad.name && i === sel;      // con mando: la que usa X
         ctx.lineWidth = pick ? 2.5 : 1.2;
         ctx.strokeStyle = pick ? '#ffd23f' : o ? G.Orbs.BY[o.id].col : 'rgba(140,170,210,.18)';
         ctx.stroke();
@@ -437,7 +437,7 @@ G.HUD = (() => {
         const x = ox + i * (OS + OG);
         if (orbs[i] && mo.x >= x && mo.x <= x + OS && mo.y >= oy && mo.y <= oy + OS) { tip = i; full = true; }
       }
-      if (tip < 0 && G.Pad.name && orbs[G.Orbs.sel]) tip = G.Orbs.sel;
+      if (tip < 0 && G.Pad.name && orbs[sel]) tip = sel;
       if (tip < 0 && fresh >= 0 && orbs[fresh]) tip = fresh;
       if (fresh >= 0 && orbs[fresh]) {
         const x = ox + fresh * (OS + OG), a = 1 - (performance.now() - pl.orbNew.at) / 3000;

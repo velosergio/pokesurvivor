@@ -728,3 +728,122 @@ test('condiciones a medida: la marca no sube al ranking de grupo', () => {
   assert.ok(r.room.debug.over, 'no ha terminado');
   assert.strictEqual(ranked, 0);
 });
+
+// ---------------- esferas (js/systems/orbs.js) ----------------
+
+/** La bolsa de p tal como va en kit (fuera del vm de la simulación, para compararla). */
+const bagOf = (G, p) => JSON.parse(JSON.stringify(G.Orbs.toNet(p)));
+
+/** Sala tranquila (sin enemigos que lleguen) con los jugadores en (x, 0) y sin caer. */
+function orbRoom(xs) {
+  const r = makeRoom({ n: xs.length });
+  r.room.tick();
+  calm(r.G);
+  r.G.Spawner.update = () => {};
+  r.members.forEach((m, i) => r.room.debug.place(m.uid, xs[i], 0));
+  r.run = n => { for (let i = 0; i < n; i++) { for (const m of r.members) { const p = r.pl(m.uid); p.hp = p.maxHp; p.invuln = 9; } r.room.tick(); } };
+  r.evs = (uid, t) => JSON.parse(JSON.stringify(of(r.sent, uid, 'ev').flatMap(m => m.list).filter(ev => ev[0] === t)));
+  return r;
+}
+
+test('esferas: el snap dice cuál es, al cogerla va a la bolsa de quien la coge (kit) y sólo a él le llega og', () => {
+  const r = orbRoom([0, 600]);
+  const { G } = r;
+  r.sent.length = 0;
+  G.Pickups.drop('sphere', 400, 0, 'focus');
+  r.run(2);
+  const code = proto.pickCode('sphere', G.Orbs.LIST.findIndex(o => o.id === 'focus'));
+  assert.ok(lastSnap(r.sent, 'u0').pickups.add.some(o => o.kind === code), 'el snap no dice qué esfera es');
+  r.sent.length = 0;
+  G.Pickups.drop('sphere', 600, 0, 'focus');
+  r.run(10);
+  assert.deepStrictEqual(bagOf(G, r.pl('u1')), [['focus', 1], 0, 0, 0]);
+  assert.deepStrictEqual(bagOf(G, r.pl('u0')), [0, 0, 0, 0]);
+  assert.deepStrictEqual(r.evs('u1', 'og'), [['og', 'focus', 0]]);
+  assert.strictEqual(r.evs('u0', 'og').length, 0, 'og a quien no la ha cogido');
+  const kit = r.evs('u1', 'kit').pop();
+  assert.deepStrictEqual(kit[6], [['focus', 1], 0, 0, 0], 'la bolsa no va en kit');
+});
+
+test('esferas: usarla la gasta y la aplica; con recarga de 1 s por jugador', () => {
+  const r = orbRoom([0, 3000]);
+  const { G } = r;
+  const a = r.pl('u0'), b = r.pl('u1');
+  G.Orbs.add(a, 'quick'); G.Orbs.add(a, 'quick'); G.Orbs.add(b, 'quick');
+  const spd = a.spdMul;
+  r.sent.length = 0;
+  r.room.orb('u0', 0);
+  assert.ok(Math.abs(a.spdMul - spd * 1.4) < 1e-9, 'la Rapidosfera no acelera');
+  assert.deepStrictEqual(bagOf(G, a), [['quick', 1], 0, 0, 0]);
+  r.room.orb('u0', 0);
+  assert.deepStrictEqual(bagOf(G, a), [['quick', 1], 0, 0, 0], 'se ha usado durante la recarga');
+  r.room.orb('u1', 0);
+  assert.deepStrictEqual(bagOf(G, b), [0, 0, 0, 0], 'cada uno tiene su recarga');
+  r.room.orb('u0', 3);
+  assert.deepStrictEqual(bagOf(G, a), [['quick', 1], 0, 0, 0], 'hueco vacío');
+  r.run(2);
+  assert.deepStrictEqual(r.evs('u1', 'ou')[0], ['ou', 0, 'quick', [0]]);
+  assert.ok(Math.abs(r.evs('u0', 'kit').pop()[5][0] - Math.round(spd * 1.4 * 100) / 100) < 1e-9, 'la velocidad nueva no viaja en kit');
+  r.run(Math.ceil(1 / DT));
+  r.room.orb('u0', 0);
+  assert.deepStrictEqual(bagOf(G, a), [0, 0, 0, 0], 'pasado 1 s no se puede usar');
+  r.run(Math.ceil(10 / DT));
+  assert.ok(Math.abs(a.spdMul - spd) < 1e-9, 'a los 10 s no vuelve a su velocidad');
+});
+
+test('esferas: la mejora llega a los compañeros vivos a menos de media pantalla, no a los lejanos', () => {
+  const r = orbRoom([0, 200, 2000, 100]);
+  const { G } = r;
+  const [a, b, c, d] = r.members.map(m => r.pl(m.uid));
+  d.invuln = 0; d.hurt(1e9);
+  assert.ok(d.dead);
+  const crit = [a, b, c].map(p => p.critChance);
+  G.Orbs.add(a, 'focus');
+  r.sent.length = 0;
+  r.room.orb('u0', 0);
+  r.room.tick(); r.room.tick();
+  assert.deepStrictEqual(r.evs('u2', 'ou')[0], ['ou', 0, 'focus', [0, 1]]);
+  assert.deepStrictEqual([a, b, c].map((p, i) => Math.round((p.critChance - crit[i]) * 100)), [25, 25, 0]);
+  assert.ok(!(d.orbBuff && d.orbBuff.focus > 0), 'a un caído');
+  r.run(Math.ceil(15 / DT) + 1);
+  assert.deepStrictEqual([a, b, c].map((p, i) => Math.round((p.critChance - crit[i]) * 100)), [0, 0, 0], 'no se quita a los 15 s');
+});
+
+test('esferas: con la Luminosfera llega lo que se ve más lejos, y las de enemigos alcanzan lo que ve quien la usa', () => {
+  const r = orbRoom([0]);
+  const { G } = r;
+  const a = r.pl('u0');
+  const foe = (x, y) => {
+    const e = new G.Enemy({ dex: 19, name: 'Rattata', hp: 1e6, spd: 0, dmg: 0, xp: 1, behavior: 'chase' }, x, y, { hp: 1, spd: 1, dmg: 1 });
+    G.EnemyMgr.add(e);
+    return e;
+  };
+  const far = foe(1150, 0), side = foe(520, 0);
+  r.sent.length = 0;
+  r.run(2);
+  const seen = () => of(r.sent, 'u0', 'snap').some(m => proto.decode(m.bin).enemies.add.some(e => e.id === far.id));
+  assert.ok(!seen(), 'sin Luminosfera, a 1150 px no se manda');
+  G.Orbs.add(a, 'luminous'); G.Orbs.add(a, 'slumber');
+  r.room.orb('u0', 0);
+  assert.strictEqual(G.Orbs.zoomOf(a), 1.35);
+  r.sent.length = 0;
+  r.run(2);
+  assert.ok(seen(), 'con la Luminosfera no le llega lo que ve');
+  r.run(Math.ceil(1 / DT));
+  r.room.orb('u0', 1);
+  assert.ok(side.sleepT > 0, 'la Soporesfera no alcanza lo que ve con la cámara alejada');
+  r.sent.length = 0;
+  r.run(2);
+  const flags = of(r.sent, 'u0', 'snap').flatMap(m => { const s = proto.decode(m.bin); return s.enemies.add.concat(s.enemies.upd); }).filter(e => e.id === side.id).map(e => e.flags);
+  assert.ok(flags.length && flags.every(f => f & 128), 'el snap no dice que está dormido');
+});
+
+test('esferas: no se usan mientras la partida está parada', () => {
+  const r = orbRoom([0, 0]);
+  const { G } = r;
+  const a = r.pl('u0');
+  G.Orbs.add(a, 'focus');
+  r.room.hold('u1', true);
+  r.room.orb('u0', 0);
+  assert.deepStrictEqual(bagOf(G, a), [['focus', 1], 0, 0, 0]);
+});

@@ -45,7 +45,6 @@ G.Pickups = (() => {
   function push(o) {
     // En cooperativo sólo el anfitrión crea objetos (las copias llegan por la red).
     if (G.Coop.active && !G.Coop.isHost) return;
-    if (o.kind === 'sphere' && !G.Orbs.enabled) return;   // el servidor del cooperativo aún no las lleva
     const k = rates[o.kind];
     if (k != null && k !== 1) {
       if (o.kind === 'coin') {

@@ -8,6 +8,7 @@
  *                          open{v} rules{v} start pick{choice} reroll hold{on}
  *                          watch{uid} (caído: miras a ese compañero vivo; '' = a ti)
  *                          back (volver a la partida de la que te fuiste: ver `away`)
+ *                          orb{i} (usar la esfera del hueco i: js/systems/orbs.js)
  *   servidor -> navegador: hi{uid} (hello aceptado) room{code,leader,members,open,rules}
  *                          started{seed,members} ev{list:[...]} level{kind,options,left}
  *                          over{results} bye{reason} err{reason}
@@ -28,6 +29,7 @@
  *          · u16 n + n ids de enemigos idos (u32)
  *          · u16 n + n disparos             (x f32 · y f32 · kind u8)  9 B
  *          · u16 n + n objetos nuevos       (id u32 · kind u8 · x f32 · y f32)  13 B
+ *            kind: pickCode (PICK_KINDS; cada esfera con su código)
  *          · u16 n + n ids de objetos idos  (u32)
  *   Un snap típico (4 jugadores; con 10, ~120 B más; 80 enemigos, 20 disparos, 30 objetos) ocupa ~2,5 KB.
  *
@@ -37,11 +39,11 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 10;
+  const VERSION = 11;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */
-  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'rules', 'start', 'pick', 'reroll', 'hold', 'watch', 'back',
+  const JSON_TYPES = ['hello', 'create', 'join', 'leave', 'open', 'rules', 'start', 'pick', 'reroll', 'hold', 'watch', 'back', 'orb',
     'hi', 'away', 'room', 'started', 'ev', 'level', 'over', 'bye', 'err'];
   const IN_LEN = 16;
 
@@ -68,6 +70,20 @@
   /** ¿Alguna condición no es la normal? (entonces no hay ranking) */
   const customRules = v => { const c = cleanRules(v); return Object.keys(c).some(k => c[k] !== 1); };
   const LIMIT_U16 = 0xFFFF;
+
+  /**
+   * Objetos del suelo en el snap (kind). 'sphere' va la última: cada esfera
+   * tiene su código, el de 'sphere' + su índice (sub: el de G.Orbs.LIST).
+   */
+  const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item', 'sphere'];
+  const SPHERE = PICK_KINDS.length - 1;
+  /** kind (y sub, si es una esfera) -> código del snap (lo que no está, 0). */
+  function pickCode(kind, sub) {
+    const i = PICK_KINDS.indexOf(kind);
+    return i < 0 ? 0 : i === SPHERE ? SPHERE + Math.max(0, sub | 0) : i;
+  }
+  /** Código del snap -> { kind, sub }. */
+  const pickKind = code => (code >= SPHERE ? { kind: 'sphere', sub: code - SPHERE } : { kind: PICK_KINDS[code] || 'xp', sub: 0 });
 
   /** Escritor sobre un búfer que crece solo. */
   function writer(size) {
@@ -235,7 +251,7 @@
     throw new Error('proto: tipo binario desconocido: ' + b[0]);
   }
 
-  const Proto = { VERSION, BIN, JSON_TYPES, RULES, cleanRules, customRules, encIn, decIn, encSnap, decSnap, encJson, decode };
+  const Proto = { VERSION, BIN, JSON_TYPES, RULES, PICK_KINDS, pickCode, pickKind, cleanRules, customRules, encIn, decIn, encSnap, decSnap, encJson, decode };
   if (typeof module === 'object' && module && module.exports) module.exports = Proto;
   else G.Proto = Proto;
 })();

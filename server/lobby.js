@@ -297,6 +297,7 @@ function createLobby({ createRoom, checkKits = null, maxRooms = 30, setTimer = s
     reroll(conn, msg, r) { if (r && r.game && r.game.reroll) r.game.reroll(conn.uid); },
     hold(conn, msg, r) { if (r && r.game) r.game.hold(conn.uid, !!msg.on); },
     watch(conn, msg, r) { if (r && r.game && r.game.watch) r.game.watch(conn.uid, msg.uid); },
+    orb(conn, msg, r) { if (r && r.game && r.game.orb) r.game.orb(conn.uid, msg.i); },
 
     /** «Reconectar»: vuelve a la partida que sigue sin él (si ya acabó, no hay nada). */
     back(conn, msg, r) {

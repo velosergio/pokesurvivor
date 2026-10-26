@@ -273,9 +273,9 @@ G.Game = (() => {
       const others = waitBy.filter(n => n !== (G.Social.me && G.Social.me.name));
       if (state === 'held' && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
     },
-    /** Tu Pokémon según el servidor: movimientos, objeto, vínculos y velocidad (la de su habilidad incluida). */
+    /** Tu Pokémon según el servidor: movimientos, objeto, vínculos, velocidad (la de su habilidad incluida) y esferas. */
     kit(ev) {
-      const [, slots, act, item, bonds, st] = ev;
+      const [, slots, act, item, bonds, st, orbs] = ev;
       const had = pl.slots.length;
       const old = new Map(pl.moves.map(m => [m.id, m]));
       pl.moves = [];
@@ -293,6 +293,7 @@ G.Game = (() => {
       pl.item = item || null;
       pl.bonds = bonds | 0;
       if (st) { pl.spdMul = st[0] || pl.spdMul; pl.magnet = st[1] || pl.magnet; pl.netAbSpd = st[2] || 0; }
+      G.Orbs.fromNet(pl, orbs);
     },
     /** Fin (te llega tu resumen del servidor). */
     over(r) {
@@ -562,8 +563,8 @@ G.Game = (() => {
       return;
     }
     if (p.kind === 'sphere') {
-      // La de un invitado: el anfitrión lleva la cuenta de lo que tiene (para saber si le cabe otra).
-      if (mine) G.Orbs.got(pl, p.value); else G.Orbs.add(who, p.value);
+      // (En grupo la mete en la bolsa el servidor: llega en kit y og.)
+      G.Orbs.got(pl, p.value);
       return;
     }
     if (p.kind === 'ticket' || p.kind === 'ticket10') {

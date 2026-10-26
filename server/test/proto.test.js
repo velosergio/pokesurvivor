@@ -141,3 +141,11 @@ test('carga en el navegador (sin module) y define G.Proto', () => {
   assert.strictEqual(BP.decode(P.encIn({ seq: 5, x: 1, y: 2, dx: 1, dy: 0, move: 1 })).seq, 5);
   assert.strictEqual(BP.decode(P.encJson('bye', { reason: 'full' })).reason, 'full');
 });
+
+test('objetos del suelo: cada esfera tiene su código y vuelve igual', () => {
+  for (const [i, k] of P.PICK_KINDS.entries()) if (k !== 'sphere') assert.deepStrictEqual(P.pickKind(P.pickCode(k)), { kind: k, sub: 0 });
+  for (let sub = 0; sub < 6; sub++) assert.deepStrictEqual(P.pickKind(P.pickCode('sphere', sub)), { kind: 'sphere', sub });
+  assert.strictEqual(P.pickCode('nada'), 0);
+  assert.ok(P.pickCode('sphere', 5) <= 0xFF, 'cabe en el u8 del snap');
+  assert.ok(P.JSON_TYPES.includes('orb'));
+});

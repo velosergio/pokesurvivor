@@ -15,8 +15,10 @@
  *   tu vida      la del servidor (snap); aquí no te hace daño nada.
  *   cartas       `level` {kind: level|item|bond, options} → eliges → `pick`.
  *                Mientras alguien elige (ev `wait`), todo parado.
- *   tu kit       ev `kit`: tus movimientos, objeto y velocidad, tal como están
- *                en el servidor (para el HUD y para moverte a su misma velocidad).
+ *   tu kit       ev `kit`: tus movimientos, objeto, velocidad y esferas, tal como
+ *                están en el servidor (para el HUD y para moverte a su misma velocidad).
+ *   esferas      usarla → `orb {i}`; el servidor la gasta y la aplica. Llegan
+ *                `og` (la has cogido) y `ou` (alguien la ha usado: quién recibe la mejora).
  *
  * El ranking de grupo lo escribe el servidor. Al acabar llega `over` con tu
  * resumen y cada uno guarda sus premios en su partida (game.js endRun).
@@ -24,7 +26,6 @@
 G.Coop = (() => {
   const ANIMS = ['Idle', 'Walk', 'Attack', 'Shoot', 'Charge', 'Hurt', 'Faint'];
   const COLORS = ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8', '#ff8a3d', '#b48cff', '#4de0d0', '#ff5a6e', '#d6f06a', '#f4f8ff'];
-  const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item'];
   const IN_EVERY = 1 / 15;              // s entre envíos de tu posición
   const FIX_MIN = 6;                    // px: por debajo, la corrección del servidor se ignora
   const SNAP_DT = 0.066;                // s entre snaps (2 pasos de 33 ms): los disparos dibujados duran ~3
@@ -202,8 +203,9 @@ G.Coop = (() => {
     for (const id of s.enemies.gone) { G.EnemyMgr.removeRemote(id, dying.has(id)); dying.delete(id); }
 
     for (const o of s.pickups.add) {
-      const kind = PICK_KINDS[o.kind] || 'xp';
-      G.Pickups.addRemote(o.id, kind, o.x, o.y, kind === 'item' ? null : 0);
+      const { kind, sub } = G.Proto.pickKind(o.kind);
+      const value = kind === 'item' ? null : kind === 'sphere' ? (G.Orbs.LIST[sub] || G.Orbs.LIST[0]).id : 0;
+      G.Pickups.addRemote(o.id, kind, o.x, o.y, value);
     }
     for (const id of s.pickups.gone) G.Pickups.removeId(id);
 
@@ -262,7 +264,8 @@ G.Coop = (() => {
     n.vx = G.U.clamp(vx, -600, 600); n.vy = G.U.clamp(vy, -600, 600);
     if (Math.abs(vx) + Math.abs(vy) > 8) n.dir = G.Sprites.dirFromAngle(Math.atan2(vy, vx));
     n.x = o.x; n.y = o.y; n.age = 0;
-    n.st = (o.flags & 1 ? 1 : 0) | (o.flags & 2 ? 2 : 0) | (o.flags & 4 ? 4 : 0);
+    // st: 1 quemado · 2 envenenado · 4 escudo · 16 dormido (enemy.js draw).
+    n.st = (o.flags & 1 ? 1 : 0) | (o.flags & 2 ? 2 : 0) | (o.flags & 4 ? 4 : 0) | (o.flags & 128 ? 16 : 0);
     e.maxHp = o.maxHp;
     e.hp = Math.min(o.maxHp, o.hp);
   }
@@ -321,6 +324,12 @@ G.Coop = (() => {
         break;
       }
       case 'kit': if (api.kit) api.kit(ev); break;
+      case 'og': G.Orbs.announce(local, ev[1], ev[2]); break;
+      case 'ou': {
+        const by = bySeat[ev[1]];
+        if (by) G.Orbs.shown(by, ev[2], (ev[3] || []).map(i => bySeat[i]).filter(Boolean));
+        break;
+      }
       case 'pb': G.World.breakAt(ev[1], ev[2]); break;
       case 'alt': G.Interact.netAltar(ev[1], ev[2], ev[3], ev[4], me, local); break;
       case 'chs': G.Interact.netChest(ev[1], ev[2], ev[3]); break;
@@ -342,10 +351,12 @@ G.Coop = (() => {
   function reroll() { G.Net.send('reroll'); }
   /** Caído: los enemigos que te lleguen serán los de cerca de este compañero ('' = de ti). */
   function watch(uid) { if (active) G.Net.send('watch', { uid: uid || '' }); }
+  /** Usas la esfera del hueco i: la gasta y la aplica el servidor (orbs.js cast). */
+  function orbUse(i) { if (active) G.Net.send('orb', { i: i | 0 }); }
 
   const noop = () => {};
   return {
-    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll, watch, selfMoved,
+    ANIMS, COLORS, begin, end, leave, tick, players, puppets, scaleRate, scaleHp, pick, reroll, watch, orbUse, selfMoved,
     // En el navegador ya no se reparte nada: lo hace el servidor.
     xpFactor: () => 1,
     cast: noop, hit: noop, status: noop, hurtShown: noop, enemyAdded: noop, enemyGone: noop, enemyShot: noop,

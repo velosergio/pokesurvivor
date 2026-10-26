@@ -4,19 +4,25 @@
  *
  *   4 huecos, hasta 3 de cada esfera. Si no te cabe, se queda en el suelo.
  *   Se usan con 5-8, tocando su casilla del HUD o con X (usar) / Y (cambiar) en el mando.
- *   1 s de recarga entre una y otra.
+ *   1 s de recarga entre una y otra (cada jugador la suya: pl.orbCd; la elegida con mando, pl.orbSel).
  *
  * Dos clases:
- *   foe   a los enemigos (dormir, frenar, empujar). En cooperativo las aplica el
- *         anfitrión, que es quien manda a los enemigos: el invitado le avisa ('ou').
- *   buff  a ti y a los compañeros a menos de media pantalla. Cada uno se las pone
- *         a sí mismo al recibir el aviso ('ob'), si está cerca.
+ *   foe   a los enemigos que ve quien la usa (dormir, frenar, empujar).
+ *   buff  a ti y a los compañeros a menos de media pantalla.
  * A los jefes y legendarios les afectan menos.
+ *
+ * Quién decide: la simulación (en solitario, el navegador; en grupo, el servidor,
+ * server/room.js) mira la bolsa y la recarga y aplica el efecto (cast). En grupo
+ * el navegador sólo pide usarla (G.Coop.orbUse → `orb {i}`), recibe su bolsa en
+ * `kit` (toNet / fromNet) y enseña lo que cuenta el servidor: `og` la has cogido
+ * (announce) y `ou` alguien la ha usado (shown). Lo de la pantalla (textos,
+ * anillos, la cámara de la Luminosfera) no corre en el servidor (screen = false).
  */
 G.Orbs = (() => {
   const SLOTS = 4, STACK = 3, CD = 1;
   const NEAR = 384;                 // "media pantalla" (G.Camera.VIEW_W / 2)
   const PUSH = 1700, PUSH_R = 240;  // la Rafagaesfera los lleva a ~1/3 de pantalla
+  const LUM_ZOOM = 1.35;            // cuánto se aleja la cámara con la Luminosfera
 
   const LIST = [
     { id: 'slumber', name: 'Soporesfera', kind: 'foe', col: '#b39bff',
@@ -35,8 +41,10 @@ G.Orbs = (() => {
   const BY = {};
   for (const o of LIST) BY[o.id] = o;
 
-  let cd = 0, sel = 0;
   const seen = new Set();           // las que ya te han explicado en esta partida
+
+  /** ¿Navegador en grupo? Entonces la partida (y las esferas) las lleva el servidor. */
+  const remote = () => G.Coop.active && !G.Coop.isHost;
 
   function roll() { return G.RNG.stream('loot').pick(LIST).id; }
 
@@ -44,6 +52,8 @@ G.Orbs = (() => {
   // Cada esfera se queda en su hueco (y en su tecla) aunque gastes las de al lado.
 
   const bag = p => p.orbs || (p.orbs = new Array(SLOTS).fill(null));
+  /** Hueco en que la lleva (-1 si no la tiene). */
+  const slotOf = (p, id) => bag(p).findIndex(o => o && o.id === id);
 
   function canTake(p, id) {
     const inv = bag(p), s = inv.find(o => o && o.id === id);
@@ -59,69 +69,99 @@ G.Orbs = (() => {
 
   /** Quita una del hueco que la tenga. → true si la tenía. */
   function take(p, id) {
-    const inv = bag(p), i = inv.findIndex(o => o && o.id === id);
+    const inv = bag(p), i = slotOf(p, id);
     if (i < 0) return false;
     if (--inv[i].n <= 0) inv[i] = null;
     return true;
   }
 
-  /** La has cogido tú: se ve y, la primera vez en la partida, te explica qué hace. */
+  /** La bolsa para `kit`: [id, n] o 0 por hueco. */
+  const toNet = p => bag(p).map(o => (o ? [o.id, o.n] : 0));
+  /** La bolsa que dice el servidor (lo que no se entiende, hueco vacío). */
+  function fromNet(p, a) {
+    p.orbs = new Array(SLOTS).fill(null).map((_, i) => {
+      const o = Array.isArray(a) ? a[i] : null;
+      return Array.isArray(o) && BY[o[0]] ? { id: o[0], n: Math.max(1, Math.min(STACK, o[1] | 0)) } : null;
+    });
+  }
+
+  /** La has cogido tú (en solitario): a la bolsa y se ve. */
   function got(pl, id) {
-    if (!add(pl, id)) return;
+    if (add(pl, id)) announce(pl, id, slotOf(pl, id));
+  }
+
+  /** La has cogido (hueco i): su casilla brilla y, la primera vez en la partida, te explica qué hace. */
+  function announce(pl, id, i) {
     const o = BY[id];
+    if (!o || !(i >= 0 && i < SLOTS)) return;
     // Su casilla brilla y enseña el nombre unos segundos (hud.js).
-    pl.orbNew = { i: bag(pl).findIndex(s => s && s.id === id), at: performance.now() };
+    pl.orbNew = { i, at: performance.now() };
     G.FX.dmgText(pl.x, pl.y - pl.bodyH - 8, G.T(o.name), o.col, true);
     G.FX.ring(pl.x, pl.y, 6, 50, o.col, 0.4, 3);
-    if (!seen.has(id)) {
-      // La primera vez en la partida: qué hace y cómo se usa.
-      seen.add(id);
-      const i = bag(pl).findIndex(s => s && s.id === id);
-      const how = G.Pad.name ? G.T('X para usarla') : G.Touch.active ? G.T('tócala encima de tus ataques') : G.I18n.f('tecla {x}', i + 5);
-      G.Spawner.say(G.T(o.name) + ' (' + how + '): ' + G.T(o.desc), 5);
-    }
+    if (seen.has(id)) return;
+    seen.add(id);
+    const how = G.Pad.name ? G.T('X para usarla') : G.Touch.active ? G.T('tócala encima de tus ataques') : G.I18n.f('tecla {x}', i + 5);
+    G.Spawner.say(G.T(o.name) + ' (' + how + '): ' + G.T(o.desc), 5);
   }
 
   // ---------------- usar ----------------
 
-  /** Usa la esfera del hueco i (0-3). */
+  const cdOf = pl => Math.max(0, pl.orbCd || 0);
+  const selOf = pl => pl.orbSel | 0;
+
+  /** Usa la esfera del hueco i (0-3). En grupo, se la pide al servidor. */
   function use(pl, i) {
     const s = pl.orbs && pl.orbs[i];
-    if (!s || cd > 0 || pl.dead || G.Game.state !== 'playing') {
-      if (s && cd > 0) G.Audio.sfx('error');
-      return;
-    }
-    cd = CD;
-    const id = s.id, o = BY[id];
-    take(pl, id);
+    if (!s || pl.dead || G.Game.state !== 'playing') return;
+    if (cdOf(pl) > 0) { G.Audio.sfx('error'); return; }
     G.Audio.sfx('confirm');
-    const z = G.Camera.zoom;
-    if (o.kind === 'foe') {
-      if (!G.Coop.active || G.Coop.isHost) foe(id, pl.x, pl.y, z);
-      else ring(id, pl.x, pl.y);
-    } else {
-      buff(pl, id);
-      ring(id, pl.x, pl.y, NEAR);
-    }
-    if (G.Coop.active) G.Coop.orbUsed(id, pl.x, pl.y, z);
+    if (!remote()) { cast(pl, i); return; }
+    pl.orbCd = CD;                  // la que cuenta es la del servidor; ésta, para no pedirla de más
+    G.Coop.orbUse(i);
+  }
+
+  /**
+   * La simulación: usa la esfera del hueco i de pl si la tiene y no está
+   * recargando. A los enemigos que ve pl, o mejora para él y los compañeros cercanos.
+   * @returns {boolean} si se ha usado
+   */
+  function cast(pl, i) {
+    const s = pl.orbs && pl.orbs[i];
+    if (!s || pl.dead || cdOf(pl) > 0) return false;
+    pl.orbCd = CD;
+    const id = s.id;
+    take(pl, id);
+    let mates = [];
+    if (BY[id].kind === 'foe') foe(id, pl.x, pl.y, zoomOf(pl));
+    else mates = nearBuff(pl);
+    shown(pl, id, mates);
+    G.Coop.orbUsed(pl, id, mates);
+    return true;
   }
 
   /** Mando: Y pasa a la siguiente esfera que tengas, X usa la elegida. */
   function next(pl) {
-    const inv = bag(pl);
-    for (let k = 1; k <= SLOTS; k++) if (inv[(sel + k) % SLOTS]) { sel = (sel + k) % SLOTS; G.Audio.sfx('click'); return; }
+    const inv = bag(pl), sel = selOf(pl);
+    for (let k = 1; k <= SLOTS; k++) if (inv[(sel + k) % SLOTS]) { pl.orbSel = (sel + k) % SLOTS; G.Audio.sfx('click'); return; }
   }
   function useSelected(pl) {
     const inv = bag(pl);
-    if (!inv[sel]) next(pl);
-    if (inv[sel]) use(pl, sel);
+    if (!inv[selOf(pl)]) next(pl);
+    if (inv[selOf(pl)]) use(pl, selOf(pl));
   }
 
-  function ring(id, x, y, r = 260) { G.FX.ring(x, y, 10, r, BY[id].col, 0.6, 5); }
+  /** Lo que se ve al usarla: el anillo de quien la usa y, en quien la recibe, la mejora. */
+  function shown(by, id, mates) {
+    if (!BY[id]) return;
+    if (G.Orbs.screen) G.FX.ring(by.x, by.y, 10, BY[id].kind === 'buff' ? NEAR : 260, BY[id].col, 0.6, 5);
+    for (const p of mates) buff(p, id);
+  }
 
-  /** A los enemigos que ve quien la usa (x, y con su zoom z). Sólo el anfitrión (o en solitario). */
+  /** Zoom con que ve la partida pl (con la Luminosfera, más campo). */
+  const zoomOf = pl => (pl.orbBuff && pl.orbBuff.luminous > 0 ? LUM_ZOOM : 1);
+
+  /** A los enemigos que ve quien la usa (x, y con su zoom z). */
   function foe(id, x, y, z = 1) {
-    ring(id, x, y);
     const hw = G.Camera.VIEW_W / 2 * z + 60, hh = G.Camera.MIN_VIEW_H * 0.75 * z + 60;
     for (const e of G.EnemyMgr.all()) {
       if (e.dead || e.remote) continue;
@@ -138,56 +178,51 @@ G.Orbs = (() => {
     }
   }
 
+  /** Quien la usa y los compañeros vivos a menos de media pantalla: a ésos, la mejora. */
+  function nearBuff(by) {
+    const all = G.Coop.active ? G.Coop.players() : [by];
+    return all.filter(p => p === by || (p && !p.dead && G.U.dist2(p.x, p.y, by.x, by.y) < NEAR * NEAR));
+  }
+
   // ---------------- mejoras con tiempo (pl.orbBuff = { id: segundos }) ----------------
+  // El efecto en el Pokémon (crítico, velocidad) lo pone la simulación; en grupo
+  // al navegador le llega la velocidad en `kit`. La cámara, sólo en la pantalla de ese jugador.
 
   function buff(pl, id) {
     const o = BY[id];
     pl.orbBuff = pl.orbBuff || {};
     if (!(pl.orbBuff[id] > 0)) on(pl, id);
     pl.orbBuff[id] = o.dur;
-    G.FX.dmgText(pl.x, pl.y - pl.bodyH - 8, G.T(o.name), o.col, true);
+    if (G.Orbs.screen) G.FX.dmgText(pl.x, pl.y - pl.bodyH - 8, G.T(o.name), o.col, true);
   }
+  /** ¿Es el jugador de esta pantalla? */
+  const mine = pl => G.Orbs.screen && pl === G.Game.player;
   function on(pl, id) {
+    if (id === 'luminous') { if (mine(pl)) G.Camera.zoomTo = LUM_ZOOM; return; }
+    if (remote()) return;
     if (id === 'focus') pl.critChance += 0.25;
     else if (id === 'quick') pl.spdMul *= 1.4;
-    else if (id === 'luminous') G.Camera.zoomTo = 1.35;
   }
   function off(pl, id) {
+    if (id === 'luminous') { if (mine(pl)) G.Camera.zoomTo = 1; return; }
+    if (remote()) return;
     if (id === 'focus') pl.critChance -= 0.25;
     else if (id === 'quick') pl.spdMul /= 1.4;
-    else if (id === 'luminous') G.Camera.zoomTo = 1;
   }
 
-  /** Cada fotograma, con tu jugador. */
+  /** Cada fotograma (o paso del servidor), con cada jugador que lleve la simulación. */
   function update(dt, pl) {
-    if (cd > 0) cd -= dt;
+    if (pl.orbCd > 0) pl.orbCd -= dt;
     const b = pl.orbBuff;
     if (b) for (const id in b) if (b[id] > 0 && (b[id] -= dt) <= 0) off(pl, id);
   }
 
   /** Al empezar o acabar una partida: fuera la cámara alejada y lo explicado. */
   function reset() {
-    cd = 0; sel = 0; seen.clear();
-    G.Camera.zoomTo = 1;
+    seen.clear();
+    if (G.Orbs.screen) G.Camera.zoomTo = 1;
   }
 
-  // ---------------- red ----------------
-
-  /** Anfitrión: un invitado ha usado una esfera. Sólo si de verdad la tenía. */
-  function onMateUse(mpl, id, x, y, z) {
-    if (!BY[id] || !take(mpl, id)) return false;
-    if (BY[id].kind === 'foe') foe(id, x, y, z);
-    else nearBuff(id, x, y);
-    return true;
-  }
-
-  /** Mejora de un compañero: si estás a menos de media pantalla, también para ti. */
-  function nearBuff(id, x, y, pl = G.Game.player) {
-    if (!BY[id] || BY[id].kind !== 'buff') { if (BY[id]) ring(id, x, y); return; }
-    ring(id, x, y, NEAR);
-    if (pl && !pl.dead && G.U.dist2(pl.x, pl.y, x, y) < NEAR * NEAR) buff(pl, id);
-  }
-
-  return { LIST, BY, SLOTS, STACK, enabled: true, roll, canTake, add, take, got, use, next, useSelected, update, reset,
-           onMateUse, nearBuff, foe, get cd() { return cd; }, get sel() { return sel; } };
+  return { LIST, BY, SLOTS, STACK, CD, screen: true, roll, canTake, add, take, slotOf, toNet, fromNet, got, announce,
+           use, cast, next, useSelected, shown, update, reset, foe, zoomOf, cdOf, selOf };
 })();

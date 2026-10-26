@@ -7,6 +7,8 @@
  */
 G.CHANGELOG = [
   { d: '2026-10-25', title: ['Tickets y Pokémon iguales en todos tus aparatos', 'The same tickets and Pokémon on all your devices'], new: [
+    ['Grupo: ya salen las esferas de Mundo Misterioso, como en solitario. Cada uno tiene su bolsa y su recarga; las mejoras (Focosfera, Rapidosfera, Luminosfera) llegan también a los compañeros que tengas cerca, y con la Luminosfera ves venir a los enemigos desde más lejos.',
+     'Group: Mystery Dungeon orbs now drop, like in solo. Each player has their own bag and cooldown; the boosts (Focus Orb, Quick Orb, Luminous Orb) also reach the teammates near you, and with the Luminous Orb you see enemies coming from further away.'],
     ['Al acabar la partida, sola o en grupo, sale el resumen: cada ataque con el daño que ha hecho y su daño por segundo, el daño total y tu objeto. En grupo, también el de cada compañero, con una pestaña por jugador (además de la tabla con los números de cada uno).',
      'When a run ends, solo or in a group, you get the summary: each move with the damage it dealt and its damage per second, your total damage and your item. In a group, also each teammate’s, with one tab per player (on top of the table with each player’s numbers).'],
     ['Móvil: vuelve «Apuntar a mano» (Ajustes → Accesibilidad), ahora con un segundo joystick: el dedo en la mitad derecha de la pantalla apunta tus ataques y el de la izquierda te mueve. Al soltarlo, vuelven a apuntar solos.',

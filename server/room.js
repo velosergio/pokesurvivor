@@ -15,6 +15,7 @@
  *   reroll           cambia las cartas de nivel (1 por partida + Mejoras → Cambio de cartas).
  *   hold   {on}      pausa mientras el navegador elige algo por su cuenta.
  *   watch  {uid}     caído: mira a ese compañero vivo ('' = a ti mismo).
+ *   orb    {i}       usa la esfera del hueco i (js/systems/orbs.js cast: si la tiene y no recarga).
  *
  * Experiencia y nivel son del equipo (como en js/net/coop.js). Al subir, cada
  * jugador vivo recibe `level` y la partida se para hasta que eligen todos los
@@ -23,7 +24,7 @@
  *
  * Cada 2 pasos, a cada jugador: `ev` (si hay eventos) y `snap` (binario,
  * proto.encSnap) con los enemigos a ≤ 950 px de ÉL (o, caído, del compañero
- * al que mira: focusOf) como cambios desde el último
+ * al que mira: focusOf; con la Luminosfera, que aleja su cámara, ×1,35) como cambios desde el último
  * snap (se lleva lo que sabe cada uno) y como mucho ~3 KB: si no cabe todo, van
  * los más cercanos y el resto en el siguiente.
  *
@@ -48,8 +49,11 @@
  *   bd [id, dex] jefe vencido · sh [dex] shiny · rw [dex] Pokémon rescatado
  *   bomb [x, y] · mag · heal [jugador] · bio [bioma] · ja [x, y, anim, dir] Arceus
  *   wait [nombres] quién está eligiendo (vacía = sigue)
- *   kit [huecos, activo, objeto, vínculos, [velocidad, imán, × de la habilidad]] tu Pokémon (sólo a ti, al cambiar)
+ *   kit [huecos, activo, objeto, vínculos, [velocidad, imán, × de la habilidad], esferas] tu Pokémon (sólo a ti, al cambiar)
+ *       esferas: la bolsa, [id, n] o 0 por hueco (G.Orbs.toNet)
  *   tx [jugador, texto, color, grande, alto] aviso sobre un jugador («¡Esquiva!», «¡Robustez!»: Player.notice)
+ *   og [esfera, hueco] la has cogido (sólo a ti: el texto que explica qué hace)
+ *   ou [jugador, esfera, [jugadores]] alguien ha usado una esfera; los de la lista reciben su mejora
  *
  * Cada miembro trae `kit` del hello: { up: niveles de las mejoras de la tienda,
  * bind: atajos, ban: vetados, start / start2: movimientos iniciales elegidos,
@@ -78,7 +82,7 @@ const MAX_CATCHUP = 5;
 /** Un snap cada tantos pasos (~15/s). */
 const SNAP_EVERY = 2;
 /** Radio de lo que se manda a cada uno (y el de salida, con margen para que no parpadee). */
-const NEAR = 950, NEAR_OUT = 1000;
+const NEAR_IN = 950, NEAR_OFF = 1000;
 /** Tamaño objetivo de un snap (bytes). */
 const SNAP_BUDGET = 3000;
 /** Sin `in` en este tiempo, quieto. */
@@ -103,8 +107,6 @@ const TP_GRACE = 3, TP_FAR = 300;
 const COSMETIC_MAX = 40;
 const SHOTS_MAX = 30, PICKUPS_ADD_MAX = 40, PICKUP_RESERVE = 12;
 
-const PICK_KINDS = ['xp', 'xpBig', 'coin', 'heal', 'bomb', 'magnet', 'ticket', 'ticket10', 'item'];
-
 const r1 = v => Math.round(v);
 const r2 = v => Math.round(v * 100) / 100;
 const str = v => (v == null ? '' : String(v));
@@ -120,15 +122,14 @@ const str = v => (v == null ? '' : String(v));
  * @param {boolean} [o.ranked=true]  false: la marca no sube al ranking de grupo (lobby.js: algo no cuadra con la partida guardada, o condiciones a medida)
  * @param {object} [o.rules]  condiciones a medida de la sala (proto.RULES): ×enemigos, ×grietas, ×monedas, ×tickets
  * @param {{error: Function, warn: Function}} [o.logger=console]
- * @returns {{ input, pick, hold, watch, drop, back, hero, start, stop, tick, debug }}
+ * @returns {{ input, pick, hold, watch, orb, drop, back, hero, start, stop, tick, debug }}
  */
 function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rules = null, logger = console } = {}) {
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
   const sim = createSim({ seed: seed >>> 0 });
   const { G, clock } = sim;
-  // Las esferas de Mundo Misterioso (js/systems/orbs.js) aún no van por el
-  // protocolo (ni en la bolsa del snap ni como orden del jugador): en grupo no salen.
-  G.Orbs.enabled = false;
+  // Aquí no hay pantalla: las esferas sólo deciden (sin textos, anillos ni cámara).
+  G.Orbs.screen = false;
   const ANIMS = ['Idle', 'Walk', 'Attack', 'Shoot', 'Charge', 'Hurt', 'Faint'];
   const TYPES = Object.keys(G.U.TYPE_COLOR);
 
@@ -270,6 +271,11 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       if (!wasKilled) return;
       died.add(e.id);
       if (e.boss || e.legend) pushAll(['bd', e.id, e.dex]);
+    },
+    /** Una esfera usada (G.Orbs.cast): a todos, quién y a quién da su mejora. */
+    orbUsed(pl, id, mates) {
+      const s = seatOf(pl);
+      if (s) pushAll(['ou', s.id, id, mates.map(seatOf).filter(Boolean).map(o => o.id)]);
     }
   };
   G.Coop = new Proxy(coopOwn, { get: (o, k) => (k in o ? o[k] : () => {}) });
@@ -327,6 +333,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
       case 'heal': who.heal(who.maxHp * 0.3); if (s) pushAll(['heal', s.id]); break;
       case 'magnet': G.Pickups.pullAll(); pushAll(['mag']); break;
       case 'item': if (s) offerItem(s, o.value); break;
+      case 'sphere': if (s && G.Orbs.add(who, o.value)) pushTo(s, ['og', o.value, G.Orbs.slotOf(who, o.value)]); break;
       case 'bomb': {
         const R = G.Camera.outerRadius();
         pushAll(['bomb', r1(who.x), r1(who.y)]);
@@ -563,6 +570,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     G.Camera.follow(cx, cy, DT);
     const before = new Map(active().map(s => [s, [s.pl.x, s.pl.y]]));
     G.Step.team(DT, time, ps, collect);
+    for (const p of ps) G.Orbs.update(DT, p);
     noteTeleports(before);
     syncLevel();
     maybeLevelUp();
@@ -596,13 +604,15 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
 
   function enemyFlags(e) {
     return (e.burn > 0 ? 1 : 0) | (e.poison > 0 ? 2 : 0) | (e.shield > 0 ? 4 : 0) | (e.boss ? 8 : 0) |
-           (e.shiny ? 16 : 0) | (e.golden ? 32 : 0) | (e.legend || e.judge ? 64 : 0);
+           (e.shiny ? 16 : 0) | (e.golden ? 32 : 0) | (e.legend || e.judge ? 64 : 0) | (e.sleepT > 0 ? 128 : 0);
   }
 
   /** La instantánea de un jugador (y lo que sabe pasa a ser lo enviado). */
   function snapFor(s, pmap, shotsAll) {
     const me = focusOf(s);
     const d2 = (x, y) => G.U.dist2(x, y, me.x, me.y);
+    // Con la Luminosfera su cámara ve más campo: se le manda más lejos.
+    const z = G.Orbs.zoomOf(s.pl), inR = NEAR_IN * z, outR = NEAR_OFF * z;
     let size = 33 + seats.length * 19;
     const out = { ack: s.ack, t: time, lv: team.level, xp: team.xp, xpNext: team.xpNext, players: [],
                   enemies: { add: [], upd: [], gone: [] }, shots: [], pickups: { add: [], gone: [] } };
@@ -614,7 +624,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     const dies = [];
     for (const id of s.known.keys()) {
       const e = G.EnemyMgr.get(id);
-      if (e && !e.dead && d2(e.x, e.y) <= NEAR_OUT * NEAR_OUT) continue;
+      if (e && !e.dead && d2(e.x, e.y) <= outR * outR) continue;
       out.enemies.gone.push(id);
       if (died.has(id)) dies.push(id);
     }
@@ -623,13 +633,13 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     // Objetos que ya no están.
     for (const id of s.pk) {
       const o = pmap.get(id);
-      if (o && d2(o.x, o.y) <= NEAR_OUT * NEAR_OUT) continue;
+      if (o && d2(o.x, o.y) <= outR * outR) continue;
       out.pickups.gone.push(id);
     }
     for (const id of out.pickups.gone) s.pk.delete(id);
     size += out.pickups.gone.length * 4;
     // Disparos enemigos cercanos.
-    const sh = shotsAll.filter(p => d2(p.x, p.y) <= NEAR * NEAR);
+    const sh = shotsAll.filter(p => d2(p.x, p.y) <= inR * inR);
     if (sh.length > SHOTS_MAX) sh.sort((a, b) => d2(a.x, a.y) - d2(b.x, b.y)).length = SHOTS_MAX;
     for (const p of sh) out.shots.push({ x: p.x, y: p.y, kind: 1 + Math.max(-1, TYPES.indexOf(p.mtype)) });
     size += out.shots.length * 9;
@@ -639,7 +649,7 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     for (const e of G.EnemyMgr.all()) {
       if (e.dead) continue;
       const dd = d2(e.x, e.y);
-      if (dd <= NEAR * NEAR || (s.known.has(e.id) && dd <= NEAR_OUT * NEAR_OUT)) near.push([dd, e]);
+      if (dd <= inR * inR || (s.known.has(e.id) && dd <= outR * outR)) near.push([dd, e]);
     }
     near.sort((a, b) => a[0] - b[0]);
     for (const [, e] of near) {
@@ -653,12 +663,13 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     }
     // Objetos nuevos cercanos, con lo que quede.
     const pAdd = [];
-    for (const o of pmap.values()) if (!s.pk.has(o.id) && d2(o.x, o.y) <= NEAR * NEAR) pAdd.push(o);
+    for (const o of pmap.values()) if (!s.pk.has(o.id) && d2(o.x, o.y) <= inR * inR) pAdd.push(o);
     if (pAdd.length > 1) pAdd.sort((a, b) => d2(a.x, a.y) - d2(b.x, b.y));
     for (const o of pAdd) {
       if (out.pickups.add.length >= PICKUPS_ADD_MAX || size + 13 > SNAP_BUDGET) break;
       size += 13;
-      out.pickups.add.push({ id: o.id, kind: Math.max(0, PICK_KINDS.indexOf(o.kind)), x: o.x, y: o.y });
+      const sub = o.kind === 'sphere' ? G.Orbs.LIST.findIndex(b => b.id === o.value) : 0;
+      out.pickups.add.push({ id: o.id, kind: proto.pickCode(o.kind, sub), x: o.x, y: o.y });
       s.pk.add(o.id);
     }
     return { snap: out, dies };
@@ -667,13 +678,13 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   /**
    * Lo que el navegador necesita de SU Pokémon y no va en el snap: huecos con
    * sus movimientos ([id, nivel, evolucionado]), hueco activo, objeto,
-   * vínculos sin usar y [multiplicador de velocidad, radio del imán] (para
-   * moverse a la misma velocidad que aquí y no ser corregido).
+   * vínculos sin usar, [multiplicador de velocidad, radio del imán] (para
+   * moverse a la misma velocidad que aquí y no ser corregido) y la bolsa de esferas.
    */
   function kitOf(s) {
     const p = s.pl;
     return [p.slots.map(g => g.map(m => [m.id, m.lvl, m.evolved ? 1 : 0])), p.active, str(p.item), p.bonds | 0,
-            [r2(p.spdMul), r1(p.magnet), r2(p.abilSpeed())]];
+            [r2(p.spdMul), r1(p.magnet), r2(p.abilSpeed())], G.Orbs.toNet(p)];
   }
 
   /** Manda a cada conectado sus eventos y su instantánea. */
@@ -809,6 +820,13 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     hero(uid) {
       const s = byUid.get(uid);
       return s ? Object.assign({}, s.hero) : {};
+    },
+    /** Usa la esfera del hueco i (no mientras la partida está parada). */
+    orb(uid, i) {
+      const s = byUid.get(uid);
+      if (!s || !s.on || s.gone || over || waiting().length || G.Judgment.cinematic) return;
+      const k = Number(i);
+      if (Number.isInteger(k) && k >= 0 && k < G.Orbs.SLOTS) G.Orbs.cast(s.pl, k);
     },
     /** Caído: mira al compañero `target` (uid; '' = a sí mismo). Ver focusOf. */
     watch(uid, target) {
