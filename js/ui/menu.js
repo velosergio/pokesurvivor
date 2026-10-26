@@ -11,7 +11,7 @@ G.MenuUI = (() => {
                  ['hp', 'Vida'], ['atk', 'Ataque'], ['spd', 'Velocidad'], ['bst', 'Total']];
 
   function init() {
-    const ICON = { rejoin: 'friends', play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', debug: 'flag' };
+    const ICON = { rejoin: 'friends', play: 'ball', dex: 'book', upgrades: 'up', shop: 'shop', bag: 'bag', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', debug: 'flag' };
     document.querySelectorAll('#scr-menu [data-go]').forEach(b => {
       b.insertAdjacentHTML('afterbegin', `<span class="mi-ico">${G.Icons.html(ICON[b.dataset.go], 26)}</span>`);
       b.dataset.sfx = b.dataset.go === 'play' || b.dataset.go === 'rejoin' ? 'confirm' : 'click';
@@ -21,6 +21,8 @@ G.MenuUI = (() => {
         else if (go === 'rejoin') G.Social.rejoin();
         else if (go === 'dex') openDex();
         else if (go === 'upgrades') openUpgrades();
+        else if (go === 'shop') G.ShopUI.open();
+        else if (go === 'bag') G.ShopUI.openBag();
         else if (go === 'gacha') G.GachaUI.open();
         else if (go === 'goals') G.GoalsUI.open();
         else if (go === 'friends') G.FriendsUI.open();
@@ -91,6 +93,7 @@ G.MenuUI = (() => {
     G.UI.chrome(true);
     G.UI.show('scr-menu');
     $('menu-debug').classList.toggle('hidden', !G.Ranking.isAdmin());
+    bagLine();
     G.UI.sprite($('menu-partner'), mon.dex, { lively: true, scale: 4, hero: true, shiny });
     $('menu-partner').style.setProperty('--stage-c', shiny ? '#9ae6ff' : G.U.TYPE_COLOR[mon.types[0]]);
     $('menu-partner').classList.toggle('shiny', shiny);
@@ -138,6 +141,16 @@ G.MenuUI = (() => {
       });
     } else G.Social.checkAway();
     G.InvitePop.refresh();
+  }
+
+  /** Texto bajo "Mochila": cuántos objetos y MT llevas (y los Amuletos Iris, si hay). */
+  function bagLine() {
+    const s = G.DB.save, sum = o => Object.values(o || {}).reduce((a, b) => a + (+b || 0), 0);
+    const items = sum(s.bag), tms = sum(s.tms), iris = G.Gacha.BANNERS.filter(b => G.Gacha.hasIris(s, b.gen)).length;
+    const parts = [];
+    if (items || tms) parts.push(G.I18n.f('Objetos: {x} · MT: {x}', items, tms));
+    if (iris) parts.push(G.I18n.f('Amuletos Iris: {x}', iris));
+    $('menu-bag-sub').textContent = parts.join(' · ') || G.T('Vacía');
   }
 
   /** Texto bajo "Amigos" y "Jugar": quién está en línea, solicitudes, sala. */
@@ -335,11 +348,19 @@ G.MenuUI = (() => {
     const isPartner = dex === s.partner;
     if (!hasSh) viewShiny = false;
     else if (isPartner && dex !== showDetail.last) viewShiny = !!s.partnerShiny;
+    if (dex !== showDetail.last) extraOpen = '';
+    // Al redibujar el mismo Pokémon (abrir el selector de Menta, enseñar una MT...)
+    // no se vuelve arriba: se quedaba fuera de la vista lo que acababas de abrir.
+    const sameMon = dex === showDetail.last, d0 = $('dex-detail');
+    const scrolls = sameMon && d0 ? [d0, d0.closest('.box')].filter(Boolean).map(el => [el, el.scrollTop]) : [];
     showDetail.last = dex;
 
     const max = { hp: 183, atk: 1.55, spd: 137, def: 160 };
-    const bar = (label, v, m, txt) =>
-      `<div class="stat"><span>${label}</span><div class="bar"><i style="width:${Math.min(100, v / m * 100)}%"></i></div><span>${txt}</span></div>`;
+    // Con su naturaleza (20-10-2026): el stat que sube, en verde; el que baja, en rojo.
+    const nat = own ? G.Mons.natureOf(dex) : null, q = own ? G.Mons.monFor(dex) : p;
+    const natCls = k => (!nat ? '' : nat.up === k ? ' nat-up' : nat.down === k ? ' nat-down' : '');
+    const bar = (label, v, m, txt, k) =>
+      `<div class="stat${natCls(k)}"><span>${label}</span><div class="bar"><i style="width:${Math.min(100, v / m * 100)}%"></i></div><span>${txt}</span></div>`;
     const usingThis = isPartner && (!hasSh || !!s.partnerShiny === viewShiny);
 
     const box = $('dex-detail');
@@ -356,23 +377,26 @@ G.MenuUI = (() => {
         <div style="margin:6px 0">${own ? G.UI.typeChips(p.types) : ''}</div>
       </div>
       ${own ? `
-        ${bar('Vida', p.hp, max.hp, p.hp)}
-        ${bar('Ataque', p.pa, max.atk, '×' + p.pa.toFixed(2))}
-        ${bar('At. Esp.', p.sa, max.atk, '×' + p.sa.toFixed(2))}
-        ${bar('Defensa', p.df, max.def, p.df)}
-        ${bar('Def. Esp.', p.sd, max.def, p.sd)}
-        ${bar('Velocidad', p.spd, max.spd, p.spd)}
-        <p class="sub center" style="margin:6px 0 0">Pega mejor con ataques <b class="gold">${G.Stats.sideOf(p) === 'special' ? 'especiales' : 'físicos'}</b></p>
+        ${bar('Vida', q.hp, max.hp, q.hp)}
+        ${bar('Ataque', q.pa, max.atk, '×' + q.pa.toFixed(2), 'pa')}
+        ${bar('At. Esp.', q.sa, max.atk, '×' + q.sa.toFixed(2), 'sa')}
+        ${bar('Defensa', q.df, max.def, Math.round(q.df), 'df')}
+        ${bar('Def. Esp.', q.sd, max.def, Math.round(q.sd), 'sd')}
+        ${bar('Velocidad', q.spd, max.spd, Math.round(q.spd), 'spd')}
+        <p class="sub center" style="margin:6px 0 0">Pega mejor con ataques <b class="gold">${G.Stats.sideOf(q) === 'special' ? 'especiales' : 'físicos'}</b></p>
+        ${monExtras(dex)}
         ${p.types.length === 1 ? `<p class="sub center" style="margin:2px 0 0">Monotipo: +20 % de daño con sus ataques de tipo ${G.U.TYPE_NAME[p.types[0]]}</p>` : ''}
         <p style="font-size:14px;margin:10px 0 4px">Empieza con <b class="gold">${G.T(G.Moves.BY_ID[G.startMoveOf(dex)].name, 'move')}</b></p>
-        <p class="move-icons" title="Movimientos que puede aprender">
-          ${G.Moves.poolFor(p).map(id => `<span title="${G.T(G.Moves.BY_ID[id].name, 'move')}">${G.Icons.html('move:' + id, 16)}</span>`).join('')}</p>
+        <p class="move-icons" id="dex-moves">
+          ${G.Moves.poolFor(p).map(id => `<span data-move="${id}">${G.Icons.html('move:' + id, 32)}</span>`).join('')}</p>
         ${usingThis
           ? '<button class="btn grow" disabled style="width:100%">Es tu compañero</button>'
           : `<button id="dex-pick" class="btn gold" data-sfx="confirm" style="width:100%">Elegir de compañero${viewShiny ? ' (shiny)' : ''}</button>`}
       ` : `<p class="center" style="color:var(--muted)">Aún no lo tienes.<br>Consíguelo en el banner de <b class="gold">${GEN_NAMES[p.gen - 1]}</b>
             o derrotándolo cuando salga shiny.</p>`}
     `;
+    for (const [el, t] of scrolls) el.scrollTop = t;
+    moveTips($('dex-moves'));
     $('dex-big').style.setProperty('--stage-c', !own ? '#5b83d6' : viewShiny ? '#9ae6ff' : G.U.TYPE_COLOR[p.types[0]]);
     $('dex-big').classList.toggle('shiny', own && viewShiny);
     G.UI.sprite($('dex-big'), dex, { lively: own, spin: own, silhouette: !own, scale: 3, hero: true, shiny: own && viewShiny });
@@ -389,6 +413,121 @@ G.MenuUI = (() => {
       G.UI.toast(p.name + (s.partnerShiny ? ' shiny' : '') + ' es ahora tu compañero');
       renderGrid(true); showDetail(dex);
     };
+    if (own) wireExtras(dex, box);
+  }
+
+  // ---------------- ficha: lo que hace cada ataque (24-10-2026) ----------------
+  /* Los iconos de los ataques que puede aprender: al pasar el ratón (o al
+   * tocarlos en el móvil) sale un recuadro con su nombre, su tipo, si es físico
+   * o especial y lo que hace (lo mismo que enseña la Tienda Kecleon). El
+   * recuadro va en #scr-dex: se va con la pantalla. */
+  let tipOn = null;
+  function moveTipHtml(id) {
+    const m = G.Moves.BY_ID[id];
+    const cat = G.Stats.NAME[m.cat || (m.stat === 'patk' ? 'physical' : m.stat === 'satk' ? 'special' : '')];
+    return `<b>${G.T(m.name, 'move')}</b>
+      <div class="move-tip-tags"><span class="tag-chip" style="background:${G.U.TYPE_COLOR[m.type]}">${G.U.TYPE_NAME[m.type]}</span>${cat ? `<span class="tag-chip cat">${cat}</span>` : ''}</div>
+      <div class="sub">${G.T(m.desc)}</div>`;
+  }
+  function hideMoveTip() { tipOn = null; const t = $('move-tip'); if (t) t.classList.add('hidden'); }
+  function showMoveTip(ic) {
+    let tip = $('move-tip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'move-tip'; tip.className = 'move-tip hidden';
+      const scr = $('scr-dex');
+      scr.appendChild(tip);
+      // Tocar fuera de los iconos o desplazar la lista lo quita (en el móvil no hay "salir con el ratón").
+      scr.addEventListener('pointerdown', e => { if (!e.target.closest('#dex-moves')) hideMoveTip(); }, true);
+      scr.addEventListener('scroll', hideMoveTip, true);
+    }
+    tipOn = ic;
+    tip.innerHTML = moveTipHtml(ic.dataset.move);
+    tip.classList.remove('hidden');
+    // Encima del icono (si no cabe, debajo), sin salirse por los lados.
+    const r = ic.getBoundingClientRect(), t = tip.getBoundingClientRect(), M = 8;
+    tip.style.left = G.U.clamp(r.left + r.width / 2 - t.width / 2, M, innerWidth - t.width - M) + 'px';
+    tip.style.top = (r.top - t.height - M >= M ? r.top - t.height - M : r.bottom + M) + 'px';
+  }
+  function moveTips(row) {
+    hideMoveTip();
+    if (!row) return;
+    let touch = false;
+    row.onpointerdown = e => { touch = e.pointerType === 'touch'; };
+    row.onpointerover = e => {
+      const ic = e.target.closest('[data-move]');
+      if (ic && e.pointerType !== 'touch' && ic !== tipOn) showMoveTip(ic);
+    };
+    row.onpointerleave = e => { if (e.pointerType !== 'touch') hideMoveTip(); };
+    // En el móvil: tocar un icono lo enseña; tocarlo otra vez, lo quita.
+    row.onclick = e => {
+      const ic = e.target.closest('[data-move]');
+      if (!ic || !touch) return;
+      if (ic === tipOn) hideMoveTip(); else showMoveTip(ic);
+    };
+  }
+
+  // ---------------- naturaleza, habilidad y MT (Tienda Kecleon, 20-10-2026) ----------------
+  // Se ven en la ficha de cada Pokémon y aquí se usan la Menta, las Cápsulas y las MT de la Mochila.
+  const STAT_NAME = { pa: 'Ataque', sa: 'At. Esp.', df: 'Defensa', sd: 'Def. Esp.', spd: 'Velocidad' };
+  let extraOpen = '';          // 'nat' | 'cap' | 'caph' | 'tm' | '' (qué selector está abierto)
+  const natLine = n => (n.up ? `+${G.T(STAT_NAME[n.up])} −${G.T(STAT_NAME[n.down])}` : G.T('neutra'));
+
+  function monExtras(dex) {
+    const p = G.DEX_BY[dex], n = G.Mons.natureOf(dex), ab = G.Mons.abilityOf(dex);
+    const fx = G.AbilityFX.of(ab.id, p), taught = G.Mons.taught(dex);
+    const tmsHere = G.Mons.learnable(dex).filter(id => G.Shop.tmCount(id) > 0);
+    const btn = (key, icon, label, count) => count > 0
+      ? `<button class="btn small" data-extra="${key}">${G.Icons.html(icon, 14)} <span>${label}</span> <small>×${count}</small></button>` : '';
+    const capN = G.Mons.abilityChoices(dex, false).length ? G.Shop.count('cap') : 0;
+    const caphN = G.Mons.abilityChoices(dex, true).length ? G.Shop.count('caph') : 0;
+    return `<div class="mon-extra">
+      <div class="mx-row"><span>Naturaleza</span><b translate="no">${G.Mons.name(n.n)}</b><small>${natLine(n)}</small>
+        ${btn('nat', 'mint', 'Menta', G.Shop.count('mint'))}</div>
+      <div class="mx-row"><span>Habilidad</span><b translate="no">${G.Mons.abilityName(ab.id)}</b>${ab.slot === 2 ? `<small class="gold">${G.T('oculta')}</small>` : ''}
+        ${btn('cap', 'capsule', 'Cápsula', capN)}${btn('caph', 'capsuleh', 'Cápsula Oculta', caphN)}</div>
+      <p class="sub mx-desc"><span>${fx.d}</span>${fx.d2 ? ` <span>${fx.d2}</span>` : ''}</p>
+      <div class="mx-row"><span>MT</span>${taught.length
+        ? `<span class="move-icons">${taught.map(id => `<span title="${G.T(G.Moves.BY_ID[id].name, 'move')}">${G.Icons.html('move:' + id, 16)}</span>`).join('')}</span>`
+        : `<small>${G.T('Aún no ha aprendido ninguna')}</small>`}
+        ${btn('tm', 'tm', 'Enseñar MT', tmsHere.length)}</div>
+      <div id="mx-picker"></div>
+    </div>`;
+  }
+
+  function wireExtras(dex, box) {
+    box.querySelectorAll('[data-extra]').forEach(b => {
+      b.onclick = () => { extraOpen = extraOpen === b.dataset.extra ? '' : b.dataset.extra; G.Audio.sfx('select'); showDetail(dex); };
+    });
+    const host = box.querySelector('#mx-picker');
+    if (!host || !extraOpen) return;
+    const s = G.DB.save, mon = G.DEX_BY[dex];
+    const chips = (list, label, onPick) => {
+      host.innerHTML = `<div class="panel ban-picker"><div class="ban-moves">${list.map(x => `<button class="chip" data-v="${x.v}">${x.html}</button>`).join('')}</div></div>`;
+      host.querySelectorAll('[data-v]').forEach(c => { c.onclick = () => onPick(c.dataset.v); });
+    };
+    const done = msg => { extraOpen = ''; G.DB.commit(); G.Audio.sfx('buy'); G.UI.toast(msg, 2600); showDetail(dex); };
+    if (extraOpen === 'nat' && G.Shop.count('mint')) {
+      const cur = G.Mons.natureOf(dex).id;
+      chips(G.NATURES.filter(n => n.id !== cur).map(n => ({ v: n.id, html: `<b translate="no">${G.Mons.name(n.n)}</b> <small>${natLine(n)}</small>` })), '', id => {
+        if (!G.Shop.take('mint')) return;
+        G.Mons.setNature(dex, id);
+        done(G.I18n.f('{x} ahora tiene naturaleza {x}', mon.name, G.Mons.name(G.NATURE_BY[id].n)));
+      });
+    } else if ((extraOpen === 'cap' || extraOpen === 'caph') && G.Shop.count(extraOpen)) {
+      const l = G.Mons.slots(dex);
+      chips(G.Mons.abilityChoices(dex, extraOpen === 'caph').map(i => ({ v: i, html: `<b translate="no">${G.Mons.abilityName(l[i])}</b>${i === 2 ? ` <small class="gold">${G.T('oculta')}</small>` : ''}` })), '', v => {
+        if (!G.Shop.take(extraOpen)) return;
+        G.Mons.setAbility(dex, +v);
+        done(G.I18n.f('{x} ahora tiene la habilidad {x}', mon.name, G.Mons.abilityName(l[+v])));
+      });
+    } else if (extraOpen === 'tm') {
+      const list = G.Mons.learnable(dex).filter(id => G.Shop.tmCount(id) > 0);
+      chips(list.map(id => ({ v: id, html: `${G.Icons.html('move:' + id, 16)} ${G.T(G.Moves.BY_ID[id].name, 'move')} <small>×${G.Shop.tmCount(id)}</small>` })), '', id => {
+        if (!G.Mons.teach(dex, id)) return;
+        done(G.I18n.f('¡{x} ha aprendido {x}!', mon.name, G.T(G.Moves.BY_ID[id].name, 'move')));
+      });
+    }
   }
 
   // ---------------- mejoras ----------------
@@ -425,6 +564,9 @@ G.MenuUI = (() => {
       const lvl = levels[u.id] || 0;
       const maxed = lvl >= u.max;
       const cost = maxed ? 0 : G.Upgrades.cost(u.id, lvl);
+      // Mejoras que necesitan otra (Segundo movimiento inicial → Repertorio).
+      const locked = !maxed && u.needs && !levels[u.needs];
+      const pick2 = u.id === 'start2' && lvl > 0 ? G.startMove2Of(upgDex) : null;
       const el = document.createElement('div');
       el.className = 'panel upg-item';
       el.innerHTML = `
@@ -436,14 +578,17 @@ G.MenuUI = (() => {
         <div class="upg-btns">
           ${u.id === 'ban' && lvl > 0 ? `<button class="btn small" data-ban>Elegir (${banList().length}/${lvl})</button>` : ''}
           ${u.id === 'start' && lvl > 0 ? `<button class="btn small" data-start>Elegir: ${G.Moves.BY_ID[G.startMoveOf(upgDex)].name}</button>` : ''}
-          <button class="btn small ${maxed ? '' : 'gold'}" data-buy data-sfx="none" ${maxed || s.coins < cost ? 'disabled' : ''}>
-          ${maxed ? 'Máx.' : `<span class="coin"></span> ${cost}`}</button></div>`;
+          ${u.id === 'start2' && lvl > 0 ? `<button class="btn small" data-start2>Elegir: ${pick2 ? G.Moves.BY_ID[pick2].name : G.T('Al azar')}</button>` : ''}
+          <button class="btn small ${maxed ? '' : 'gold'}" data-buy data-sfx="none" ${maxed || locked || s.coins < cost ? 'disabled' : ''}
+            ${locked ? `title="${G.T('Primero compra Repertorio')}"` : ''}>
+          ${maxed ? 'Máx.' : locked ? G.T('Necesita Repertorio') : `<span class="coin"></span> ${cost}`}</button></div>`;
       if (u.id === 'ban' && lvl > 0) el.querySelector('[data-ban]').onclick = () => { banOpen = !banOpen; renderUpgrades(); };
       if (u.id === 'start' && lvl > 0) el.querySelector('[data-start]').onclick = () => { startOpen = !startOpen; renderUpgrades(); };
+      if (u.id === 'start2' && lvl > 0) el.querySelector('[data-start2]').onclick = () => { start2Open = !start2Open; renderUpgrades(); };
       el.querySelector('[data-buy]').onclick = () => {
         // Se vuelve a leer todo al pulsar (la partida puede haber cambiado desde que se dibujó).
         const sv = G.DB.save, lv = G.DB.upgradesOf(upgDex), now = lv[u.id] || 0;
-        if (now >= u.max) { renderUpgrades(); return; }
+        if (now >= u.max || (u.needs && !lv[u.needs])) { renderUpgrades(); return; }
         const price = G.Upgrades.cost(u.id, now);
         if (sv.coins < price) { renderUpgrades(); return; }
         sv.coins -= price;
@@ -457,6 +602,7 @@ G.MenuUI = (() => {
       box.appendChild(el);
       if (u.id === 'ban' && lvl > 0 && banOpen) box.appendChild(banPicker(lvl));
       if (u.id === 'start' && lvl > 0 && startOpen) box.appendChild(startPicker());
+      if (u.id === 'start2' && lvl > 0 && start2Open) box.appendChild(start2Picker());
     }
     box.appendChild(bindPanel());
   }
@@ -509,12 +655,44 @@ G.MenuUI = (() => {
         const id = b.dataset.id;
         s.pstart = s.pstart || {};
         if (id === base) delete s.pstart[upgDex]; else s.pstart[upgDex] = id;
+        // Si era el segundo inicial, el segundo vuelve a salir al azar.
+        if (s.pstart2 && s.pstart2[upgDex] === id) delete s.pstart2[upgDex];
         // El inicial no puede estar vetado.
         const l = banList(), i = l.indexOf(id);
         if (i >= 0) l.splice(i, 1);
         G.DB.commit();
         G.Audio.sfx('select');
         G.UI.toast(G.DEX_BY[upgDex].name + ' empezará con ' + G.Moves.BY_ID[id].name);
+        renderUpgrades();
+      };
+    });
+    return el;
+  }
+
+  // ---------------- segundo movimiento inicial (con Repertorio) ----------------
+  // save.pstart2[dex]; sin elegir (o "Al azar"), el segundo sale al azar como siempre.
+  let start2Open = false;
+  function start2Picker() {
+    const s = G.DB.save, cur = G.startMove2Of(upgDex), first = G.startMoveOf(upgDex);
+    const ids = G.startChoices(upgDex).filter(id => id !== first)
+      .sort((a, b) => G.Moves.BY_ID[a].name.localeCompare(G.Moves.BY_ID[b].name, 'es'));
+    const el = document.createElement('div');
+    el.className = 'panel ban-picker';
+    el.innerHTML = `<p class="sub" style="margin:0 0 8px">Elige el segundo ataque con el que empieza. Lo puedes cambiar cuando quieras, gratis.</p>
+      <div class="ban-moves"><button class="chip ${!cur ? 'on' : ''}" data-id="">${G.T('Al azar')}</button>${ids.map(id => { const d = G.Moves.BY_ID[id];
+        return `<button class="chip ${id === cur ? 'on' : ''}" data-id="${id}">${G.Icons.html('move:' + id, 16)} ${d.name}</button>`; }).join('')}</div>`;
+    el.querySelectorAll('[data-id]').forEach(b => {
+      b.onclick = () => {
+        const id = b.dataset.id;
+        s.pstart2 = s.pstart2 || {};
+        if (!id) delete s.pstart2[upgDex]; else s.pstart2[upgDex] = id;
+        // El elegido no puede estar vetado.
+        const l = banList(), i = id ? l.indexOf(id) : -1;
+        if (i >= 0) l.splice(i, 1);
+        G.DB.commit();
+        G.Audio.sfx('select');
+        G.UI.toast(id ? G.I18n.f('{x} empezará también con {x}', G.DEX_BY[upgDex].name, G.Moves.BY_ID[id].name)
+                      : G.T('El segundo ataque saldrá al azar'));
         renderUpgrades();
       };
     });
@@ -531,8 +709,8 @@ G.MenuUI = (() => {
   }
   function banPicker(max) {
     const mon = G.DEX_BY[upgDex];
-    const start = G.startMoveOf(upgDex);
-    const ids = G.Moves.poolFor(mon).filter(id => id !== start)
+    const start = G.startMoveOf(upgDex), start2 = G.startMove2Of(upgDex);
+    const ids = G.Moves.poolFor(mon).filter(id => id !== start && id !== start2)
       .sort((a, b) => G.Moves.BY_ID[a].name.localeCompare(G.Moves.BY_ID[b].name, 'es'));
     const list = banList();
     const el = document.createElement('div');
@@ -554,5 +732,5 @@ G.MenuUI = (() => {
     return el;
   }
 
-  return { init, open, GEN_NAMES };
+  return { init, open, openDex, GEN_NAMES };
 })();

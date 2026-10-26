@@ -154,8 +154,12 @@ G.Interact = (() => {
       }
     }
     // En el juego, a ti; en el servidor, a todos los del equipo que estén dentro.
+    // (Levitación y Muro Mágico: las trampas no les hacen nada; Flexibilidad y
+    // parecidas, la pegajosa no les frena. Ver data/ability-fx.js.)
     for (const q of crew || [pl]) {
       if (!q || q.dead || G.U.dist2(x, y, q.x, q.y) >= (TRAP_R * 0.7) ** 2) continue;
+      const ab = q.abil || {};
+      if (ab.levitate || ab.trapProof || (k === 1 && ab.steady)) continue;
       q.invuln = 0;
       if (k === 0) q.hurt(q.maxHp * 0.1);
       else if (k === 1) { q.slowT = 3.5; G.FX.dmgText(q.x, q.y - q.bodyH - 6, '¡Pegajoso!', '#8bd94a'); }

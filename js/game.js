@@ -112,7 +112,9 @@ G.Game = (() => {
     waitBy = []; awayBy = null; crew = null;
     const save = G.DB.save;
     mode = coop ? null : solo;
-    const hero = (mode || G.Modes.get('classic')).hero(save);
+    // En grupo, el Pokémon tal cual: el servidor del cooperativo aún no conoce
+    // naturalezas ni habilidades (y es él quien manda en la partida).
+    const hero = coop ? G.Modes.get('classic').hero(save, true) : mode.hero(save);
     const mon = hero.mon;
     const perks = G.Upgrades.perks(G.DB.upgradesOf(mon.dex));
 
@@ -141,6 +143,8 @@ G.Game = (() => {
     runReal = performance.now(); tampered = false;
 
     pl = new G.Player(mon, perks, hero.shiny);
+    G.Orbs.reset();
+    if (hero.ability) pl.setAbility(hero.ability);
     banked = { t1: 0, t10: 0 };
     caught = [];
     // Atajos: movimientos con hueco fijo (save.pbind[dex] = [id del 1, id del 2, ...]),
@@ -149,10 +153,13 @@ G.Game = (() => {
     pl.addMove(G.startMoveOf(mon.dex));
     // Mejora "Veto": movimientos que no quieres que te salgan.
     pl.banned = new Set((save.pban && save.pban[mon.dex] || []).slice(0, perks.bans));
-    // Mejora "Repertorio": un segundo movimiento de ataque al azar.
+    // Mejora "Repertorio": un segundo movimiento de ataque, el elegido con
+    // "Segundo movimiento inicial" o, si no, al azar.
     if (perks.startMoves >= 2) {
+      const pick2 = G.startMove2Of(mon.dex);
       const pool = G.Moves.poolFor(mon).filter(id => !pl.hasMove(id) && !pl.banned.has(id) && G.Moves.BY_ID[id].kind !== 'buff');
-      if (pool.length) pl.addMove(G.RNG.stream('run').pick(pool));
+      if (pick2 && !pl.hasMove(pick2)) pl.addMove(pick2);
+      else if (pool.length) pl.addMove(G.RNG.stream('run').pick(pool));
       pl.setActive(0);
     }
 
@@ -192,6 +199,13 @@ G.Game = (() => {
   // Telón del viaje a la grieta (ver core/curtain.js).
   const veil = G.Curtain.create();
   function curtain(col) { veil.start(col); }
+
+  /** Tu resumen para el final de la partida: ataques con su daño, objeto... */
+  function mySum() {
+    if (!pl) return null;
+    return { dex: pl.dex, sh: !!pl.shiny, lv: pl.level, t: Math.floor(time), it: pl.item || null,
+             mv: pl.moves.slice(0, 8).map(m => [m.id, m.lvl, Math.round(m.dealt || 0), Math.round(m.since || 0), m.evolved ? 1 : 0]) };
+  }
 
   /**
    * Los tickets recogidos se guardan en cuanto los coges (como los shinies):
@@ -309,11 +323,20 @@ G.Game = (() => {
     else pl.coins += 150;
     G.Spawner.say(isNew ? '¡' + name + ' se une a tu equipo!' : '¡' + name + ' te da las gracias! (+150 monedas, ya lo tenías)', 4);
     G.Audio.sfx('shinyGet');
+    if (isNew) irisSay(dex);
   };
+
+  /** Si `dex` (recién conseguido) era el último que faltaba de su generación: su Amuleto Iris. */
+  function irisSay(dex) {
+    const gen = G.DEX_BY[dex].gen;
+    if (!G.Gacha.hasIris(G.DB.save, gen)) return;
+    setTimeout(() => G.Spawner.say(G.I18n.f('¡Amuleto Iris de {x}! Shiny al 2 % en su banner', G.T(G.Gacha.BANNERS[gen - 1].name)), 5), 4000);
+  }
 
   /** Un shiny salvaje cae: te lo quedas (y la versión normal si no la tenías). */
   G.onShinyCaught = e => {
     if (!G.DB.save || !pl) return;
+    const wasOwned = G.DB.owns(e.dex);
     const isNew = G.DB.grantShiny(e.dex, 'wild');
     G.DB.save.stats.shinies++;
     G.DB.commit(true);
@@ -321,6 +344,7 @@ G.Game = (() => {
     G.Spawner.say(isNew ? '¡Has conseguido a ' + e.name + ' shiny!' : '¡Otro ' + e.name + ' shiny! (+300 monedas)', 4);
     if (!isNew) pl.coins += 300;
     G.Audio.sfx('shinyGet');
+    if (!wasOwned) irisSay(e.dex);
   };
 
   function endRun(dead = true) {
@@ -330,6 +354,7 @@ G.Game = (() => {
     if (coop) G.Social.setPlaying(false);
     G.RunUI.stopTimer();
     state = 'over';
+    G.Orbs.reset();
     G.Audio.music(null);
     G.Audio.sfx(dead ? 'gameover' : 'back');
     const save = G.DB.save;
@@ -367,7 +392,7 @@ G.Game = (() => {
     if (G.Social.me) G.Social.publishProfile();
 
     // Ranking: en solitario lo sube cada uno; el de grupo, el servidor del cooperativo.
-    const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
+    const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills, dmg: judge ? judge.dmg : 0 };   // dmg: a Arceus
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
     const sent = mode && clean() ? G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny, build: pl.buildCode() }), mode.boards(pl.dex)) : null;
     if (sent) sent.then(b => { if (b && b.some(p => p !== 'a')) G.DB.commit(true); }).catch(() => {});
@@ -375,6 +400,8 @@ G.Game = (() => {
     G.RunUI.showOver({
       dead, time, level: pl.level, kills: pl.kills, bosses: pl.bosses, coins, record, t1: pl.t1, t10: pl.t10, judge, bonus,
       mode: mode ? mode.id : 'group',
+      // Resumen de tus ataques con su daño (en grupo, la tabla del servidor: crew).
+      team: coop ? [] : [{ name: '', me: true, sum: mySum() }],
       moves: pl.moves, caught,
       // Resumen por personaje: en grupo, el del servidor; solo, el tuyo.
       crew: crew || [{ me: true, name: (G.Social.me && G.Social.me.name) || '', dex: pl.dex, shiny: pl.shiny, ki: pl.kills,
@@ -457,7 +484,7 @@ G.Game = (() => {
 
   // ---------------- recogida ----------------
 
-  const PICK_SFX = { xp: 'xp', xpBig: 'xp', coin: 'coin', heal: 'heal', bomb: 'break', magnet: 'confirm', ticket: 'shiny', ticket10: 'legend', item: 'legend' };
+  const PICK_SFX = { xp: 'xp', xpBig: 'xp', coin: 'coin', heal: 'heal', bomb: 'break', magnet: 'confirm', ticket: 'shiny', ticket10: 'legend', item: 'legend', sphere: 'confirm' };
 
   /*
    * La elección de objeto y las cartas de nivel no pueden taparse. Si llega un
@@ -527,6 +554,11 @@ G.Game = (() => {
       if (mine) offerItem(p.value);
       return;
     }
+    if (p.kind === 'sphere') {
+      // La de un invitado: el anfitrión lleva la cuenta de lo que tiene (para saber si le cabe otra).
+      if (mine) G.Orbs.got(pl, p.value); else G.Orbs.add(who, p.value);
+      return;
+    }
     if (p.kind === 'ticket' || p.kind === 'ticket10') {
       if (p.kind === 'ticket') pl.t1++; else pl.t10++;
       bankTickets();
@@ -587,7 +619,7 @@ G.Game = (() => {
     }
     if (state === 'ui') {
       // Esc en una subpantalla del menú vuelve al menú.
-      if (G.Input.tap('escape') && !G.UI.isOpen('scr-profile') && ['scr-dex', 'scr-upgrades', 'scr-gacha', 'scr-friends', 'scr-rank', 'scr-goals'].some(G.UI.isOpen)
+      if (G.Input.tap('escape') && !G.UI.isOpen('scr-profile') && ['scr-dex', 'scr-upgrades', 'scr-shop', 'scr-bag', 'scr-gacha', 'scr-friends', 'scr-rank', 'scr-goals'].some(G.UI.isOpen)
           && document.getElementById('pull-fx').classList.contains('hidden')) G.MenuUI.open();
       return;
     }
@@ -596,13 +628,37 @@ G.Game = (() => {
     for (let i = 0; i < 4; i++) {
       if (G.Input.tap('digit' + (i + 1)) || G.Input.tap('numpad' + (i + 1))) pl.setActive(i);
     }
+    // Caído en grupo: Q / E cambian a quién miras.
+    if (pl.dead) { if (G.Input.tap('keyq')) cycleWatch(-1); if (G.Input.tap('keye') || G.Input.tap('tab')) cycleWatch(1); return; }
     if (G.Input.tap('keyq')) pl.cycle(-1);
     if (G.Input.tap('keye') || G.Input.tap('tab')) pl.cycle(1);
+    // Esferas: 5-8 (o el teclado numérico); en el mando, X la usa e Y cambia de esfera.
+    for (let i = 0; i < 4; i++) {
+      if (G.Input.tap('digit' + (i + 5)) || G.Input.tap('numpad' + (i + 5))) G.Orbs.use(pl, i);
+    }
+    if (G.Input.tap('padx')) G.Orbs.useSelected(pl);
+    if (G.Input.tap('pady')) G.Orbs.next(pl);
   }
 
   // ---------------- bucle ----------------
 
   let deathT = 0;
+
+  // Caído en grupo: en el original se puede mirar a un compañero vivo (el
+  // anfitrión manda los enemigos de allí). Aquí el servidor sólo manda los de
+  // cerca de tu cuerpo, así que de momento no se mira a otro (watch siempre null).
+  let watch = null;
+  /** El compañero al que miras, o null si miras tu cuerpo. */
+  function watched() {
+    return (watch = null);
+  }
+  /** Cambia a quién miras: tú → cada compañero vivo → tú. */
+  function cycleWatch(dir) {
+    const list = [null, ...G.Coop.puppets().filter(p => !p.dead)];
+    if (list.length < 2) return;
+    watch = list[(list.indexOf(watched()) + dir + list.length) % list.length];
+    G.Audio.sfx('click');
+  }
 
   let frameDt = 0, speedK = 1;
   let fpsShown = 60, fpsAcc = 0, fpsN = 0;
@@ -697,6 +753,7 @@ G.Game = (() => {
 
     pl.frozen = coop && G.UI.isOpen('scr-pause');
     pl.update(dt);
+    G.Orbs.update(dt, pl);
     if (coop) {
       // Los ataques (también los tuyos) llegan del servidor; las órbitas se dibujan aquí.
       for (const p of [pl, ...G.Coop.puppets()]) { if (p !== pl) p.netUpdate(dt); G.Combat.ghostOrbit(p, dt, time); }
@@ -941,7 +998,9 @@ G.Game = (() => {
     debugTime(t) { tampered = true; time = t; },
     /** Para grabar vídeos: cámara lenta (0,5 = mitad de velocidad). */
     debugSpeed(k) { if (k > 1) tampered = true; speedK = k; },
-    togglePause,
+    togglePause, cycleWatch,
+    /** El compañero al que miras estando caído (o null). */
+    get watching() { return watched(); },
     /** Abandona la partida en curso (p. ej. al cerrar sesión desde Ajustes). */
     quit() { if (state !== 'ui' && state !== 'over') quitRun(); },
     /** Para grabar vídeos: abre las cartas de subir de nivel. */
@@ -956,7 +1015,7 @@ G.Flow = {
   boot() {
     G.UI.initChrome();
     G.LoginUI.init(); G.TestUI.init(); G.MenuUI.init(); G.GachaUI.init();
-    G.SocialUI.init(); G.RankingUI.init(); G.ModUI.init(); G.DebugUI.init(); G.GoalsUI.init(); G.ProfileUI.init(); G.SettingsUI.init(); G.SupportUI.init(); G.NewsUI.init(); G.Updater.init();
+    G.SocialUI.init(); G.RankingUI.init(); G.ModUI.init(); G.DebugUI.init(); G.GoalsUI.init(); G.ProfileUI.init(); G.SettingsUI.init(); G.SupportUI.init(); G.NewsUI.init(); G.LiveUI.init(); G.Updater.init();
     // Tu nombre arriba a la derecha abre tu perfil.
     document.getElementById('user-pill').onclick = () => G.GoalsUI.open('profile');
     G.Audio.music('village');     // suena tras el primer clic (lo exige el navegador)

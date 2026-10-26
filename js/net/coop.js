@@ -347,7 +347,9 @@ G.Coop = (() => {
     xpFactor: () => 1,
     cast: noop, hit: noop, status: noop, hurtShown: noop, enemyAdded: noop, enemyGone: noop, enemyShot: noop,
     pickupAdded: noop, pickupGone: noop, say: noop, propBroken: noop, collected: noop, shinyCaught: noop,
-    broadcast: noop, toHost: noop,
+    broadcast: noop, toHost: noop, orbUsed: noop,
+    /** Resumen de daño por jugador al acabar (el del original iba por P2P): aquí no llega el de los demás. */
+    sums: () => ({}),
     mate(u) { return mates.get(u); },
     get mates() { return [...mates.values()]; },
     get members() { return members; },

@@ -436,6 +436,7 @@ G.World = (() => {
       G.Pickups.drop(G.RNG.stream('loot').next() < 0.5 ? 'heal' : 'magnet', p.x, p.y);
       G.Pickups.dropXp(p.x, p.y, 20);
       if (G.RNG.stream('loot').next() < 0.08) G.Pickups.drop('item', p.x, p.y - 12, G.Items.roll());
+      if (G.RNG.stream('loot').next() < 0.35) G.Pickups.drop('sphere', p.x - 12, p.y - 12, G.Orbs.roll());
       return;
     }
     if (p.type === 'bigchest') {
@@ -448,6 +449,8 @@ G.World = (() => {
       for (let i = 0; i < tk; i++) G.Pickups.drop('ticket', p.x + G.RNG.stream('loot').rand(-16, 16), p.y + G.RNG.stream('loot').rand(-10, 10), 1);
       if (G.RNG.stream('loot').next() < 0.15) G.Pickups.drop('ticket10', p.x, p.y - 10, 1);
       if (G.RNG.stream('loot').next() < 0.5) G.Pickups.drop('item', p.x + 14, p.y - 14, G.Items.roll());
+      G.Pickups.drop('sphere', p.x - 14, p.y - 14, G.Orbs.roll());
+      if (G.RNG.stream('loot').next() < 0.5) G.Pickups.drop('sphere', p.x, p.y - 20, G.Orbs.roll());
       G.Pickups.dropXp(p.x, p.y, G.Game.levelXp());
       G.Progress.event('chest');
       return;

@@ -5,7 +5,7 @@
  * objeto con esta forma (G.Modes.add), sin tocar el bucle del juego.
  *
  *   id                 'classic' | 'daily' | ...
- *   hero(save)         → { mon, shiny }
+ *   hero(save)         → { mon, shiny, ability? }
  *   seed()             → la semilla de la run (G.RNG y el mapa)
  *   availability()     → Promise<{ ok, reason?: 'guest' | 'offline' | 'played', last? }>
  *   begin()            → Promise (si falla, la partida no empieza)
@@ -27,11 +27,14 @@ G.Modes = (() => {
     try { localStorage.setItem(KEY, cur); } catch (e) { /* sin almacenamiento */ }
   }
 
-  /** El de siempre: tu compañero, semilla al azar y el ranking normal. */
+  /** El de siempre: tu compañero, semilla al azar y el ranking normal.
+   *  Con su naturaleza y su habilidad (systems/mons.js), salvo con `plain` (en grupo). */
   add({
     id: 'classic',
-    hero(save) {
-      return { mon: G.DEX_BY[save.partner], shiny: !!save.partnerShiny && G.DB.ownsShiny(save.partner) };
+    hero(save, plain = false) {
+      const shiny = !!save.partnerShiny && G.DB.ownsShiny(save.partner);
+      if (plain) return { mon: G.DEX_BY[save.partner], shiny, ability: '' };
+      return { mon: G.Mons.monFor(save.partner), shiny, ability: G.Mons.abilityOf(save.partner).id };
     },
     seed() { return Math.floor(Math.random() * 1e6); },
     async availability() { return { ok: true }; },

@@ -63,6 +63,24 @@ test('solitario: con shiny, la fila lo lleva igual que la marca', async () => {
   await assertSucceeds(submit(db, S, 'ana', entry({ shiny: [true] }), row({ shiny: [true] })));
 });
 
+test('solitario: el daño a Arceus va en la marca y en dtop, igual que la marca', async () => {
+  const db = env.authenticatedContext('ana').firestore();
+  const drow = (o = {}) => Object.assign({ d: 5000, uids: ['ana'], names: ['Ana'], dex: [25] }, o);
+  const both = (e, r, d) => {
+    const b = db.batch();
+    b.set(db.doc(`lb/${S}/e/ana`), e);
+    b.set(db.doc('lbs/' + S), { top: { ana: r }, dtop: { ana: d }, me: 'ana', ev: '', dev: '' });
+    return b.commit();
+  };
+  await assertFails(both(entry({ dmg: 5000 }), row(), drow({ d: 9000 })));
+  await assertFails(both(entry({ dmg: 5.5 }), row(), drow({ d: 5.5 })));
+  await assertSucceeds(both(entry({ dmg: 5000 }), row(), drow()));
+  // Más daño con el mismo tiempo: mejora (el tiempo no baja).
+  await assertSucceeds(both(entry({ dmg: 7000 }), row(), drow({ d: 7000 })));
+  // Ni menos tiempo ni menos daño.
+  await assertFails(both(entry({ t: 200, lv: 5, dmg: 9000 }), row({ t: 200, lv: 5 }), drow({ d: 9000 })));
+});
+
 test('solitario: la build (opcional) va igual en la marca y en su fila, y es corta', async () => {
   const db = env.authenticatedContext('ana').firestore();
   const b = ['ember.7*+bite.3|growl.2;lifeorb;atk4,cd2'];

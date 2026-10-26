@@ -8,7 +8,7 @@
 G.UI = (() => {
   const $ = id => document.getElementById(id);
   const SCREENS = ['scr-login', 'scr-test', 'scr-result', 'scr-starters', 'scr-menu',
-                   'scr-dex', 'scr-upgrades', 'scr-gacha', 'scr-levelup', 'scr-pause', 'scr-over',
+                   'scr-dex', 'scr-upgrades', 'scr-shop', 'scr-bag', 'scr-gacha', 'scr-levelup', 'scr-pause', 'scr-over',
                    'scr-nick', 'scr-friends', 'scr-lobby', 'scr-rank', 'scr-item', 'scr-goals', 'scr-bond', 'scr-mod', 'scr-debug'];
 
   function show(id, keepMenu = false) {
@@ -80,6 +80,25 @@ G.UI = (() => {
       if (el.dataset.sfx === 'none') return;
       G.Audio.sfx(el.matches('[data-back]') ? 'back' : el.dataset.sfx || 'click');
     }, true);
+  }
+
+  // ---------------- cerrar pulsando fuera ----------------
+
+  /* Ventanas del menú que se cierran pulsando en el fondo oscuro, fuera de la
+   * caja: es como pulsar su Volver / Cerrar. Sólo si se pulsa y se suelta en el
+   * fondo (arrastrar desde dentro no cierra). Sin cursor de mano en el fondo:
+   * el mando lo tomaría por un botón (con el mando, B ya pulsa Volver). Durante
+   * una tirada del gacha no pasa nada: #pull-fx tapa toda la pantalla. */
+  const BACKDROP = ['scr-dex', 'scr-upgrades', 'scr-shop', 'scr-bag', 'scr-gacha', 'scr-goals', 'scr-friends', 'scr-rank', 'scr-settings', 'scr-news', 'scr-support'];
+  function wireBackdrops() {
+    let down = null;
+    document.addEventListener('pointerdown', e => { down = e.target; });
+    document.addEventListener('click', e => {
+      const sc = e.target;
+      if (sc !== down || !BACKDROP.includes(sc.id)) return;
+      const back = [...sc.querySelectorAll('[data-back], [id$="-close"]')].find(b => b.getBoundingClientRect().width > 0);
+      if (back) back.click();
+    });
   }
 
   /** Controles de volumen (se usan en la barra superior y en la pausa). */
@@ -210,6 +229,7 @@ G.UI = (() => {
       toast(r.why === 'wait' ? `Se guarda en la nube en ${r.secs} s.` : r.why ? MSG[r.why] : '¡Partida guardada en la nube!', 3000);
     };
     wireSounds();
+    wireBackdrops();
     refreshSoundIcon();
     $('btn-sound').onclick = () => {
       const p = $('sound-panel');
@@ -296,8 +316,12 @@ G.UI = (() => {
         s.a.draw(ctx, fx, fy);
       }
 
+      // Recolor (opts.hueSwap = [de, a, nuevo tono]): los píxeles con un tono entre
+      // `de` y `a` pasan a `nuevo` (el Kecleon morado de la tienda: sin sprite shiny quieto).
+      if (s.opts.hueSwap) hueSwap(ctx, cv, s.opts.hueSwap);
+
       // Centelleos alrededor de los shiny: cada uno nace en un sitio al azar.
-      if (s.opts.shiny && !s.opts.silhouette) {
+      if (s.opts.shiny && !s.opts.silhouette && s.opts.twinkle !== false) {
         s.tw = s.tw || [];
         s.sparkT -= dt;
         if (s.sparkT <= 0 && s.tw.length < 4) {
@@ -313,6 +337,26 @@ G.UI = (() => {
         ctx.globalAlpha = 1;
       }
     }
+  }
+
+  /** Cambia el tono de los píxeles entre h0 y h1 (grados) por h2, con su luz y saturación. */
+  function hueSwap(ctx, cv, [h0, h1, h2]) {
+    const img = ctx.getImageData(0, 0, cv.width, cv.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 8) continue;
+      const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn;
+      if (c < 0.12) continue;                                   // grises: igual
+      let h = mx === r ? ((g - b) / c) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4;
+      h = (h * 60 + 360) % 360;
+      if (h < h0 || h > h1) continue;
+      const l = (mx + mn) / 2, sat = c / (1 - Math.abs(2 * l - 1));
+      // HSL -> RGB con el tono nuevo.
+      const C = (1 - Math.abs(2 * l - 1)) * sat, X = C * (1 - Math.abs((h2 / 60) % 2 - 1)), m = l - C / 2;
+      const [R, G2, B] = h2 < 60 ? [C, X, 0] : h2 < 120 ? [X, C, 0] : h2 < 180 ? [0, C, X] : h2 < 240 ? [0, X, C] : h2 < 300 ? [X, 0, C] : [C, 0, X];
+      d[i] = (R + m) * 255; d[i + 1] = (G2 + m) * 255; d[i + 2] = (B + m) * 255;
+    }
+    ctx.putImageData(img, 0, 0);
   }
 
   /** Crea un <canvas> con un sprite animado (para rejillas). */
@@ -367,5 +411,5 @@ G.UI = (() => {
   }
 
   return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete, ask,
-           sprite, spriteCanvas, tick, initChrome, soundControls, statText, byStat, toggleSort, sortBar };
+           sprite, spriteCanvas, tick, initChrome, soundControls, statText, byStat, toggleSort, sortBar, hueSwap };
 })();

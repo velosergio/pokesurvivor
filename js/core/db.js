@@ -85,6 +85,13 @@ G.DB = (() => {
       dfav: {},               // dex -> fecha: favorito de la colección (negativa = quitado entonces)
       pused: {},              // dex -> partidas jugadas con él (orden "más usados")
       pstart: {},             // dex -> movimiento inicial elegido (Mejoras → Movimiento inicial)
+      pstart2: {},            // dex -> segundo movimiento inicial (Mejoras → Segundo movimiento inicial)
+      // Tienda Kecleon (20-10-2026, ver data/shop.js y systems/mons.js):
+      bag: {},                // Mochila: id -> cuántos (mint, cap, caph); en la libreta, como las monedas
+      tms: {},                // MT sin usar: movimiento -> cuántas; también en la libreta
+      ptm: {},                // dex -> [movimientos aprendidos con MT] (para siempre)
+      pnat: {},               // dex -> [naturaleza, fecha]: la cambiada con Menta (si no, la que le tocó)
+      pabil: {},              // dex -> [0|1|2, fecha]: la habilidad cambiada con Cápsula (2 = oculta)
       tickets: { t1: 0, t10: 0 },   // tickets del gacha (x1 y x10)
       grantedCoins: 0,        // monedas de grants/{uid} ya sumadas a coins
       grantedT10: 0,          // tickets ×10 de la libreta ya sumados
@@ -144,7 +151,7 @@ G.DB = (() => {
         const e = s.led[dev];
         if (!isObj(e)) { delete s.led[dev]; continue; }
         for (const k of Object.keys(e)) {
-          if (!CUR[k] || !Array.isArray(e[k])) { delete e[k]; continue; }
+          if (!isCurKey(k) || !Array.isArray(e[k])) { delete e[k]; continue; }
           e[k] = [n(e[k][0]), n(e[k][1])];
         }
       }
@@ -156,9 +163,35 @@ G.DB = (() => {
       if (!isObj(s[coll])) { s[coll] = {}; continue; }
       for (const d of Object.keys(s[coll])) if (!Number.isFinite(+s[coll][d])) delete s[coll][d];
     }
-    if (!isObj(s.pstart)) s.pstart = {};
-    for (const d of Object.keys(s.pstart)) {
-      if (typeof s.pstart[d] !== 'string' || (G.DEX_BY && !G.DEX_BY[d]) || (G.Moves && !G.Moves.BY_ID[s.pstart[d]])) delete s.pstart[d];
+    for (const k of ['pstart', 'pstart2']) {
+      if (!isObj(s[k])) s[k] = {};
+      for (const d of Object.keys(s[k])) {
+        if (typeof s[k][d] !== 'string' || (G.DEX_BY && !G.DEX_BY[d]) || (G.Moves && !G.Moves.BY_ID[s[k][d]])) delete s[k][d];
+      }
+    }
+    // Mochila y MT: cuántas de cada cosa que exista (tope 999).
+    for (const [k, ok] of [['bag', id => !G.Shop || G.Shop.ITEMS[id]], ['tms', id => !G.Moves || G.Moves.BY_ID[id]]]) {
+      if (!isObj(s[k])) s[k] = {};
+      for (const id of Object.keys(s[k])) {
+        s[k][id] = Math.min(999, n(s[k][id]));
+        if (!s[k][id] || !ok(id)) delete s[k][id];
+      }
+    }
+    // MT aprendidas: movimientos que existen, sin repetir.
+    if (!isObj(s.ptm)) s.ptm = {};
+    for (const d of Object.keys(s.ptm)) {
+      const l = Array.isArray(s.ptm[d]) ? s.ptm[d] : [];
+      s.ptm[d] = [...new Set(l.filter(id => typeof id === 'string' && (!G.Moves || G.Moves.BY_ID[id])))];
+      if (!s.ptm[d].length || (G.DEX_BY && !G.DEX_BY[d])) delete s.ptm[d];
+    }
+    // Naturaleza y habilidad elegidas: [valor, fecha].
+    for (const [k, ok] of [['pnat', v => typeof v === 'string' && (!G.NATURE_BY || G.NATURE_BY[v])], ['pabil', v => v === 0 || v === 1 || v === 2]]) {
+      if (!isObj(s[k])) s[k] = {};
+      for (const d of Object.keys(s[k])) {
+        const e = s[k][d];
+        if (!Array.isArray(e) || !ok(e[0]) || (G.DEX_BY && !G.DEX_BY[d])) delete s[k][d];
+        else s[k][d] = [e[0], n(e[1])];
+      }
     }
     // Atajos: 4 huecos con un movimiento que exista (o null), sin repetir.
     if (s.pbind && typeof s.pbind === 'object') {
@@ -215,6 +248,31 @@ G.DB = (() => {
     t1: [s => s.tickets.t1, (s, v) => { s.tickets.t1 = v; }],
     t10: [s => s.tickets.t10, (s, v) => { s.tickets.t10 = v; }]
   };
+  /*
+   * Desde el 20-10-2026 también la Mochila y las MT (Tienda Kecleon), con la misma
+   * libreta: 'b:<objeto>' (save.bag) y 'm:<movimiento>' (save.tms). Así una Menta
+   * gastada en un aparato no vuelve a aparecer al fusionar con el otro.
+   */
+  const isCurKey = k => !!CUR[k] || /^b:[a-z0-9]{1,12}$/.test(k) || /^m:[a-z0-9-]{1,40}$/.test(k);
+  const SUB = { b: 'bag', m: 'tms' };
+  function curGet(s, k) {
+    if (CUR[k]) return CUR[k][0](s);
+    const o = s[SUB[k[0]]];
+    return o ? o[k.slice(2)] : 0;
+  }
+  function curSet(s, k, v) {
+    if (CUR[k]) { CUR[k][1](s, v); return; }
+    const o = s[SUB[k[0]]] = s[SUB[k[0]]] || {};
+    if (v > 0) o[k.slice(2)] = Math.min(999, v); else delete o[k.slice(2)];
+  }
+  /** Todas las cosas con saldo de una partida (y de su libreta). */
+  function curKeys(s, led) {
+    const ks = new Set(Object.keys(CUR));
+    for (const id of Object.keys(s.bag || {})) ks.add('b:' + id);
+    for (const id of Object.keys(s.tms || {})) ks.add('m:' + id);
+    for (const dev in led || {}) for (const k in led[dev]) if (isCurKey(k)) ks.add(k);
+    return [...ks];
+  }
   // Este aparato (navegador): un nombre al azar que se queda guardado.
   const DEV = (() => {
     let d = read('ps.dev');
@@ -222,7 +280,7 @@ G.DB = (() => {
     return d;
   })();
   const num = v => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
-  const balOf = s => { const o = {}; for (const k in CUR) o[k] = num(CUR[k][0](s)); return o; };
+  const balOf = (s, led) => { const o = {}; for (const k of curKeys(s, led)) o[k] = num(curGet(s, k)); return o; };
   function ledSum(led, k) {
     let t = 0;
     for (const dev in led) { const e = led[dev] && led[dev][k]; if (e) t += num(e[0]) - num(e[1]); }
@@ -237,23 +295,34 @@ G.DB = (() => {
   /** La libreta de una partida (sin tocarla); lo que no cuadre, a `dev`. */
   const GIFT = { c: s => s.grantedCoins, t10: s => s.grantedT10 };
   function ledOf(s, dev) {
-    const b = balOf(s);
-    let led;
+    let b = balOf(s), led;
     if (!isObj(s.led)) {
       // El saldo de antes ya incluía lo regalado: se apunta como gastado en base y ganado en gift.
       led = { base: {} };
-      for (const k in CUR) led.base[k] = [b[k], k in GIFT ? num(GIFT[k](s)) : 0];
+      for (const k in b) led.base[k] = [b[k], k in GIFT ? num(GIFT[k](s)) : 0];
     } else led = JSON.parse(JSON.stringify(s.led));
     const g = led.gift = isObj(led.gift) ? led.gift : {};
     for (const k in GIFT) g[k] = [Math.max(num(g[k] && g[k][0]), num(GIFT[k](s))), 0];
+    b = balOf(s, led);
     // Un saldo en negativo (lo mismo gastado en dos aparatos sin conexión) se ve como 0.
-    for (const k in CUR) addTo(led, dev, k, b[k] - Math.max(0, ledSum(led, k)));
+    for (const k in b) addTo(led, dev, k, b[k] - Math.max(0, ledSum(led, k)));
     return led;
   }
   /** Apunta en la libreta de ESTE aparato lo que ha cambiado desde la última vez. */
   function fold(s) {
     if (!s) return s;
+    // Libreta en negativo (lo mismo gastado en dos aparatos): antes se veía 0,
+    // pero lo ganado después se volvía a apuntar en cada guardado (y en cada
+    // aparato) y los tickets crecían solos (25-10-2026). Ahora lo debido se
+    // perdona una vez en led.fix: como cada apunte, al juntar se toma el mayor,
+    // así que dos aparatos que ven la misma deuda no la perdonan dos veces.
+    if (isObj(s.led)) for (const k of curKeys(s, s.led)) {
+      const owed = -ledSum(s.led, k);
+      if (owed > 0) addTo(s.led, 'fix', k, owed);
+    }
     s.led = ledOf(s, DEV);
+    // Y el saldo es siempre el de la libreta.
+    for (const k of curKeys(s, s.led)) curSet(s, k, Math.max(0, ledSum(s.led, k)));
     return s;
   }
 
@@ -273,7 +342,15 @@ G.DB = (() => {
     // Lo regalado ya sumado (grant.js): el mayor, como el apunte gift, para no darlo dos veces.
     for (const k of ['grantedCoins', 'grantedT10']) r[k] = Math.max(num(a[k]), num(b[k]));
     r.tickets = r.tickets || { t1: 0, t10: 0 };
-    for (const k in CUR) CUR[k][1](r, Math.max(0, ledSum(led, k)));
+    r.bag = {}; r.tms = {};
+    for (const k of curKeys({ bag: {}, tms: {} }, led)) curSet(r, k, Math.max(0, ledSum(led, k)));
+    // MT aprendidas: nunca se olvidan (unión). Naturaleza y habilidad: la elegida más tarde.
+    r.ptm = r.ptm || {};
+    for (const d in older.ptm || {}) r.ptm[d] = [...new Set((r.ptm[d] || []).concat(older.ptm[d] || []))];
+    for (const k of ['pnat', 'pabil']) {
+      r[k] = r[k] || {};
+      for (const d in older[k] || {}) if (!r[k][d] || (+older[k][d][1] || 0) > (+r[k][d][1] || 0)) r[k][d] = older[k][d];
+    }
     for (const coll of ['owned', 'shiny']) {
       r[coll] = r[coll] || {};
       for (const k in older[coll] || {}) {
@@ -294,8 +371,10 @@ G.DB = (() => {
     r.pused = r.pused || {};
     for (const d in older.pused || {}) r.pused[d] = Math.max(+r.pused[d] || 0, +older.pused[d] || 0);
     // Movimiento inicial: el de la versión más reciente; si no lo tenía elegido, el de la otra.
-    r.pstart = r.pstart || {};
-    for (const d in older.pstart || {}) if (!(d in r.pstart)) r.pstart[d] = older.pstart[d];
+    for (const k of ['pstart', 'pstart2']) {
+      r[k] = r[k] || {};
+      for (const d in older[k] || {}) if (!(d in r[k])) r[k][d] = older[k][d];
+    }
     // Lo conseguido nunca se pierde: unión de legendarios, arenas, objetos, logros...
     for (const coll of ['legends', 'arenas', 'itemsFound', 'evoMoves', 'ach']) {
       r[coll] = r[coll] || {};
@@ -427,6 +506,20 @@ G.DB = (() => {
 
   let auth = null, fs = null, uid = null, unlisten = null;
   let pushT = 0, retryT = 0, pending = false, pushing = null, lastPush = 0;
+  /*
+   * Versión de la partida en la nube (saves/{uid}.rev, 21-10-2026). Cada subida
+   * manda rev + 1 y firestore.rules sólo la deja pasar si la nube sigue en rev:
+   * así un aparato con una copia vieja (la pestaña del móvil abierta desde ayer)
+   * ya no pisa lo guardado en otro. Si la rechaza, se lee la nube, se junta y se
+   * vuelve a subir (sólo entonces hay una lectura de más).
+   */
+  const K_REV = 'ps.rev.';
+  let rev = 0, lastCheck = 0;
+  // Lo último que se subió (o se leyó igual) desde aquí: si Guardar no cambia nada, no se escribe.
+  // (Sin la hora del último cambio: cada guardado en el navegador la pone aunque no cambie nada más.)
+  let sentCanon = '';
+  const sameKey = s => canon(Object.assign({}, s, { updated: 0 }));
+  const setRev = r => { rev = Number.isInteger(r) && r > 0 ? r : 0; write(K_REV + uid, rev); };
   // Como mucho una subida cada 30 min (con miles de jugadores, cada 5 min
   // eran decenas de miles de escrituras por hora); lo que cuesta algo
   // (gacha, mejoras), a los 30 s. La copia local se guarda siempre al momento (y se fusiona con la
@@ -510,7 +603,31 @@ G.DB = (() => {
     });
     // Al cerrar o recargar la página, lo pendiente se sube siempre.
     addEventListener('pagehide', () => { if (pending) pushNow(); });
+    // Las pestañas del mismo navegador se pasan los cambios (del original, 25-10-2026).
+    if (window.addEventListener) window.addEventListener('storage', fromOtherTab);
     return true;
+  }
+
+  /*
+   * Otra pestaña de este navegador ha guardado su copia (25-10-2026). Las dos
+   * apuntan en la misma entrada de la libreta (es el mismo aparato), y al
+   * juntarlas ganaba la mayor: lo ganado o gastado en una se perdía. Ahora cada
+   * pestaña junta al momento lo de la otra, y si tenía algo que la otra no,
+   * vuelve a dejar la copia completa (la otra la junta y ya no cambia nada).
+   */
+  function fromOtherTab(e) {
+    if (mode !== 'cloud' || guest || !save || !uid || e.key !== K_CLOUD + uid || !e.newValue) return;
+    let other;
+    try { other = migrate(JSON.parse(e.newValue)); } catch (x) { return; }
+    const before = canon(save);
+    applyInPlace(fold(merge(plain(fold(save)), other)));
+    const now = canon(save);
+    // (Más nueva que la de la otra, para que al juntarla se quede con esta.)
+    if (now !== canon(other)) { save.updated = Math.max(Date.now(), (other.updated || 0) + 1); write(K_CLOUD + uid, save); }
+    if (now === before) return;
+    pending = true;
+    setSync('pending');
+    if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
   }
 
   /*
@@ -530,6 +647,7 @@ G.DB = (() => {
     docRef().get().then(snap => {
       if (frozen || !snap.exists || !save || uid !== u) return;
       applyInPlace(merge(plain(fold(save)), migrate(snap.data().save)));
+      setRev(snap.data().rev);
       write(K_CLOUD + uid, save);
       if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
     }).catch(e => console.warn('[DB] no se pudo bajar la partida:', e.code || e.message));
@@ -548,18 +666,22 @@ G.DB = (() => {
 
   const docRef = () => fs.collection('saves').doc(uid);
   const plain = s => JSON.parse(JSON.stringify(s));      // Firestore no admite undefined
+  // La partida en texto con las claves ordenadas (Firestore no guarda el orden): para comparar dos.
+  const canon = v => JSON.stringify(v, (k, x) => (isObj(x) ? Object.keys(x).sort().reduce((o, k2) => (o[k2] = x[k2], o), {}) : x));
 
   /** Abre la partida de la nube de un usuario recién autenticado. */
   async function openCloud(u, opts = {}) {
-    uid = u.uid;
+    uid = u.uid; sentCanon = '';
     const cached = read(K_CLOUD + uid);
     let remote = null, online = true;
     try {
       const snap = await docRef().get();
       remote = snap.exists ? snap.data().save : null;
+      setRev(snap.exists ? snap.data().rev : 0);
     } catch (e) {
       if (!cached) throw e;                // sin conexión y sin copia: no hay nada que abrir
       online = false;
+      setRev(+read(K_REV + uid) || 0);     // la de la última vez que se leyó o subió
     }
     let s = merge(cached && fold(migrate(cached)), remote && migrate(remote));
     if (!s) s = newSave(opts.name || displayNameOf(u));
@@ -581,12 +703,47 @@ G.DB = (() => {
     lastPull = Date.now();
     // Sólo se sube si hay algo que la nube no tenga (cuenta nueva, progreso de
     // este ordenador sin subir, o un regalo de la libreta todavía sin aplicar).
-    const same = remote && !opts.legacy && (!cached || (cached.updated || 0) <= (remote.updated || 0));
+    // Se mira lo que hay, no la fecha (25-10-2026, del original): si otro aparato
+    // guardó después, la nube era "más nueva" y lo de aquí sin subir se daba por guardado.
+    const same = remote && !opts.legacy && canon(save) === canon(fold(migrate(plain(remote))));
     lastPush = Date.now();       // la primera compra o ticket no sube al momento: espera como las demás
-    if (!online) { pending = true; setSync('offline'); scheduleRetry(); }
+    if (!online) { pending = true; setSync('offline'); scheduleRetry(); readTries = 0; readLater(); }
     else if (grantDue) await pushNow({ force: true });   // el regalo se sube ya, antes de poder gastarlo
     else if (!same) pushNow();
-    else setSync('ok');
+    else { sentCanon = sameKey(plain(save)); setSync('ok'); }
+  }
+
+  /*
+   * Si al entrar no se pudo leer la nube (el móvil aún sin red al abrir), se
+   * jugaba con la copia de este navegador, que puede ser vieja, y no se volvía
+   * a mirar: faltaba lo guardado en otro aparato y se podía gastar dos veces
+   * (25-10-2026). Ahora se reintenta esa lectura (la única de la sesión: las
+   * fallidas no se cobran) hasta que sale, y se junta con lo de aquí.
+   */
+  let readT = 0, readTries = 0;
+  function readLater() {
+    clearTimeout(readT);
+    if (readTries >= 10) return;
+    readT = setTimeout(retryRead, Math.min(10 * 60e3, 10e3 * Math.pow(2, readTries++)));
+  }
+  async function retryRead() {
+    if (mode !== 'cloud' || guest || !save || !uid) return;
+    if (navigator.onLine === false) { readLater(); return; }
+    const u = uid, r0 = rev;
+    let snap;
+    try { snap = await docRef().get(); } catch (e) { readLater(); return; }
+    if (uid !== u || !save) return;
+    const remote = snap.exists ? migrate(snap.data().save) : null;
+    if (remote) applyInPlace(fold(merge(plain(fold(save)), plain(remote))));
+    // (Si mientras tanto se subió la partida, su rev ya es la buena.)
+    if (rev === r0) setRev(snap.exists ? snap.data().rev : 0);
+    write(K_CLOUD + uid, save);
+    if (!pushing) {
+      pending = !(remote && canon(save) === canon(fold(remote)));
+      if (!pending) sentCanon = sameKey(plain(save));
+      setSync(pending ? 'pending' : 'ok');
+    }
+    if (G.UI && G.UI.refreshCoins) G.UI.refreshCoins();
   }
 
   /*
@@ -611,6 +768,8 @@ G.DB = (() => {
     // Si ya hay una subida en marcha, se hace otra justo después (para lo que haya cambiado mientras).
     if (pushing) { pending = true; return pushing.then(() => (pending ? pushNow(opts) : undefined)); }
     clearTimeout(pushT); pushT = 0; pushDue = 0;
+    // Igual que lo último que se subió: la nube ya lo tiene (25-10-2026, una escritura de menos).
+    if (sentCanon && sameKey(plain(fold(save))) === sentCanon) { pending = false; setSync('ok'); return Promise.resolve(); }
     if (navigator.onLine === false) {
       pending = true; setSync('offline'); scheduleRetry();
       return Promise.resolve();
@@ -624,7 +783,10 @@ G.DB = (() => {
     pending = false;
     lastPush = Date.now();
     setSync('syncing');
-    let merged = null, grantSnap = null;
+    // (Esta copia sube con una transacción que lee y junta lo de la nube: así un
+    // aparato con una copia vieja no pisa lo de otro, sin el rev del original.)
+    let merged = null, grantSnap = null, tried = '';
+    const u = uid;
     const tr = fs.runTransaction(async tx => {
       const ref = docRef();
       const snap = await tx.get(ref);
@@ -634,6 +796,7 @@ G.DB = (() => {
       grantSnap = gsnap.exists ? gsnap.data() : null;
       G.Grant.applyGrant(merged, grantSnap);
       fold(merged);
+      tried = sameKey(merged);
       const doc = { save: merged, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), v: VERSION };
       if (snap.exists && snap.data().ban === true) doc.ban = true;
       tx.set(ref, doc);
@@ -643,6 +806,8 @@ G.DB = (() => {
     let failed = false;
     pushing = Promise.race([tr, timeout]).then(() => {
       fails = 0;
+      clearTimeout(readT);           // (si estaba sin leer la nube: ya va a la par)
+      if (uid === u) sentCanon = tried;
       write(K_OK + uid, Date.now());
       // Se FUSIONA con lo de ahora (no se sobrescribe): si has cambiado algo
       // mientras se subía (elegir compañero, una compra...), no se pierde.
@@ -835,7 +1000,8 @@ G.DB = (() => {
       commit();
       remove(K_SES);
     }
-    clearTimeout(pushT); clearTimeout(retryT);
+    clearTimeout(pushT); clearTimeout(retryT); clearTimeout(readT);
+    sentCanon = '';
     user = key = save = uid = null; guest = false; pending = false;
     setSync(mode === 'cloud' ? 'ok' : 'local');
   }

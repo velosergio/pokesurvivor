@@ -117,6 +117,9 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
   if (!Array.isArray(members) || !members.length) throw new Error('createRoom necesita members');
   const sim = createSim({ seed: seed >>> 0 });
   const { G, clock } = sim;
+  // Las esferas de Mundo Misterioso (js/systems/orbs.js) aún no van por el
+  // protocolo (ni en la bolsa del snap ni como orden del jugador): en grupo no salen.
+  G.Orbs.enabled = false;
   const ANIMS = ['Idle', 'Walk', 'Attack', 'Shoot', 'Charge', 'Hurt', 'Faint'];
   const TYPES = Object.keys(G.U.TYPE_COLOR);
 
@@ -695,8 +698,9 @@ function createRoom({ members, seed = 1, send, onOver, rank, ranked = true, rule
     }
     if (rank && ranked && why !== 'error' && time >= 120) {
       const kills = results.reduce((a, r) => a + r.ki, 0);
+      const judge = G.Judgment.summary();          // daño a Arceus (su ranking, ver rank.js)
       try {
-        Promise.resolve(rank.submitGroup({ t: Math.floor(time), members: members.map((m, i) => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: !!m.shiny, b: seats[i].pl.buildCode() })), lv: team.level, kills }))
+        Promise.resolve(rank.submitGroup({ t: Math.floor(time), members: members.map((m, i) => ({ uid: m.uid, name: m.name, dex: m.dex, shiny: !!m.shiny, b: seats[i].pl.buildCode() })), lv: team.level, kills, dmg: judge ? judge.dmg : 0 }))
           .catch(e => logger.error('[room] ranking de grupo:', e && e.message));
       } catch (e) { logger.error('[room] ranking de grupo:', e && e.message); }
     }

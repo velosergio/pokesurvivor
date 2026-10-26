@@ -36,7 +36,7 @@
 (function () {
   'use strict';
   /** Versión del protocolo: sube sólo cuando cambia el protocolo o la jugabilidad compartida. */
-  const VERSION = 8;
+  const VERSION = 9;
   /** Tipos binarios (primer byte). */
   const BIN = { in: 1, snap: 2 };
   /** Tipos de texto que se aceptan. */

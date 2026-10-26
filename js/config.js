@@ -15,6 +15,8 @@ G.Config = {
   admins: ['MufTp04DgIR02OExhPau6TopYzo2', '2qKbBtxr9PftGT3j1HXiUtv2MBa2'],   // uids con acceso a Moderación (y en firestore.rules)
   kofi: '',                 // usuario de Ko-fi ('' = sin botón "Apoyar")
   sponsors: '',             // usuario de GitHub Sponsors ('' = sin enlace)
+  youtube: '',              // canal de YouTube ('' = sin botón arriba; ver js/ui/live-ui.js)
+  live: '',                 // live.json con { live, id, at } para el aviso «EN DIRECTO» ('' = sin aviso)
   repo: 'https://github.com/velosergio/pokesurvivor',   // código de esta copia; el contacto (aviso legal,
                             // privacidad, retirada de contenido) es abrir un aviso en <repo>/issues
   tz: 'America/Bogota',     // hora del juego: días, semanas y meses del ranking y de las misiones

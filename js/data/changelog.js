@@ -6,6 +6,90 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-25', title: ['Tickets y Pokémon iguales en todos tus aparatos', 'The same tickets and Pokémon on all your devices'], new: [
+    ['Al acabar una partida en solitario sale el resumen: cada ataque con el daño que ha hecho y su daño por segundo, el daño total y tu objeto. (En grupo sigue saliendo la tabla con los números de cada jugador.)',
+     'When a solo run ends you get the summary: each move with the damage it dealt and its damage per second, your total damage and your item. (In a group you still get the table with each player’s numbers.)'],
+    ['Móvil: vuelve «Apuntar a mano» (Ajustes → Accesibilidad), ahora con un segundo joystick: el dedo en la mitad derecha de la pantalla apunta tus ataques y el de la izquierda te mueve. Al soltarlo, vuelven a apuntar solos.',
+     'Mobile: "Manual aim" is back (Settings → Accessibility), now with a second joystick: your finger on the right half of the screen aims your moves and the one on the left moves you. When you lift it, they aim on their own again.']
+  ], chg: [
+    ['Ranking por Pokémon: ahora cuentan las partidas de 10 minutos o más (antes 5). Los demás rankings siguen desde 2 minutos.',
+     'Per-Pokémon ranking: runs now count from 10 minutes (it was 5). The other rankings still count from 2 minutes.'],
+    ['Perfil público: tus récords y medallas les llegan a los demás como mucho cada 6 horas (antes cada 2). Tú los ves siempre al momento.',
+     'Public profile: your records and medals reach other players at most every 6 hours (it was every 2). You always see them right away.']
+  ], fix: [
+    ['Móvil: con las cartas de nivel, de objeto o de vínculo abiertas ya puedes coger el joystick tocando fuera del recuadro, y al cerrarse sales andando sin tener que levantar el dedo, como con el teclado o el mando.',
+     'Mobile: with the level-up, item or bond cards open you can now grab the joystick by touching outside the box, and when they close you walk off without lifting your finger, like with a keyboard or controller.'],
+    ['Móvil en vertical: en la barra de arriba no se veían las monedas, los tickets ni tu nombre (con tantos botones no cabía y se salía por la izquierda). Ahora va en dos líneas y se ve todo.',
+     'Mobile in portrait: the top bar did not show your coins, tickets or name (with so many buttons it did not fit and went off the left edge). Now it uses two lines and everything is visible.'],
+    ['Gacha con mando: al pasar las animaciones pulsando A seguido, se volvía a tirar sin querer (tras «Continuar» quedaba elegido el botón de tirar) y se gastaban tickets a montones. Ahora los botones de tirar nunca se eligen solos: hay que ir a ellos.',
+     'Gacha with a controller: skipping the animations by pressing A repeatedly pulled again by accident (after "Continue" the pull button was selected) and tickets were spent in bulk. Now the pull buttons are never selected on their own: you have to move to them.'],
+    ['Gacha con mando: ya se pueden elegir «Saltar» y «Continuar» en la tirada (B también continúa).',
+     'Gacha with a controller: you can now select "Skip" and "Continue" during a pull (B also continues).'],
+    ['Esferas con mando: en cada casilla pone X (usar la elegida) o Y (pasar a otra) en vez de las teclas 5-8 del teclado.',
+     'Orbs with a controller: each slot now shows X (use the selected one) or Y (switch) instead of the keyboard keys 5-8.'],
+    ['Guardado en la nube: si conseguías tickets, monedas o Pokémon en un aparato y mientras tanto guardabas en otro, al volver al primero el juego creía que ya estaba todo guardado («Ya está todo guardado en la nube») y no lo subía: en el otro aparato no aparecían. Ahora se mira lo que falta de verdad y Guardar lo sube.',
+     'Cloud save: if you got tickets, coins or Pokémon on one device and saved on another one in the meantime, back on the first one the game thought everything was already saved ("Everything is already saved in the cloud") and did not upload it, so it never showed up on the other device. Now it checks what is really missing and Save uploads it.'],
+    ['Guardado en la nube: después de gastar en un aparato tickets o monedas que ya se habían gastado en otro, los tickets podían ir creciendo solos cada vez que guardabas, y luego bajar de golpe en el otro aparato. Ahora el saldo es el mismo en todos, y lo que ganes después no se descuenta.',
+     'Cloud save: after spending on one device tickets or coins that had already been spent on another, your tickets could keep growing on their own every time you saved, and then suddenly drop on the other device. Now the balance is the same everywhere, and nothing you earn afterwards is taken away.'],
+    ['Guardado en la nube: si al abrir el juego aún no había conexión (pasa a veces en el móvil), se jugaba con la copia guardada en ese aparato, que podía ser vieja, hasta pulsar Guardar: faltaba lo conseguido en otros aparatos. Ahora, en cuanto vuelve la conexión, se trae lo de la nube y se junta con lo tuyo.',
+     'Cloud save: if there was no connection yet when the game opened (it sometimes happens on phones), you played with the copy stored on that device, which could be old, until you pressed Save: what you got on other devices was missing. Now, as soon as the connection is back, the cloud copy is brought in and merged with yours.'],
+    ['Sentencia de Arceus: yendo muy rápido se podía salir de la arena, y ahí ni Arceus ni los legendarios te alcanzaban: se aguantaba para siempre. Ahora nadie sale de la arena.',
+     'Arceus\'s Judgment: going very fast you could get out of the arena, where neither Arceus nor the legendaries could reach you, so you survived forever. Now nobody leaves the arena.'],
+    ['Ranking: las mejores partidas (las de más de 12 derrotados por segundo) no se subían nunca, sin ningún aviso: el servidor las rechazaba enteras. Ahora siempre se suben.',
+     'Ranking: the best runs (more than 12 defeated per second) were never uploaded, without any warning: the server rejected them entirely. Now they are always uploaded.'],
+    ['Ranking: el semanal, el mensual y el histórico ya cuadran entre sí. Cada uno se cargaba por su cuenta y el histórico podía no tener todavía una marca que ya salía en el semanal.',
+     'Ranking: weekly, monthly and all-time now match each other. Each one was loaded separately and all-time could still be missing a time already shown in weekly.'],
+    ['Ranking de amigos: en diario, semanal y mensual sólo salen los amigos que están en el top 50; ahora lo dice en vez de «Todavía no hay marcas aquí». En Histórico salen todos.',
+     'Friends ranking: daily, weekly and monthly only show friends who are in the top 50; it now says so instead of "No records here yet". All-time shows everyone.'],
+    ['Ranking histórico: si tu marca no entraba en el top 50, el ranking seguía enseñando la vieja durante horas, y al mirar tu puesto una partida peor podía sustituir a la mejor que aún no se había subido. Ahora sale tu mejor marca al momento y no se pierde.',
+     'All-time ranking: if your time did not make the top 50, the ranking kept showing your old one for hours, and checking your rank could let a worse run replace the better one that had not been uploaded yet. Now your best time shows up right away and is never lost.'],
+    ['Con el juego abierto en dos pestañas del mismo navegador, lo conseguido o gastado en una ya no se pierde al usar la otra: las dos se pasan los cambios al momento.',
+     'With the game open in two tabs of the same browser, what you get or spend in one is no longer lost when you use the other: both share their changes right away.']
+  ]},
+  { d: '2026-10-24', title: ['Ataques en la colección y ventanas del menú', 'Moves in the collection and menu windows'], chg: [
+    ['Colección: los iconos de los ataques que puede aprender cada Pokémon son el doble de grandes y, al pasar el ratón (o al tocarlos en el móvil), dicen su tipo, si es físico o especial y lo que hace.',
+     'Collection: the icons of the moves each Pokémon can learn are twice as big and, when you hover over them (or tap them on mobile), they show their type, whether they are physical or special, and what they do.'],
+    ['Las ventanas del menú, Ajustes, Novedades y Apoyar se pueden cerrar pulsando fuera de ellas, además de con Volver o Cerrar.',
+     "The menu windows, Settings, What's new and Support can be closed by clicking outside them, as well as with Back or Close."]
+  ], fix: [
+    ['Las ventanas de la Tienda Kecleon y de Novedades ya no se meten por debajo de la barra de arriba: ahora empiezan debajo de ella, como las demás.',
+     "The Kecleon Shop and What's new windows no longer slide under the top bar: they now start below it, like the other windows."]
+  ] },
+  { d: '2026-10-23', title: ['Ranking de daño a Arceus y Tablas', 'Arceus damage ranking and Plates'], new: [
+    ["Ranking partido en dos: a la izquierda, el daño que le has hecho a Arceus; a la derecha, el tiempo aguantado, como siempre. Las dos mitades se cargan a la vez. Todas las tablas empiezan de cero.",
+     "The ranking is now split in two: on the left, the damage you dealt to Arceus; on the right, the time survived, as always. Both halves load at once. Every board starts from zero."],
+    ["Sentencia de Arceus: ahora se le puede pegar. Es invencible y sólo recibe una pequeña parte del daño (cada vez menos), y los ataques le apuntan cuando no queda ningún legendario.",
+     "Arceus's Judgment: you can now hit it. It is invincible and only takes a small part of the damage (less and less over time), and your attacks aim at it when no legendary is left."],
+    ["Tablas: en cada partida Arceus lleva una al azar, que le da su tipo (se avisa al entrar en la arena). Ya no hay un tipo de ataque que sea siempre el mejor.",
+     "Plates: in every run Arceus holds a random one, which gives it its type (you are told when you enter the arena). No move type is always the best anymore."]
+  ], chg: [
+    ["En el minuto 35, Arceus rompe el objeto de todos (Banda Focus incluida).",
+     "At minute 35, Arceus breaks everyone's item (Focus Sash included)."],
+    ["Los legendarios de la Sentencia ya no son el doble de fuertes que el anterior: cada uno tiene un 25 % más de vida y un 15 % más de daño, así que se pueden tumbar. Ya no hay límite de 45 minutos en el ranking.",
+     "The Judgment legendaries are no longer twice as strong as the previous one: each one has 25% more HP and 15% more damage, so they can be taken down. There is no 45-minute limit in the ranking anymore."],
+    ['Los movimientos evolucionados ya no cambian de nombre: se llaman igual con un «+» (Puño Meteoro pasa a Puño Meteoro +). Hacen lo mismo que antes y se siguen distinguiendo por el borde dorado.',
+     'Evolved moves no longer change their name: they keep it with a "+" (Meteor Mash becomes Meteor Mash +). They work just like before and still stand out with their golden border.'],
+    ["Puño Meteoro pega menos: 24 de daño en vez de 34 y una zona un poco más pequeña. Al máximo y evolucionado hacía casi el doble que Avalancha; ahora están a la par.",
+     "Meteor Mash hits softer: 24 damage instead of 34 and a slightly smaller area. Maxed and evolved it dealt almost twice as much as Rock Slide; now they are on par."],
+    ["En la Sentencia de Arceus, el veneno y las quemaduras quitan poco y siempre lo mismo a los legendarios (antes el veneno quitaba un % de su vida): envenenar y huir ya no sirve, hay que pegarles.",
+     "In Arceus's Judgment, poison and burns deal a small, fixed amount to the legendaries (poison used to take a % of their HP): poisoning them and running away no longer works, you have to hit them."]
+  ] },
+  { d: '2026-10-22', title: ['Esferas de Mundo Misterioso, Amuletos Iris y gacha ×100', 'Mystery Dungeon orbs, Shiny Charms and ×100 gacha'], new: [
+    ['Esferas de Mundo Misterioso: objetos de un solo uso que se encuentran durante la partida (cofres, jefes y, a veces, al derrotar a un Pokémon). Soporesfera, Ralentosfera y Rafagaesfera duermen, frenan o lanzan lejos a los enemigos; Focosfera, Luminosfera y Rapidosfera te dan crítico, más campo de visión o velocidad a ti y a los compañeros cercanos. Llevas hasta 4 distintas (3 de cada) y se usan con las teclas 5-8, tocando su casilla encima de los ataques o con X / Y en el mando. A los jefes y legendarios les afectan menos. En esta copia, de momento, no salen en el cooperativo.',
+     'Mystery Dungeon orbs: single-use items you find during the run (chests, bosses and sometimes when you defeat a Pokémon). Slumber Orb, Slow Orb and Blowback Orb put enemies to sleep, slow them down or blow them away; Focus Orb, Luminous Orb and Quick Orb give critical hits, a wider view or speed to you and nearby teammates. You carry up to 4 different ones (3 of each) and use them with keys 5-8, by tapping their slot above your moves, or with X / Y on a controller. Bosses and legendaries are less affected. On this server they do not show up in co-op yet.'],
+    ['Amuletos Iris: uno por región (Kanto, Johto, Hoenn, Sinnoh, Teselia, Kalos, Alola, Galar y Paldea). Al completar la Pokédex de una región (legendarios incluidos) te dan su Amuleto Iris y en su banner del gacha los shiny salen el doble: del 1 % al 2 %. Los tienes en la Mochila, con lo que te falta para cada uno. Si ya habías completado alguna región, el suyo ya es tuyo.',
+     'Shiny Charms: one per region (Kanto, Johto, Hoenn, Sinnoh, Unova, Kalos, Alola, Galar and Paldea). Complete a region\'s Pokédex (legendaries included) to get its Shiny Charm, and shinies become twice as likely in its gacha banner: from 1% to 2%. You can find them in your Bag, along with how many you still need for each one. If you had already completed a region, its charm is already yours.'],
+    ['Gacha: nueva tirada ×100, con 100 tickets normales o con 10 tickets ×10 (son diez ×10 seguidas, cada una con su Épica asegurada). La tragaperras gira 10 veces enseñando lo mejor de cada ×10 y al final ves un resumen (nuevos, shiny y Pokémonedas) con las cartas de mejor a peor. Para que quepa, ya no está la tirada ×1: se tira de 10, de 20 o de 100 (la ×20 de esta copia se queda).',
+     'Gacha: new ×100 pull, with 100 normal tickets or with 10 ×10 tickets (ten ×10 pulls in a row, each with its guaranteed Epic). The slot machine spins 10 times showing the best of each ×10, and at the end you get a summary (new, shiny and PokéCoins) with the cards sorted from best to worst. To make room, the ×1 pull is gone: you pull 10, 20 or 100 at a time (this server keeps its ×20).'],
+    ['Gacha: botón Saltar (o Esc) durante la animación: se acaba la tragaperras y salen todas las cartas de golpe.',
+     'Gacha: Skip button (or Esc) during the animation: the slot machine ends and all the cards show up at once.']
+  ]},
+  { d: '2026-10-21', title: ['La gran actualización: Tienda Kecleon', 'The big update: Kecleon Shop'], new: [
+    ['Mejora nueva: Tienda Kecleon (botón en el menú) con Mentas, Cápsulas Habilidad y 8 MT nuevas cada día. Cada Pokémon tiene ahora su naturaleza (±10 % a dos stats) y su habilidad, con efecto en la partida; se ven y se cambian en su ficha de la colección. Las MT enseñan para siempre ataques de fuera de sus tipos, pero sólo si los aprende en los juegos (Mewtwo puede aprender Bola Sombra; Psyduck no puede aprender Lanzallamas). Gracias a TheAdro7 por la idea y el trabajo de base. En esta copia, la naturaleza y la habilidad cuentan en solitario; en el cooperativo y en el Desafío diario, de momento, el Pokémon va tal cual.',
+     'New: the Kecleon Shop (button in the menu) with Mints, Ability Capsules and 8 new TMs every day. Every Pokémon now has its own nature (±10% to two stats) and ability, with an effect in the run; you can see and change them on its page in the collection. TMs permanently teach moves outside its types, but only if it learns them in the games (Mewtwo can learn Shadow Ball; Psyduck cannot learn Flamethrower). Thanks to TheAdro7 for the idea and the groundwork. On this server, nature and ability count in solo runs; in co-op and in the Daily challenge the Pokémon plays as is for now.'],
+    ['Mejora nueva, Segundo movimiento inicial: con Repertorio, se compra una vez por Pokémon y luego eliges gratis el segundo ataque con el que empiezas (o lo dejas al azar).',
+     'New upgrade, Second starting move: with Repertoire, buy it once per Pokémon and then choose for free the second move you start with (or leave it random).'],
+  ] },
   { d: '2026-10-20', title: ['Físico y especial, mando, 38 ataques nuevos y más idiomas', 'Physical and special, controller, 38 new moves and more languages'], new: [
     ['Ataques físicos y especiales, como en los juegos: cada Pokémon tiene su Ataque, Ataque Especial, Defensa y Defensa Especial. Los ataques físicos pegan con su Ataque y los especiales con su Ataque Especial: Machamp pega fuerte con Golpe Kárate y flojo con Bola Sombra. Con los de su lado bueno pega lo mismo que antes. Al subir de nivel, cada carta dice si el ataque es físico o especial y cuánto rinde con tu Pokémon, y en la colección se ven todas sus estadísticas.',
      'Physical and special moves, like in the games: every Pokémon has its Attack, Special Attack, Defense and Special Defense. Physical moves use its Attack and special moves its Special Attack: Machamp hits hard with Karate Chop and weakly with Shadow Ball. With moves on its strong side it hits as hard as before. When leveling up, each card says whether the move is physical or special and how well it works with your Pokémon, and the collection shows all its stats.'],

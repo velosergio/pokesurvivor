@@ -16,6 +16,29 @@ G.Icons = (() => {
                  '..kmwmmmnk..', '.kmwmsmmmnk.', '.kmmsssmmnk.', '.kmmmsmmmnk.', '..kmmmmmnk..', '...kkkkkk...'];
 
   const UI = {
+    // Tienda Kecleon y Mochila (20-10-2026, dibujados por TheAdro7 en el PR #236): MT, Menta, Cápsulas, Mochila y tienda.
+    tm: { pal: { b: '#7f93ff', d: '#4a5bc4', w: '#e6ecff' }, rows: [
+      '....kkkk....', '..kkbbbbkk..', '.kbbwwbbbbk.', '.kbwwbbbbbk.', 'kbbwbkkbbbbk', 'kbbbk..kbbbk',
+      'kbbbk..kbbbk', 'kbbbbkkbbbdk', '.kbbbbbbbdk.', '.kbbbbbbddk.', '..kkbbddkk..', '....kkkk....'] },
+    mint: { pal: { g: '#5fe08a', w: '#d6ffe2' }, rows: [
+      '............', '.......kkk..', '.....kkgggk.', '....kgggwgk.', '...kgggwggk.', '..kgggwgggk.',
+      '..kggwgggk..', '.kggwgggk...', '.kgwgggk....', '.kwkkkk.....', 'kk..........', 'k...........'] },
+    capsule: { pal: { r: '#ff5f6d', w: '#f4f8ff' }, rows: [
+      '............', '.......kkk..', '......krrrk.', '.....krwrrk.', '....krwrrrk.', '...kkrrrrk..',
+      '..kwwkkrk...', '.kwwwwkk....', '.kwwwwk.....', '.kwwwk......', '..kkk.......', '............'] },
+    capsuleh: { pal: { r: '#ffd23f', w: '#c47bff' }, rows: [
+      '............', '.......kkk..', '......krrrk.', '.....krwrrk.', '....krrrrrk.', '...kkrrrrk..',
+      '..kwwkkrk...', '.kwwwwkk....', '.kwwwwk.....', '.kwwwk......', '..kkk.......', '............'] },
+    bag: { pal: { b: '#e0743d', d: '#9a4418', w: '#ffc59f', y: '#ffd23f' }, rows: [
+      '....kkkk....', '...k....k...', '..kkkkkkkk..', '.kbbbbbbbbk.', '.kbwbbbbbbk.', '.kkkkkkkkkk.',
+      '.kbbbyybbbk.', '.kbbbyybbbk.', '.kbbbbbbbbk.', '.kbbbbbbbdk.', '.kddddddddk.', '..kkkkkkkk..'] },
+    // Amuleto Iris (uno por generación, en la Mochila): una gema con los colores del arcoíris.
+    iris: { pal: { y: '#ffd23f', w: '#ffffff', r: '#ff5f6d', o: '#ffa64d', g: '#5fe08a', b: '#4fb4ff', p: '#c47bff' }, rows: [
+      '....kkkk....', '...ky..yk...', '....kyyk....', '.....kk.....', '....kwrk....', '...kwrrok...',
+      '..kwrroyyk..', '.krooyyggbk.', '..koyggbbk..', '...kgbppk...', '....kbpk....', '.....kk.....'] },
+    shop: { pal: { g: '#5fe08a', w: '#f4f8ff', b: '#b07a4a', y: '#ffd23f' }, rows: [
+      '............', 'kkkkkkkkkkkk', 'kgwgwgwgwgwk', 'kgwgwgwgwgwk', 'kkkkkkkkkkkk', '.kbbbbbbbbk.',
+      '.kbkkkbbbbk.', '.kbkwkbyybk.', '.kbkwkbyybk.', '.kbkwkbbbbk.', '.kbkwkbbbbk.', 'kkkkkkkkkkkk'] },
     gear: { pal: { g: '#c9d6ff', d: '#7f93c9' }, rows: [
       '....kkkk....', '.kk.kggk.kk.', '.kgkkggkkgk.', '..kggggggk..', 'kkggkkkkggkk', 'kgggk..kgddk',
       'kgggk..kgddk', 'kkggkkkkddkk', '..kggddddk..', '.kgkkddkkdk.', '.kk.kddk.kk.', '....kkkk....'] },
@@ -33,6 +56,10 @@ G.Icons = (() => {
     ban: { pal: { r: '#ff5f6d' }, rows: [
       '...kkkkkk...', '..krrrrrrk..', '.krrkkkkrrk.', 'krrk..krrrrk', 'krk..krrkkrk', 'krk.krrk.krk',
       'krkkrrk..krk', 'krrrrk..krrk', '.krrkkkkrrk.', '..krrrrrrk..', '...kkkkkk...', '............'] },
+    // YouTube (botón de la barra de arriba, 23-10-2026).
+    yt: { pal: { r: '#ff2a2a', s: '#b3121a', w: '#ffffff' }, rows: [
+      '............', '............', '.kkkkkkkkkk.', 'krrrrrrrrrrk', 'krrrrwrrrrrk', 'krrrrwwrrrrk',
+      'krrrrwwwrrrk', 'krrrrwwrrrsk', 'krrrrwrrrrsk', 'kssssssssssk', '.kkkkkkkkkk.', '............'] },
     heart: { pal: { r: '#ff5f6d', s: '#c23a4b', w: '#ffd3d8' }, rows: [
       '............', '.kkk....kkk.', 'kwwrk..krrrk', 'kwrrrkkrrrsk', 'krrrrrrrrrsk', 'krrrrrrrrrsk',
       '.krrrrrrrsk.', '..krrrrrsk..', '...krrrsk...', '....krsk....', '.....kk.....', '............'] },
@@ -232,6 +259,17 @@ G.Icons = (() => {
     shove:      ['#...#', '.#.#.', '.....', '.#.#.', '#...#'],
     stun:       ['#.#.#', '.....', '..#..', '.....', '#.#.#']
   };
+
+  // Esferas de Mundo Misterioso (orbs.js): la misma bola con el color de cada una.
+  // l claro · c color · d sombra · w brillo
+  const ORB = ['....kkkk....', '..kkllcckk..', '.kllwlcccdk.', '.klwwlcccdk.', 'kllwlccccddk', 'kllccccccddk',
+               'klccccccdddk', 'kcccccccdddk', '.kcccccdddk.', '.kcccdddddk.', '..kkddddkk..', '....kkkk....'];
+  const ORB_PAL = {
+    slumber: ['#d9ccff', '#9b7bff', '#5a3fb8'], slow: ['#c8f2ff', '#3fb6e8', '#1d6f9c'],
+    blowback: ['#e4fff0', '#6fe0a0', '#2a9a5e'], focus: ['#ffc4ca', '#ff4f63', '#a81f33'],
+    luminous: ['#fff8d0', '#ffd84d', '#c08a10'], quick: ['#ffe2b8', '#ff9a2e', '#b0560c']
+  };
+  for (const [id, [l, c, d]] of Object.entries(ORB_PAL)) UI['orb:' + id] = { pal: { l, c, d, w: '#ffffff' }, rows: ORB };
 
   // ---------------- render ----------------
 

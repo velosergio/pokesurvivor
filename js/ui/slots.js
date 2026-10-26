@@ -7,8 +7,9 @@
  *   G.Icons.rarity; la estrella roja es el shiny). Si es Épica, Legendaria o shiny, el
  *   último rodillo se hace esperar y las luces se vuelven locas.
  *   La ×10 (y la ×20) son tiradas rápidas; cada premio cae como una bola a la bandeja.
+ *   La ×100 se anima como 10 tiradas rápidas, una por cada ×10, con lo mejor de cada una.
  *
- * Un clic acelera la animación; skip() la termina de golpe.
+ * Un clic acelera la animación; skip() la acaba ya (botón Saltar).
  */
 G.Slots = (() => {
   const W = 176, H = 170, CELL = 30;
@@ -33,24 +34,26 @@ G.Slots = (() => {
     });
   }
 
-  /** Anima las tiradas. → Promise que se resuelve al terminar. */
-  async function play(canvas, results) {
+  /** Anima las tiradas. → Promise que se resuelve al terminar.
+   *  @param total  cuántas tiradas son de verdad (100: results trae lo mejor de cada ×10) */
+  async function play(canvas, results, total = results.length) {
     cv = canvas; ctx = cv.getContext('2d');
-    fast = false;
-    skipped = false;
+    fast = false; skipped = false;
     cv.onclick = () => { fast = true; };
-    const n = results.length, ten = n > 1;
+    const hundred = total === 100;
     st = {
       t: 0, lever: 0, reels: REEL_X.map(() => ({ off: Math.random() * 400, spin: false, sym: 'ball', bounce: 0, speed: 0 })),
-      n, tray: [], led: ten ? 'TIRADA ×' + n : '¡SUERTE!', ledCol: C.bulbOn, win: null, frenzy: 0, sparks: []
+      ten: results.length >= 10, n: results.length, tray: [], led: hundred ? 'TIRADA ×100' : results.length >= 10 ? 'TIRADA ×' + results.length : '¡SUERTE!',
+      ledCol: C.bulbOn, win: null, frenzy: 0, sparks: []
     };
     last = performance.now();
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(frame);
 
-    for (let i = 0; i < n && !skipped; i++) {
+    const ten = results.length >= 10;
+    for (let i = 0; i < results.length && !skipped; i++) {
       const r = results[i];
-      if (ten) st.led = 'TIRADA ' + (i + 1) + '/' + n;
+      if (ten) st.led = (hundred ? '×100 · ' : 'TIRADA ') + (i + 1) + '/' + results.length;
       // Palanca.
       G.Audio.sfx('ball');
       await tween(v => { st.lever = v; }, 0, 1, ten ? 0.12 : 0.22);
@@ -81,25 +84,25 @@ G.Slots = (() => {
       if (r.shiny) G.Audio.sfx('shiny');
       if (big) burst(colOf(r), r.rarity === 5 || r.shiny ? 60 : 30);
       // En la ×20 las bolas van en dos filas de 10.
-      st.tray.push({ sym: symOf(r), y: 104, vy: 0, done: false, floor: n > 10 ? 126 + Math.floor(i / 10) * 10 : 132 });
+      st.tray.push({ sym: symOf(r), y: 104, vy: 0, done: false, floor: results.length > 10 ? 126 + Math.floor(i / 10) * 10 : 132 });
       await wait(ten ? (big ? 0.7 : 0.28) : 1.0);
     }
     await wait(0.4);
     stopAll();
   }
 
-  /** Termina la animación ya: play() se resuelve en seguida. */
-  function skip() { skipped = true; }
-
   function stopAll() { cancelAnimationFrame(raf); st = null; if (cv) cv.onclick = null; }
+
+  /** Botón Saltar: la animación acaba ya (play se resuelve al momento). */
+  function skip() { skipped = true; }
 
   function tween(set, a, b, dur) {
     return new Promise(res => {
       const t0 = performance.now(), d = dur * 1000 * (fast ? 0.25 : 1);
       (function step() {
-        const k = Math.min(1, (performance.now() - t0) / d);
+        const k = skipped ? 1 : Math.min(1, (performance.now() - t0) / d);
         set(a + (b - a) * k);
-        if (k < 1 && st && !skipped) requestAnimationFrame(step); else res();
+        if (k < 1 && st) requestAnimationFrame(step); else res();
       })();
     });
   }
@@ -193,7 +196,7 @@ G.Slots = (() => {
     R(28, 124, 106, 22, '#0a0712');
     R(28, 144, 106, 2, C.chromeD);
     st.tray.forEach((b, j) => {
-      const n = st.n;
+      const n = st.ten ? st.n : 1;
       const x = n === 1 ? 81 - 12 : 30 + (j % 10) * 10;
       const size = n === 1 ? 24 : n > 10 ? 10 : 12;
       G.Icons.draw(ctx, b.sym, x, Math.round(b.y - (n === 1 ? 10 : 0)), size);

@@ -4,6 +4,8 @@
  * en el top. Lo leído se guarda 2 h (ver ranking.js).
  * Cada marca enseña su build (movimientos y objeto); al tocarla, el detalle.
  * Diario = el Desafío diario: hoy o ayer, con el Pokémon de ese día arriba.
+ * Dos mitades (23-10-2026): a la izquierda el daño a Arceus y a la derecha el
+ * tiempo aguantado. Salen de la misma lectura (el mismo resumen).
  */
 G.RankingUI = (() => {
   const $ = G.UI.$;
@@ -90,30 +92,45 @@ G.RankingUI = (() => {
 
   async function load() {
     const my = ++token;
-    const list = $('rk-list');
-    list.innerHTML = '<p class="sub">Cargando…</p>';
-    $('rk-me').innerHTML = '';
-    let rows = [], me = null;
+    const list = $('rk-list'), dlist = $('rk-dlist');
+    list.innerHTML = dlist.innerHTML = '<p class="sub">Cargando…</p>';
+    $('rk-me').innerHTML = $('rk-dme').innerHTML = '';
+    let rows = [], me = null, dmg = { rows: [], me: null };
     // En Diario el "periodo" es el día y no hay filtro por Pokémon.
     const per = mode === 'x' ? shownDay() : period, dx = mode === 'x' ? null : dex;
     try {
-      [rows, me] = await Promise.all([
+      [rows, me, dmg] = await Promise.all([
         G.Ranking.top(mode, per, dx, scope === 'friends'),
-        G.Social.me ? G.Ranking.myRank(mode, per, dx) : Promise.resolve(null)
+        G.Social.me ? G.Ranking.myRank(mode, per, dx) : Promise.resolve(null),
+        dx ? Promise.resolve(dmg) : G.Ranking.topDmg(mode, per, scope === 'friends')
       ]);
     } catch (e) {
       if (my !== token) return;
-      list.innerHTML = '<p class="sub">No se pudo cargar el ranking (' + esc(e.code || e.message) + ').</p>';
+      list.innerHTML = dlist.innerHTML = '<p class="sub">No se pudo cargar el ranking (' + esc(e.code || e.message) + ').</p>';
       return;
     }
     if (my !== token) return;
-    list.innerHTML = '';
+    list.innerHTML = dlist.innerHTML = '';
     if (!rows.length) {
-      list.innerHTML = '<p class="sub">Todavía no hay marcas aquí. ¡Sé el primero!</p>';
+      // Sólo amigos en diario, semanal y mensual: ahí sólo se guarda el top 50 (ranking.js).
+      list.innerHTML = scope === 'friends' && period !== 'a' && !dex
+        ? '<p class="sub">Ninguno de tus amigos está en el top 50 de este periodo. En Histórico salen todos.</p>'
+        : '<p class="sub">Todavía no hay marcas aquí. ¡Sé el primero!</p>';
     }
     const uid = G.Social.uid;
     const b = G.Ranking.board(mode, per, dx), done = G.Ranking.reported();
     rows.forEach((r, i) => list.appendChild(rowEl(r, i + 1, r.uids.includes(uid), b, done)));
+
+    // Daño a Arceus (no hay por Pokémon).
+    if (dx) dlist.innerHTML = '<p class="sub">El daño a Arceus no tiene ranking por Pokémon.</p>';
+    else if (!dmg.rows.length) dlist.innerHTML = '<p class="sub">Todavía nadie le ha hecho daño a Arceus aquí. ¡Llega al minuto 30 y pégale!</p>';
+    const db = G.Ranking.board(mode, per);
+    dmg.rows.forEach((r, i) => dlist.appendChild(rowEl(r, i + 1, r.uids.includes(uid), db, done, true)));
+    const dme = $('rk-dme');
+    dme.setAttribute('translate', 'no');
+    dme.textContent = dx || !dmg.me ? '' : dmg.me.out ? G.T('Aún no estás en el top 50 de daño.')
+      : G.I18n.f('Tu puesto: {x}', '#' + dmg.me.pos) + ' · ' + num(dmg.me.d);
+    dme.classList.toggle('hidden', !dme.textContent);
 
     // La frase se monta en cada idioma (traducirla por trozos sale rara).
     const lang = G.I18n.lang, en = lang === 'en', pos = '#' + (me && me.capped ? '1000+' : me && me.pos);
@@ -150,7 +167,10 @@ G.RankingUI = (() => {
       : (en ? `<span translate="no">You don't have a ${where} record ${pn} yet.</span>` : `Aún no tienes marca ${pn} ${where}.`);
   }
 
-  function rowEl(r, pos, mine, b, done) {
+  const num = n => (n || 0).toLocaleString(G.I18n.locale);
+
+  /** Una fila: de tiempo o, con dmg, de daño a Arceus. */
+  function rowEl(r, pos, mine, b, done, dmg = false) {
     const el = document.createElement('div');
     el.className = 'rk-row' + (mine ? ' mine' : '') + (pos <= 3 ? ' top' + pos : '');
     el.insertAdjacentHTML('beforeend', `<span class="pos">${pos <= 3 ? G.Icons.html('trophy', 20) : ''}${pos}</span>`);
@@ -159,8 +179,8 @@ G.RankingUI = (() => {
     r.dex.forEach((d, i) => { if (G.DEX_BY[d]) mons.appendChild(G.UI.spriteCanvas(d, 44, 40, { scale: 1, shiny: !!r.shiny[i] })); });
     el.appendChild(mons);
     el.insertAdjacentHTML('beforeend',
-      `<span class="who"><b translate="no">${r.names.map((n, i) => `<a href="#" class="plink" data-u="${esc(r.uids[i] || '')}">${esc(n)}</a>`).join(' · ')}</b><small>Nv. ${r.lv || 1} · ${(r.kills || 0).toLocaleString(G.I18n.locale)} derrotados</small></span>
-       <span class="time">${fmt(r.t)}</span>`);
+      `<span class="who"><b translate="no">${r.names.map((n, i) => `<a href="#" class="plink" data-u="${esc(r.uids[i] || '')}">${esc(n)}</a>`).join(' · ')}</b>${dmg ? '' : `<small>Nv. ${r.lv || 1} · ${num(r.kills)} derrotados</small>`}</span>
+       <span class="time">${dmg ? num(r.d) : fmt(r.t)}</span>`);
     if (r.b.length) {
       const strip = document.createElement('span');
       strip.className = 'rk-build';

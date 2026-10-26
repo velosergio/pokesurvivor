@@ -83,6 +83,16 @@ G.Player = class Player {
     this.bellHeal = 0;         // curación pendiente del Cascabel Concha
     this.statsTaken = {};      // mejoras de stat cogidas (condición de evolución)
     this.offerSeq = {};        // ofertas de cartas por nivel (el azar de cada una: LevelUp.offer)
+    this.abil = null;          // efecto de su habilidad (data/ability-fx.js), lo pone game.js
+    this.sturdyAt = -999;      // última vez que le salvó Robustez
+  }
+
+  /** Pone la habilidad (G.AbilityFX.of) y aplica lo que hace al empezar. */
+  setAbility(id) {
+    this.abilId = id || '';
+    this.abil = G.AbilityFX.of(id, this.mon);
+    if (this.abil.cdMul) this.cdMul *= this.abil.cdMul;
+    if (this.abil.start) this.abil.start(this);
   }
 
   /** Segundos que hay que estar junto a un compañero caído para levantarlo. */
@@ -109,9 +119,11 @@ G.Player = class Player {
   static get MONO_K() { return 1.2; }
   monoType(type) { return this.mon.types.length === 1 && type === this.mon.types[0]; }
   get spd() {
-    const s = this.baseSpd * this.spdMul * (1 + this.buffs.spd.n * this.buffs.spd.amount) * (this.slowT > 0 ? 0.5 : 1);
+    // (Habilidades: "steady" no se frena; speed() multiplica, ver data/ability-fx.js.)
+    const ab = this.abil || {}, stuck = this.slowT > 0 && !ab.steady;
+    const s = this.baseSpd * this.spdMul * (1 + this.buffs.spd.n * this.buffs.spd.amount) * (stuck ? 0.5 : 1) * (ab.speed ? ab.speed(this) : 1);
     const w = G.Weather.speedFor(this.mon.types);
-    const slow = this.inLiquid ? G.World.liquidEffect(this.mon.types).slow || 1 : 1;
+    const slow = this.inLiquid && !ab.steady ? G.World.liquidEffect(this.mon.types).slow || 1 : 1;
     return G.Judgment && G.Judgment.active ? G.Judgment.capSpd(s * slow * w) : s * slow * w;
   }
   get reduction() { return Math.min(0.8, this.dmgReduce + this.buffs.def.n * this.buffs.def.amount); }
@@ -282,6 +294,21 @@ G.Player = class Player {
   hurt(amount, type = null, pure = false, cat = null) {
     // En grupo tu vida la lleva el servidor (net/coop.js): aquí no te daña nada.
     if (this.invuln > 0 || this.dead || this.netHp) return;
+    // Habilidad (data/ability-fx.js): absorber un tipo, esquivar o recibir menos.
+    const ab = this.abil, cls = cat === 'physical' ? 'p' : cat === 'special' ? 's' : '';
+    if (ab && !pure) {
+      if (type && ab.absorb === type) {
+        this.invuln = 0.3;
+        this.heal(this.maxHp * 0.03);
+        return;
+      }
+      if (ab.dodge && G.RNG.stream('combat').next() < ab.dodge(this, type, cls)) {
+        this.invuln = 0.3;
+        G.FX.dmgText(this.x, this.y - this.bodyH - 4, '¡Esquiva!', '#bfe8ff');
+        return;
+      }
+      if (ab.inMul) amount *= ab.inMul(this, type, cls);
+    }
     if (!pure) amount *= G.Stats.taken(this.mon, cat);
     let eff = null;
     if (type) {
@@ -309,6 +336,14 @@ G.Player = class Player {
       G.FX.dmgText(this.x, this.y - this.bodyH - 16, '¡Banda Focus!', '#ff9a3d', true);
       G.FX.ring(this.x, this.y, 6, 70, '#ff9a3d', 0.5, 4);
     }
+    // Robustez (habilidad): lo mismo, una vez cada 90 s.
+    if (this.hp <= 0 && ab && ab.sturdy && performance.now() - this.sturdyAt > 90000) {
+      this.sturdyAt = performance.now();
+      this.hp = 1; this.invuln = 1.2;
+      G.FX.dmgText(this.x, this.y - this.bodyH - 16, '¡Robustez!', '#c9b48a', true);
+      G.FX.ring(this.x, this.y, 6, 70, '#c9b48a', 0.5, 4);
+    }
+    if (ab && ab.hurt && this.hp > 0) ab.hurt(this, type, cls);
     if (this.hp <= 0) this.hp = 0;
     this.dmgTaken += Math.max(0, hp0 - this.hp);
     if (this.hp <= 0) {
@@ -320,6 +355,7 @@ G.Player = class Player {
   }
 
   heal(amount) {
+    if (this.abil && this.abil.healMul) amount *= this.abil.healMul;     // Gula, Recogida
     const before = this.hp;
     this.hp = Math.min(this.maxHp, this.hp + amount);
     const got = Math.round(this.hp - before);
@@ -389,6 +425,17 @@ G.Player = class Player {
     if (this.bellHeal > 0) { const h = Math.min(this.bellHeal, 4 * dt); this.hp = Math.min(this.maxHp, this.hp + h); this.bellHeal -= h; }
     if (this.power && (this.power.t -= dt) <= 0) { this.power.def.off(this); this.power = null; }
     if (this.regen > 0) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    if (this.abil && this.abil.tick) this.abil.tick(this, dt);
+    // Sequía, Llovizna...: su clima al empezar y cada 3 min, si no hay otro. En
+    // grupo lo pone el anfitrión, que es quien manda el clima a todos: el de un
+    // invitado se lo pide (coop.js, 'wxq'; antes del 25-10-2026 el clima de los
+    // invitados no salía nunca).
+    if (this.abil && this.abil.summon && !this.remote && (this.sumT = (this.sumT || 0) - dt) <= 0) {
+      this.sumT = 180;
+      if (G.Weather.current) { /* ya hay uno */ }
+      else if (!G.Coop.active || G.Coop.isHost) G.Weather.debugStart(this.abil.summon, 60);
+      else G.Coop.toHost(['wxq', this.abil.summon]);
+    }
 
     // --- movimiento con colisiones ---
     // (En cooperativo la pausa no para el juego: sólo te quedas quieto.)
@@ -405,10 +452,11 @@ G.Player = class Player {
     if (this.walking) this.moveAngle = Math.atan2(ay, ax);
 
     // --- terreno líquido ---
-    this.inLiquid = G.World.isLiquid(this.x, this.y);
+    // (Levitación: flota por encima del agua y la lava.)
+    this.inLiquid = !(this.abil && this.abil.levitate) && G.World.isLiquid(this.x, this.y);
     if (this.inLiquid) {
       const le = G.World.liquidEffect(this.mon.types);
-      if (le.dmg) {
+      if (le.dmg && !(this.abil && this.abil.lavaProof)) {
         this.lavaTick -= dt;
         if (this.lavaTick <= 0) {
           this.lavaTick = le.every; this.invuln = 0;
@@ -457,15 +505,19 @@ G.Player = class Player {
 
   /**
    * Ángulo de "Apuntar a mano", o null si toca apuntar solo. Manda lo último
-   * que se haya usado: el stick derecho mientras se empuja; si no, el ratón si
-   * se ha movido después (en PC). Soltar el stick sin tocar el ratón = solo.
+   * que se haya usado: el stick derecho mientras se empuja, el joystick de
+   * apuntar en el móvil (touch.js) mientras se arrastra; si no, el ratón si se
+   * ha movido después (sólo en PC). Soltar el stick sin tocar el ratón = solo.
+   * (En el móvil nunca cuenta el "ratón": cada toque lo mueve, y antes del
+   * 25-10-2026 los ataques se iban hacia el dedo con el que te movías.)
    */
   handAim() {
-    // En el móvil (táctil) no hay apuntado a mano: siempre apunta solo.
-    if (this.remote || G.Settings.touch || !G.Settings.get('aimManual')) return null;
+    if (this.remote || !G.Settings.get('aimManual')) return null;
     const st = G.Pad.aim();
     if (st) return Math.atan2(st[1], st[0]);
-    if (G.Touch.active || !G.Input.mouseMovedAt || G.Input.mouseMovedAt < G.Pad.aimAt) return null;
+    const ta = G.Touch.aim();
+    if (ta) return Math.atan2(ta[1], ta[0]);
+    if (G.Settings.touch || G.Touch.active || !G.Input.mouseMovedAt || G.Input.mouseMovedAt < G.Pad.aimAt) return null;
     const w = G.Input.mouseWorld();
     const dx = w.x - this.x, dy = w.y - (this.y - G.LIFT * 0.5);
     return Math.hypot(dx, dy) < 4 ? null : Math.atan2(dy, dx);

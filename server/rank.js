@@ -5,11 +5,13 @@
  * de servicio, que salta las reglas de Firestore. Escribe EXACTAMENTE lo mismo
  * que escribía el navegador (js/net/ranking.js, submitGroupNow y store):
  *
- *   lbs/{tabla}        { top: { id: { t, uids, names, dex, shiny?, lv, kills, b? } }, me, ev }
- *   lb/{tabla}/e/{id}  { t, uids, names, dex, shiny, lv, kills, b?, at }
- *   (b = la build de cada miembro, Player.buildCode)
+ *   lbs/{tabla}        { top:  { id: { t, uids, names, dex, shiny?, lv, kills, b? } },
+ *                        dtop: { id: { d, uids, names, dex, shiny? } }, me, ev, dev }
+ *   lb/{tabla}/e/{id}  { t, uids, names, dex, shiny, lv, kills, b?, dmg, at }
+ *   (b = la build de cada miembro, Player.buildCode; dmg / dtop = daño a Arceus,
+ *    del original desde el 23-10-2026: no en las tablas de cada Pokémon)
  *
- *   tabla = g_<periodo> (diario, semanal, mensual, histórico) y g_all3_p<dex>
+ *   tabla = g_<periodo> (diario, semanal, mensual, histórico) y g_all4_p<dex>
  *   por cada Pokémon distinto del equipo (desde MIN_T_MON); id = uids ordenados unidos con "_".
  *
  * Antes mira saves/{uid}.sus de cada miembro: si alguno está marcado, no sube.
@@ -31,9 +33,9 @@ const TOP_ONLY = new Set(['d', 'w', 'm', 'p']);
 const TOP = 50;
 /** Las partidas de menos de 2 minutos no se suben. */
 const MIN_T = 120;
-const ALL = 'all3';
-/** En el histórico de cada Pokémon, desde 5 min (como MIN_T_MON en ranking.js). */
-const MIN_T_MON = 300;
+const ALL = 'all4';
+/** En el histórico de cada Pokémon, desde 10 min (como MIN_T_MON en ranking.js). */
+const MIN_T_MON = 600;
 /** Hasta 1 h (como validEntry en firestore.rules) y de 2 a 10 jugadores (como las salas). */
 const MAX_T = 3600, MAX_TEAM = 10;
 /** Largo máximo de la build de cada miembro (como Player.BUILD_MAX y firestore.rules). */
@@ -68,10 +70,11 @@ function periodIds(date) {
   return { d: 'd' + y + p2(m) + p2(d), w: 'w' + w.year + '-' + p2(w.week), m: 'm' + y + p2(m), y: 'y' + y, a: ALL };
 }
 
-/** Nombres de las tablas: con una "r" detrás (18-10-2026, todas desde cero; ver ranking.js). */
+/** Nombres de las tablas: con una "a" detrás (23-10-2026, todas desde cero con el daño a Arceus; ver ranking.js). */
+const GEN = 'a';
 function boardIds(date) {
   const p = periodIds(date);
-  return Object.assign({}, p, { d: p.d + 'r', w: p.w + 'r', m: p.m + 'r', y: p.y + 'r' });
+  return Object.assign({}, p, { d: p.d + GEN, w: p.w + GEN, m: p.m + GEN, y: p.y + GEN });
 }
 
 // ---------------- valores de Firestore ----------------
@@ -192,46 +195,60 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
     const { transaction } = await call('beginTransaction', { options: { readWrite: retry ? { retryTransaction: retry } : {} } });
     let open = true;
     try {
-      // El resumen de cada tabla y, en el histórico, la marca del equipo (como
-      // el navegador: en los periodos de sólo top 50 basta el resumen).
+      // El resumen y la marca del equipo de cada tabla (como el navegador en la transacción de store()).
       const paths = [];
-      for (const [b, period] of boards) {
-        paths.push('lbs/' + b);
-        if (!TOP_ONLY.has(period)) paths.push('lb/' + b + '/e/' + id);
-      }
+      for (const [b] of boards) paths.push('lbs/' + b, 'lb/' + b + '/e/' + id);
       const docs = await getAll(paths, { transaction });
       const writes = [], better = [];
-      const eFields = fieldsOf(entry);
-      // (Sin "shiny" si no hay ninguno: el resumen pesa menos.)
-      const mine = { t: entry.t, uids: entry.uids, names: entry.names, dex: entry.dex, lv: entry.lv, kills: entry.kills };
-      if (entry.shiny.some(Boolean)) mine.shiny = entry.shiny;
-      if (entry.b) mine.b = entry.b;
-      const mineV = toFs(mine);
-      const tOf = v => +fromFs(v && v.mapValue && v.mapValue.fields && v.mapValue.fields.t) || 0;
+      const fOf = (v, k) => +fromFs(v && v.mapValue && v.mapValue.fields && v.mapValue.fields[k]) || 0;
+      // La peor fila de un top (en empate, la última, como sorted().pop()).
+      const lowOf = (rows, k) => { let low = null; for (const [x, v] of Object.entries(rows)) if (!low || fOf(v, k) <= low.v) low = { id: x, v: fOf(v, k) }; return low; };
       for (const [b, period] of boards) {
         const topOnly = TOP_ONLY.has(period);
         const ePath = 'lb/' + b + '/e/' + id, sPath = 'lbs/' + b;
-        // ¿Ya había una marca igual o mejor? Nada que escribir.
+        // Daño a Arceus: sólo en las tablas de periodo (no en las de cada Pokémon).
+        const dmg = period === 'p' ? 0 : entry.dmg || 0;
         const old = docs.get(ePath);
-        if (old && (+fromFs(old.t) || 0) >= entry.t) continue;
+        const ot = old ? +fromFs(old.t) || 0 : 0, od = old ? +fromFs(old.dmg) || 0 : 0;
+        const bt = entry.t > ot, bd = dmg > od;
+        // ¿Ya había algo igual o mejor? Nada que escribir.
+        if (!bt && !bd) continue;
+        // La marca: lo mejor de cada cosa (nivel, derrotados y build, los del mejor tiempo).
+        const e = Object.assign({}, entry, { dmg: Math.max(dmg, od) },
+          bt ? {} : { t: ot, lv: +fromFs(old.lv) || 1, kills: +fromFs(old.kills) || 0, b: old.b ? fromFs(old.b) : undefined });
+        if (!e.b) delete e.b;
         const s = docs.get(sPath);
         const top = Object.assign({}, s && s.top && s.top.mapValue && s.top.mapValue.fields);
-        if (id in top && tOf(top[id]) >= entry.t) continue;
-        let ev = '';
-        if (!(id in top) && Object.keys(top).length >= TOP) {
-          let low = null;   // la peor (en empate, la última, como sorted().pop())
-          for (const [k, v] of Object.entries(top)) if (!low || tOf(v) <= low.t) low = { id: k, t: tOf(v) };
-          if (low.t >= entry.t) {                       // no entra en el top
-            if (topOnly) continue;
-            writes.push(put(ePath, eFields, true));
-            if (period !== 'p') better.push(period);
-            continue;
+        const dtop = Object.assign({}, s && s.dtop && s.dtop.mapValue && s.dtop.mapValue.fields);
+        let ev = '', dev = '', inT = false, inD = false;
+        if (bt) {
+          if (id in top || Object.keys(top).length < TOP) inT = true;
+          else { const low = lowOf(top, 't'); if (low.v < e.t) { ev = low.id; delete top[ev]; inT = true; } }
+          if (inT) {
+            // (Sin "shiny" si no hay ninguno: el resumen pesa menos.)
+            const row = { t: e.t, uids: e.uids, names: e.names, dex: e.dex, lv: e.lv, kills: e.kills };
+            if (e.shiny.some(Boolean)) row.shiny = e.shiny;
+            if (e.b) row.b = e.b;
+            top[id] = toFs(row);
           }
-          ev = low.id; delete top[ev];
         }
-        top[id] = mineV;
-        writes.push(put(ePath, eFields, true),
-                    put(sPath, { top: { mapValue: { fields: top } }, me: toFs(id), ev: toFs(ev) }));
+        if (bd) {
+          if (id in dtop || Object.keys(dtop).length < TOP) inD = true;
+          else { const low = lowOf(dtop, 'd'); if (low.v < e.dmg) { dev = low.id; delete dtop[dev]; inD = true; } }
+          if (inD) {
+            const row = { d: e.dmg, uids: e.uids, names: e.names, dex: e.dex };
+            if (e.shiny.some(Boolean)) row.shiny = e.shiny;
+            dtop[id] = toFs(row);
+          }
+        }
+        if (!inT && !inD) {
+          // No entra en ningún top: en el histórico se guarda la marca (su puesto); en los demás, nada.
+          if (!topOnly && bt) { writes.push(put(ePath, fieldsOf(e), true)); if (period !== 'p') better.push(period); }
+          continue;
+        }
+        const sum = { top: { mapValue: { fields: top } }, me: toFs(id), ev: toFs(ev) };
+        if (Object.keys(dtop).length) Object.assign(sum, { dtop: { mapValue: { fields: dtop } }, dev: toFs(dev) });
+        writes.push(put(ePath, fieldsOf(e), true), put(sPath, sum));
         if (period !== 'p') better.push(period);
       }
       if (!writes.length) return [];
@@ -255,7 +272,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
   /**
    * Sube la marca de un equipo. Comprueba lo mismo que firestore.rules
    * (validEntry), que la cuenta de servicio se salta.
-   * @param {{ t: number, members: {uid,name,dex,shiny,b?}[], lv: number, kills: number }} r
+   * @param {{ t: number, members: {uid,name,dex,shiny,b?}[], lv: number, kills: number, dmg?: number }} r
    * @returns {Promise<string[]>} periodos mejorados ('d', 'w', 'm', 'a')
    */
   async function submitGroup(r) {
@@ -270,7 +287,7 @@ function createRank({ serviceAccount, fetch: fetchFn = globalThis.fetch, now = D
     if (!Number.isInteger(kills) || kills < 0 || kills > 100 + t * 12) return [];
     const id = ms.map(m => m.uid).join('_');
     const entry = { t, uids: ms.map(m => m.uid), names: ms.map(m => String(m.name || '')), dex: ms.map(m => m.dex),
-                    shiny: ms.map(m => !!m.shiny), lv, kills };
+                    shiny: ms.map(m => !!m.shiny), lv, kills, dmg: Number.isFinite(r.dmg) && r.dmg > 0 ? Math.floor(Math.min(r.dmg, 1e15)) : 0 };
     if (ms.some(m => typeof m.b === 'string' && m.b)) entry.b = ms.map(m => (typeof m.b === 'string' ? m.b.slice(0, BUILD_MAX) : ''));
     const ids = boardIds(new Date(now()));
     const boards = PERIODS.map(p => ['g_' + ids[p], p]);
